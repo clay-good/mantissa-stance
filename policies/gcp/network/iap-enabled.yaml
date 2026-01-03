@@ -1,0 +1,49 @@
+id: gcp-network-009
+name: Identity-Aware Proxy enabled for web apps
+description: |
+  Ensure Identity-Aware Proxy (IAP) is enabled for web applications.
+  IAP provides context-aware access control, replacing VPN-based
+  access with zero-trust security.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_backend_service
+
+check:
+  type: expression
+  expression: "resource.iap_enabled == true or resource.internal_only == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Security > Identity-Aware Proxy
+    2. Select the backend service
+    3. Enable IAP:
+       - Toggle IAP on
+       - Configure OAuth consent screen if needed
+    4. Add IAM policy:
+       - Grant IAP-secured Web App User role
+       - Specify allowed users/groups
+    5. Configure access levels (optional):
+       - Device trust
+       - IP restrictions
+       - Time-based access
+  automation_supported: false
+
+tags:
+  - network
+  - iap
+  - zero-trust
+  - access-control
+  - authentication
+
+references:
+  - https://cloud.google.com/iap/docs/enabling-compute-howto

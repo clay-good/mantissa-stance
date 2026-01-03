@@ -1,0 +1,49 @@
+id: aws-rds-006
+name: RDS auto minor version upgrade enabled
+description: |
+  Ensure RDS instances have automatic minor version upgrades enabled.
+  Minor version upgrades include security patches and bug fixes that
+  help maintain the security posture of the database.
+
+enabled: true
+severity: medium
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.auto_minor_version_upgrade == true"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.13"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.3.3"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Maintenance:
+       - Enable "Auto minor version upgrade"
+    5. Choose when to apply the modification
+    6. Click Modify DB Instance
+
+    Minor version upgrades are applied during the maintenance window.
+  automation_supported: false
+
+tags:
+  - rds
+  - patching
+  - database
+  - maintenance
+  - security
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_UpgradeDBInstance.Upgrading.html

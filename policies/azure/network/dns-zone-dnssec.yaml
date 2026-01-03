@@ -1,0 +1,46 @@
+id: azure-network-005
+name: Azure DNS zone DNSSEC enabled
+description: |
+  Ensure Azure DNS public zones have DNSSEC signing enabled.
+  DNSSEC provides authentication of DNS responses, protecting
+  against DNS spoofing attacks.
+
+enabled: true
+severity: medium
+
+resource_type: azure_dns_zone
+
+check:
+  type: expression
+  expression: "resource.dnssec_enabled == true or resource.zone_type == 'Private'"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-20"
+
+remediation:
+  guidance: |
+    1. Navigate to DNS Zone in Azure Portal
+    2. Select DNSSEC (preview/GA depending on region)
+    3. Enable DNSSEC signing:
+       - Click Enable
+       - Note the DS records
+    4. Add DS records to parent zone:
+       - Contact domain registrar
+       - Add DS records for validation
+    5. Verify DNSSEC is working
+
+    Note: DNSSEC is for public zones only.
+    Private zones use Azure-provided security.
+  automation_supported: false
+
+tags:
+  - network
+  - dns
+  - dnssec
+  - security
+  - authentication
+
+references:
+  - https://docs.microsoft.com/en-us/azure/dns/dnssec

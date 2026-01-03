@@ -1,0 +1,48 @@
+id: azure-sql-006
+name: Azure SQL Azure AD administrator configured
+description: |
+  Ensure an Azure Active Directory administrator is configured for SQL Server.
+  AAD authentication provides centralized identity management, MFA support,
+  and eliminates the need for SQL authentication.
+
+enabled: true
+severity: high
+
+resource_type: azure_sql_server
+
+check:
+  type: expression
+  expression: "resource.aad_admin_configured == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "4.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+
+remediation:
+  guidance: |
+    1. Navigate to SQL Server in Azure Portal
+    2. Under Settings, select Azure Active Directory
+    3. Click "Set admin"
+    4. Select a user or group from Azure AD
+    5. Save configuration
+
+    Best practice: Use an Azure AD group as the admin
+    to allow for multiple administrators.
+  automation_supported: false
+
+tags:
+  - sql
+  - azure-sql
+  - aad
+  - authentication
+  - database
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-sql/database/authentication-aad-configure

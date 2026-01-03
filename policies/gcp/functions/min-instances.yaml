@@ -1,0 +1,43 @@
+id: gcp-functions-006
+name: Cloud Function minimum instances configured
+description: |
+  Ensure production Cloud Functions have minimum instances configured to
+  reduce cold start latency. Minimum instances keep containers warm and
+  ready to handle requests immediately.
+
+enabled: true
+severity: low
+
+resource_type: gcp_cloud_function
+
+check:
+  type: expression
+  expression: "resource.min_instances >= 1 or resource.environment != 'production'"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Functions in Google Cloud Console
+    2. Select the function
+    3. Click Edit
+    4. Under Runtime, build and connections:
+       - Set "Minimum number of instances" to at least 1
+    5. Deploy the function
+
+    Note: Minimum instances incur costs even when idle.
+    Configure appropriately for latency requirements.
+  automation_supported: false
+
+tags:
+  - functions
+  - performance
+  - cold-start
+  - serverless
+  - availability
+
+references:
+  - https://cloud.google.com/functions/docs/configuring/min-instances

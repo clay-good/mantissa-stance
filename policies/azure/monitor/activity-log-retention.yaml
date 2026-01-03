@@ -1,0 +1,49 @@
+id: azure-monitor-001
+name: Activity Log retention at least 365 days
+description: |
+  Ensure Activity Log retention is set for at least 365 days. The Activity Log
+  contains subscription-level events including security events. Adequate retention
+  ensures audit data is available for forensic investigations and compliance.
+
+enabled: true
+severity: medium
+
+resource_type: azure_monitor_log_profile
+
+check:
+  type: expression
+  expression: "resource.retention_days >= 365 or resource.retention_enabled == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.1.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Monitor in Azure Portal
+    2. Select Activity log
+    3. Click "Export Activity Logs"
+    4. Configure diagnostic settings:
+       - Select subscription
+       - Choose destination (Log Analytics, Storage, Event Hub)
+       - For Storage, set retention to at least 365 days
+    5. Save configuration
+  automation_supported: false
+
+tags:
+  - monitor
+  - activity-log
+  - retention
+  - audit
+  - compliance
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log
+  - https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/diagnostic-settings

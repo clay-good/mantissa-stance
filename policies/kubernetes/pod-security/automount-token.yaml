@@ -1,0 +1,45 @@
+id: k8s-pod-016
+name: Pods should disable automatic service account token mounting
+description: |
+  By default, pods mount a service account token that can be used to
+  authenticate to the Kubernetes API. Most pods don't need this access,
+  and the token should be disabled to reduce exposure.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.automount_service_account_token == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.6"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review if the pod needs Kubernetes API access
+    2. If not needed, disable automount in the pod spec:
+       spec:
+         automountServiceAccountToken: false
+    3. Or disable on the service account:
+       automountServiceAccountToken: false
+    4. If API access is needed, use specific RBAC permissions
+    5. Consider using projected service account tokens
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - service-account
+  - api-access
+  - least-privilege
+
+references:
+  - https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/

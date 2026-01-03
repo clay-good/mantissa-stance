@@ -1,0 +1,40 @@
+id: k8s-pod-013
+name: Containers should have readiness probes defined
+description: |
+  Readiness probes help Kubernetes determine when a container is ready
+  to accept traffic. Without probes, traffic may be sent to containers
+  that are not fully initialized, causing request failures.
+
+enabled: true
+severity: low
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_readiness_probe == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Add readinessProbe to each container
+    3. Configure appropriate health check endpoints
+    4. Set suitable initialDelaySeconds and periodSeconds
+    5. Ensure probe correctly indicates readiness state
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - readiness-probe
+  - availability
+  - health-check
+
+references:
+  - https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/

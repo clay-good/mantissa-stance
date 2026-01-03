@@ -1,0 +1,54 @@
+id: aws-rds-001
+name: RDS instance storage encryption enabled
+description: |
+  Ensure RDS database instances have storage encryption enabled.
+  Encryption at rest protects data stored on disk from unauthorized
+  access and is required by most compliance frameworks.
+
+enabled: true
+severity: high
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.storage_encrypted == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.3.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.3"
+
+remediation:
+  guidance: |
+    Note: You cannot enable encryption on an existing unencrypted RDS instance.
+    To encrypt an existing database:
+    1. Create a snapshot of the unencrypted instance
+    2. Copy the snapshot with encryption enabled
+    3. Restore a new instance from the encrypted snapshot
+    4. Update applications to use the new instance endpoint
+    5. Delete the old unencrypted instance after verification
+
+    For new instances:
+    1. Enable encryption during instance creation
+    2. Select appropriate KMS key (AWS managed or customer managed)
+  automation_supported: false
+
+tags:
+  - rds
+  - encryption
+  - database
+  - data-protection
+  - storage
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html

@@ -1,0 +1,48 @@
+id: gcp-network-001
+name: Load balancer Cloud Armor protection enabled
+description: |
+  Ensure Google Cloud Load Balancers have Cloud Armor security policies
+  attached. Cloud Armor provides DDoS protection and WAF capabilities
+  for internet-facing applications.
+
+enabled: true
+severity: high
+
+resource_type: gcp_compute_backend_service
+
+check:
+  type: expression
+  expression: "resource.security_policy exists"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Security > Cloud Armor
+    2. Create a security policy:
+       - Add preconfigured WAF rules
+       - Configure adaptive protection
+       - Set default action
+    3. Navigate to Load Balancing
+    4. Select the load balancer
+    5. Edit backend service
+    6. Under Security:
+       - Select the Cloud Armor policy
+    7. Save configuration
+  automation_supported: false
+
+tags:
+  - network
+  - cloud-armor
+  - waf
+  - load-balancer
+  - protection
+
+references:
+  - https://cloud.google.com/armor/docs/configure-security-policies

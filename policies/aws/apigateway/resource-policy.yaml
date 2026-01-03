@@ -1,0 +1,48 @@
+id: aws-apigateway-008
+name: API Gateway has resource policy
+description: |
+  Ensure API Gateway REST APIs have resource policies configured to control
+  access. Resource policies provide additional access control beyond
+  authorization at the method level.
+
+enabled: true
+severity: low
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.has_resource_policy == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.13"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the REST API
+    3. Go to Resource Policy
+    4. Create a policy to restrict access:
+       - By source IP/CIDR
+       - By source VPC or VPC endpoint
+       - By AWS account
+       - By IAM principal
+    5. Deploy API to apply changes
+  automation_supported: false
+
+tags:
+  - apigateway
+  - resource-policy
+  - access-control
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-resource-policies.html

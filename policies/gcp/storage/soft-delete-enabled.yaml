@@ -1,0 +1,49 @@
+id: gcp-storage-009
+name: Cloud Storage bucket soft delete enabled
+description: |
+  Ensure Cloud Storage buckets have soft delete enabled. Soft delete
+  retains deleted objects for a configurable period, enabling recovery
+  from accidental deletions without versioning overhead.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.soft_delete_retention_duration >= 604800"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in Console
+    2. Select the bucket
+    3. Go to Protection tab
+    4. Under Soft delete policy:
+       - Set retention duration (7-90 days)
+    5. Save changes
+
+    Using gcloud:
+    gcloud storage buckets update gs://BUCKET_NAME \
+      --soft-delete-duration=7d
+
+    Default is 7 days. Maximum is 90 days.
+  automation_supported: false
+
+tags:
+  - storage
+  - soft-delete
+  - gcs
+  - data-protection
+  - recovery
+
+references:
+  - https://cloud.google.com/storage/docs/soft-delete

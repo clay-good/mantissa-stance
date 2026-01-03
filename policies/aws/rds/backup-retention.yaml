@@ -1,0 +1,53 @@
+id: aws-rds-007
+name: RDS backup retention at least 7 days
+description: |
+  Ensure RDS database instances have backup retention set to at least 7 days.
+  Adequate backup retention enables point-in-time recovery and protects
+  against data loss from accidental deletion or corruption.
+
+enabled: true
+severity: high
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.backup_retention_period >= 7"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.3.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-9"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.11"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Backup:
+       - Set "Backup retention period" to at least 7 days
+       - Consider 14-35 days for production workloads
+    5. Choose when to apply the modification
+    6. Click Modify DB Instance
+
+    Note: Longer retention periods increase storage costs.
+  automation_supported: false
+
+tags:
+  - rds
+  - backup
+  - database
+  - retention
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.html

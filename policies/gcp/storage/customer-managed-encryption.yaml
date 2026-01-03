@@ -1,0 +1,48 @@
+id: gcp-storage-004
+name: Customer-managed encryption keys used
+description: |
+  Ensure Cloud Storage buckets use customer-managed encryption keys (CMEK).
+  CMEK provides additional control over encryption keys and enables
+  key rotation and access auditing through Cloud KMS.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.encryption_type == 'customer_managed'"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "5.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+
+remediation:
+  guidance: |
+    1. Create a Cloud KMS key ring and key if not exists
+    2. Grant the Cloud Storage service account permission to use the key
+    3. Navigate to Cloud Storage in GCP Console
+    4. Select the bucket or create a new one
+    5. Under "Default encryption key", select "Customer-managed key"
+    6. Choose the Cloud KMS key
+    7. Save the changes
+  automation_supported: false
+
+tags:
+  - storage
+  - encryption
+  - kms
+  - data-protection
+  - gcp
+
+references:
+  - https://cloud.google.com/storage/docs/encryption/customer-managed-keys
+  - https://cloud.google.com/kms/docs/overview

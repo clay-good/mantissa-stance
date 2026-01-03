@@ -1,0 +1,51 @@
+id: azure-compute-007
+name: NSG flow logs enabled
+description: |
+  Ensure NSG flow logs are enabled for all Network Security Groups.
+  Flow logs provide visibility into network traffic for security
+  monitoring, compliance auditing, and troubleshooting.
+
+enabled: true
+severity: medium
+
+resource_type: azure_network_security_group
+
+check:
+  type: expression
+  expression: "resource.flow_logs_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-12"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Watcher in Azure Portal
+    2. Select "NSG flow logs"
+    3. Select the NSG to enable flow logs
+    4. Configure flow log settings:
+       - Status: On
+       - Flow Logs version: Version 2 (recommended)
+       - Storage account: Select or create
+       - Retention: Set appropriate retention (days)
+    5. Optionally enable Traffic Analytics
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - compute
+  - nsg
+  - flow-logs
+  - monitoring
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/network-watcher/network-watcher-nsg-flow-logging-overview
+  - https://docs.microsoft.com/en-us/azure/network-watcher/traffic-analytics

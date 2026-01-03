@@ -1,0 +1,53 @@
+id: gcp-storage-006
+name: Cloud Storage bucket has retention policy
+description: |
+  Ensure Cloud Storage buckets have retention policies for compliance data.
+  Retention policies prevent object deletion or modification until the
+  retention period expires, providing WORM-like protection.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.retention_policy exists or resource.requires_retention == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "5.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-9"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in Console
+    2. Select the bucket
+    3. Go to Protection tab
+    4. Under Retention policy:
+       - Set retention period (seconds)
+       - Optionally lock the policy (irreversible)
+    5. Save changes
+
+    Using gsutil:
+    gsutil retention set DURATION gs://BUCKET_NAME
+
+    Note: Locked retention policies cannot be removed
+    or shortened until all objects expire.
+  automation_supported: false
+
+tags:
+  - storage
+  - retention
+  - gcs
+  - compliance
+  - immutability
+
+references:
+  - https://cloud.google.com/storage/docs/bucket-lock

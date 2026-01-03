@@ -1,0 +1,53 @@
+id: aws-sagemaker-009
+name: SageMaker training job network isolation enabled
+description: |
+  Ensure SageMaker training jobs have network isolation enabled.
+  Network isolation prevents training containers from making
+  network calls, protecting against data exfiltration.
+
+enabled: true
+severity: medium
+
+resource_type: aws_sagemaker_training_job
+
+check:
+  type: expression
+  expression: "resource.network_isolation == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(e)(1)"
+
+remediation:
+  guidance: |
+    To enable network isolation for training jobs:
+    1. Create training job with isolation enabled:
+       - aws sagemaker create-training-job \
+           --enable-network-isolation \
+           --input-data-config ...
+    2. Note that network isolation:
+       - Prevents containers from outbound network calls
+       - Requires all data to be in input channels
+       - Cannot download packages at runtime
+    3. Pre-package all dependencies in container image
+    4. Use S3 input channels for all training data
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - network
+  - isolation
+  - training
+  - ai-ml
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/mkt-algo-model-internet-free.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/train-model.html

@@ -1,0 +1,53 @@
+id: aws-elb-001
+name: ALB access logging enabled
+description: |
+  Ensure Application Load Balancers have access logging enabled.
+  Access logs capture detailed information about requests for security
+  analysis, troubleshooting, and compliance auditing.
+
+enabled: true
+severity: medium
+
+resource_type: aws_alb
+
+check:
+  type: expression
+  expression: "resource.access_logs_enabled == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "ELB.5"
+
+remediation:
+  guidance: |
+    1. Navigate to EC2 > Load Balancers
+    2. Select the Application Load Balancer
+    3. Go to Attributes tab
+    4. Click Edit attributes
+    5. Enable Access logs:
+       - Set S3 bucket for log storage
+       - Set prefix for log files
+    6. Save changes
+
+    Note: S3 bucket policy must allow ELB to write logs.
+  automation_supported: false
+
+tags:
+  - elb
+  - alb
+  - logging
+  - load-balancer
+  - monitoring
+
+references:
+  - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html

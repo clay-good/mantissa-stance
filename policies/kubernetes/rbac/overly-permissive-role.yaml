@@ -1,0 +1,43 @@
+id: k8s-rbac-007
+name: Roles should not be overly permissive
+description: |
+  Roles with a high risk score indicate excessive permissions
+  that violate the principle of least privilege. Review and
+  reduce permissions to the minimum required.
+
+enabled: true
+severity: high
+
+resource_type: k8s_cluster_role
+
+check:
+  type: expression
+  expression: "resource.risk_analysis.risk_score < 70"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.3"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the role's permission rules
+    2. Identify overly broad permissions
+    3. Replace wildcards with specific resources
+    4. Limit verbs to required actions only
+    5. Split into multiple specific roles if needed
+    6. Test workloads with reduced permissions
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - overly-permissive
+  - least-privilege
+  - risk-analysis
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/rbac/

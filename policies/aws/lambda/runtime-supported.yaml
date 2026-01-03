@@ -1,0 +1,52 @@
+id: aws-lambda-005
+name: Lambda function uses supported runtime
+description: |
+  Ensure Lambda functions use a supported runtime version. Deprecated
+  runtimes do not receive security patches and may have known vulnerabilities.
+  Upgrade to supported versions for continued security updates.
+
+enabled: true
+severity: high
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: "resource.runtime_deprecated == false"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "Lambda.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.3.3"
+
+remediation:
+  guidance: |
+    1. Navigate to Lambda in AWS Console
+    2. Select the function
+    3. Click "Edit" on the Runtime settings
+    4. Select a supported runtime version
+    5. Test the function with the new runtime
+    6. Save changes
+
+    Check AWS documentation for currently supported runtimes:
+    - Python: 3.9, 3.10, 3.11, 3.12
+    - Node.js: 18.x, 20.x
+    - Java: 11, 17, 21
+    - Go: provided.al2
+  automation_supported: false
+
+tags:
+  - lambda
+  - runtime
+  - patching
+  - serverless
+  - deprecation
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html

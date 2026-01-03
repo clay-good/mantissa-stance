@@ -1,0 +1,50 @@
+id: gcp-sql-003
+name: Cloud SQL SSL/TLS required for connections
+description: |
+  Ensure Cloud SQL instances require SSL/TLS for all database connections.
+  SSL ensures data in transit is encrypted, protecting against eavesdropping
+  and man-in-the-middle attacks.
+
+enabled: true
+severity: high
+
+resource_type: gcp_cloudsql_instance
+
+check:
+  type: expression
+  expression: "resource.require_ssl == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "6.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud SQL in Google Cloud Console
+    2. Select the instance
+    3. Click Edit
+    4. Under Connections:
+       - Expand SSL/TLS section
+       - Set "Require SSL" to On
+    5. Save changes
+
+    After enabling, create client certificates for applications:
+    - gcloud sql ssl client-certs create CERT_NAME CERT_FILE --instance=INSTANCE
+  automation_supported: false
+
+tags:
+  - sql
+  - cloudsql
+  - ssl
+  - encryption
+  - database
+
+references:
+  - https://cloud.google.com/sql/docs/mysql/configure-ssl-instance

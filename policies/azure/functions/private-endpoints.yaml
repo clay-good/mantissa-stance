@@ -1,0 +1,52 @@
+id: azure-functions-005
+name: Azure Function private endpoints configured
+description: |
+  Ensure Azure Functions use private endpoints for inbound traffic.
+  Private endpoints allow clients in virtual networks to access functions
+  over private IP addresses, eliminating public internet exposure.
+
+enabled: true
+severity: high
+
+resource_type: azure_function_app
+
+check:
+  type: expression
+  expression: "resource.private_endpoints_count >= 1 or resource.requires_public_access == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "9.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Function App in Azure Portal
+    2. Under Settings, select Networking
+    3. Under Inbound traffic:
+       - Click Private endpoints
+       - Add private endpoint
+       - Select subscription, resource group, name
+       - Select virtual network and subnet
+       - Configure private DNS integration
+    4. Consider disabling public network access after configuration
+    5. Save changes
+
+    Note: Private endpoints require Premium or Elastic Premium plan.
+  automation_supported: false
+
+tags:
+  - functions
+  - private-endpoints
+  - network
+  - serverless
+  - security
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-functions/functions-create-private-site-access

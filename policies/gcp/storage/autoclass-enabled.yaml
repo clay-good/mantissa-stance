@@ -1,0 +1,48 @@
+id: gcp-storage-011
+name: Cloud Storage bucket Autoclass enabled
+description: |
+  Ensure Cloud Storage buckets use Autoclass for automatic storage class
+  management. Autoclass automatically transitions objects between storage
+  classes based on access patterns, optimizing costs.
+
+enabled: true
+severity: low
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.autoclass_enabled == true or resource.storage_class == 'STANDARD'"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SA-9"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in Console
+    2. Select the bucket
+    3. Go to Configuration tab
+    4. Under Default storage class:
+       - Enable Autoclass
+       - Select terminal storage class (Nearline or Archive)
+    5. Save changes
+
+    Using gcloud:
+    gcloud storage buckets update gs://BUCKET_NAME \
+      --enable-autoclass
+
+    Note: Autoclass cannot be disabled once enabled.
+    Most effective for buckets with mixed access patterns.
+  automation_supported: false
+
+tags:
+  - storage
+  - autoclass
+  - gcs
+  - cost-optimization
+  - automation
+
+references:
+  - https://cloud.google.com/storage/docs/autoclass

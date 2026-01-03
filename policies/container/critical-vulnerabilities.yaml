@@ -1,0 +1,49 @@
+id: container-001
+name: Container images should not have critical vulnerabilities
+description: |
+  Container images with critical vulnerabilities pose significant security
+  risks. Critical CVEs often have known exploits and can lead to complete
+  system compromise. Images should be regularly scanned and updated.
+
+enabled: true
+severity: critical
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.critical_vulnerability_count == 0"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "RA-5"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.3.3"
+
+remediation:
+  guidance: |
+    1. Review the list of critical vulnerabilities
+    2. Check if newer base images are available
+    3. Update vulnerable packages:
+       - For OS packages: apt-get update && apt-get upgrade
+       - For language packages: Update dependency files
+    4. Rebuild the container image
+    5. Re-scan to verify vulnerabilities are fixed
+    6. Update deployment manifests to use new image
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - vulnerability
+  - critical
+  - cve
+
+references:
+  - https://nvd.nist.gov/
+  - https://cve.mitre.org/

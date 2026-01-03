@@ -1,0 +1,41 @@
+id: k8s-pod-002
+name: Pods should not use host networking
+description: |
+  Using host networking allows the pod to access all network
+  interfaces on the node, bypassing network policies and
+  exposing sensitive network traffic. This should be avoided.
+
+enabled: true
+severity: high
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.host_network != True"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.4"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Locate hostNetwork: true setting
+    3. Remove hostNetwork or set to false
+    4. Use Kubernetes Services for network connectivity
+    5. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - host-network
+  - network-isolation
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/

@@ -1,0 +1,56 @@
+id: aws-sagemaker-004
+name: SageMaker notebook root access disabled
+description: |
+  Ensure SageMaker notebook instances have root access disabled.
+  Root access allows users to install packages and modify system
+  configurations, which could introduce security vulnerabilities.
+
+enabled: true
+severity: medium
+
+resource_type: aws_sagemaker_notebook
+
+check:
+  type: expression
+  expression: "resource.root_access == 'Disabled'"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.18"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "SageMaker.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.3"
+
+remediation:
+  guidance: |
+    To disable root access for SageMaker notebooks:
+    1. Note: You cannot change this on existing instances
+    2. Create a new notebook instance:
+       - In the SageMaker console, choose Notebook instances
+       - Choose Create notebook instance
+       - Under Permissions and encryption
+       - Set Root access to Disabled
+    3. Use lifecycle configurations for package management:
+       - Create lifecycle scripts for required packages
+       - Attach to notebook instance during creation
+    4. Migrate notebooks to the new instance
+    5. Delete the old instance with root access
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - access-control
+  - privilege
+  - ai-ml
+  - notebook
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/nbi-root-access.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/notebook-lifecycle-config.html

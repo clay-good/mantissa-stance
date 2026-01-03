@@ -1,0 +1,53 @@
+id: azure-storage-006
+name: Azure Storage blob versioning enabled
+description: |
+  Ensure Azure Storage accounts have blob versioning enabled. Versioning
+  automatically maintains previous versions of blobs, enabling recovery
+  from accidental modifications or deletions.
+
+enabled: true
+severity: medium
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.blob_versioning_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.11"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-9"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage Account in Azure Portal
+    2. Under Data management, select Data protection
+    3. Under Tracking:
+       - Enable "Enable versioning for blobs"
+    4. Save changes
+
+    Using Azure CLI:
+    az storage account blob-service-properties update \
+      --account-name ACCOUNT_NAME \
+      --enable-versioning true
+
+    Note: Configure lifecycle management to control
+    version retention and costs.
+  automation_supported: false
+
+tags:
+  - storage
+  - versioning
+  - blob
+  - data-protection
+  - backup
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/blobs/versioning-overview

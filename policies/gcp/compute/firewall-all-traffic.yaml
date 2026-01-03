@@ -1,0 +1,50 @@
+id: gcp-compute-007
+name: Firewall does not allow all traffic from internet
+description: |
+  Ensure no firewall rule allows all traffic from the internet
+  (0.0.0.0/0 with all protocols/ports). This is an extremely
+  dangerous configuration that exposes all services.
+
+enabled: true
+severity: critical
+
+resource_type: gcp_compute_firewall
+
+check:
+  type: expression
+  expression: "resource.allows_all_from_internet == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "3.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC Network > Firewall in GCP Console
+    2. Identify rules allowing all traffic from 0.0.0.0/0
+    3. Delete or modify these rules to:
+       - Specify required protocols and ports only
+       - Restrict source IP ranges
+       - Use service accounts for source filtering
+       - Apply network tags for targeting
+    4. Review the implicit deny-all ingress rule
+    5. Document required exceptions
+  automation_supported: false
+
+tags:
+  - compute
+  - firewall
+  - network-security
+  - critical-security
+  - gcp
+
+references:
+  - https://cloud.google.com/vpc/docs/firewalls
+  - https://cloud.google.com/vpc/docs/using-firewalls

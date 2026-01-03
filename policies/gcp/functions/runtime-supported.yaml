@@ -1,0 +1,49 @@
+id: gcp-functions-003
+name: Cloud Function uses supported runtime
+description: |
+  Ensure Cloud Functions use a supported runtime version. Deprecated
+  runtimes do not receive security patches and may have known vulnerabilities.
+  Upgrade to supported versions for continued security updates.
+
+enabled: true
+severity: high
+
+resource_type: gcp_cloud_function
+
+check:
+  type: expression
+  expression: "resource.runtime_deprecated == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.3.3"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Functions in Google Cloud Console
+    2. Select the function
+    3. Click Edit
+    4. Under Runtime, select a supported version:
+       - Python: 3.9, 3.10, 3.11, 3.12
+       - Node.js: 18, 20, 22
+       - Go: 1.21, 1.22
+       - Java: 11, 17, 21
+    5. Test the function with the new runtime
+    6. Deploy the function
+
+    Check deprecation schedule in Google Cloud documentation.
+  automation_supported: false
+
+tags:
+  - functions
+  - runtime
+  - patching
+  - serverless
+  - deprecation
+
+references:
+  - https://cloud.google.com/functions/docs/concepts/execution-environment

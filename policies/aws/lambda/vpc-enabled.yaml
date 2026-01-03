@@ -1,0 +1,52 @@
+id: aws-lambda-002
+name: Lambda function VPC configuration
+description: |
+  Ensure Lambda functions that access private resources are configured
+  with VPC settings. VPC configuration enables functions to access
+  resources in private subnets without exposing them to the internet.
+
+enabled: true
+severity: medium
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: "resource.vpc_config_enabled == true or resource.requires_vpc_access == false"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "Lambda.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Lambda in AWS Console
+    2. Select the function
+    3. Go to Configuration > VPC
+    4. Click Edit
+    5. Select the VPC
+    6. Select at least 2 subnets in different AZs
+    7. Select security group(s)
+    8. Save changes
+
+    Note: The Lambda execution role needs VPC-related permissions:
+    ec2:CreateNetworkInterface, ec2:DescribeNetworkInterfaces,
+    ec2:DeleteNetworkInterface
+  automation_supported: false
+
+tags:
+  - lambda
+  - vpc
+  - network
+  - serverless
+  - isolation
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html

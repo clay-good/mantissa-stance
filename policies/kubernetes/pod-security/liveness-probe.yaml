@@ -1,0 +1,40 @@
+id: k8s-pod-012
+name: Containers should have liveness probes defined
+description: |
+  Liveness probes help Kubernetes detect and restart unhealthy
+  containers. Without probes, containers may become unresponsive
+  but continue running, impacting service availability.
+
+enabled: true
+severity: low
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_liveness_probe == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Add livenessProbe to each container
+    3. Configure appropriate health check endpoints
+    4. Set suitable initialDelaySeconds and periodSeconds
+    5. Test that the probe correctly detects failures
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - liveness-probe
+  - availability
+  - health-check
+
+references:
+  - https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/

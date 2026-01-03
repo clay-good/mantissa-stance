@@ -1,0 +1,53 @@
+id: aws-cloudtrail-004
+name: CloudTrail S3 bucket not publicly accessible
+description: |
+  Ensure the S3 bucket used for CloudTrail logs is not publicly accessible.
+  CloudTrail logs contain sensitive information about API activity and
+  should never be exposed to the public internet.
+
+enabled: true
+severity: critical
+
+resource_type: aws_cloudtrail
+
+check:
+  type: expression
+  expression: "resource.s3_bucket_public_access_blocked == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "CloudTrail.6"
+
+remediation:
+  guidance: |
+    1. Open the Amazon S3 console
+    2. Select the CloudTrail bucket
+    3. Go to Permissions tab
+    4. Under Block public access, click Edit
+    5. Enable all four public access block settings:
+       - Block public access to buckets and objects granted through new ACLs
+       - Block public access to buckets and objects granted through any ACLs
+       - Block public access to buckets and objects granted through new public bucket policies
+       - Block public and cross-account access to buckets and objects through any public bucket policies
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - cloudtrail
+  - s3
+  - public-access
+  - data-protection
+  - compliance
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/create-s3-bucket-policy-for-cloudtrail.html

@@ -1,0 +1,49 @@
+id: aws-ec2-013
+name: VPC endpoint has restrictive policy
+description: |
+  Ensure VPC endpoints have restrictive policies configured. Endpoints
+  with full access policies may allow unintended access to AWS services
+  from within the VPC.
+
+enabled: true
+severity: medium
+
+resource_type: aws_vpc_endpoint
+
+check:
+  type: expression
+  expression: "resource.policy_document != '*' and resource.has_restrictive_policy == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC > Endpoints
+    2. Select the VPC endpoint
+    3. Go to Policy tab
+    4. Click Edit policy
+    5. Replace full access policy with restrictive policy:
+       - Limit to specific principals
+       - Limit to specific resources
+       - Limit to specific actions
+    6. Save changes
+
+    Example: For S3 endpoint, restrict to specific buckets
+    and operations needed by workloads.
+  automation_supported: false
+
+tags:
+  - ec2
+  - vpc-endpoint
+  - policy
+  - network
+  - least-privilege
+
+references:
+  - https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-access.html

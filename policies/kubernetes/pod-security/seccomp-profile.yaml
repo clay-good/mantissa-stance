@@ -1,0 +1,46 @@
+id: k8s-pod-014
+name: Pods should have seccomp profile configured
+description: |
+  Seccomp (secure computing mode) limits the system calls that containers
+  can make, reducing the attack surface. Without a seccomp profile,
+  containers can use any system call.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_seccomp_profile == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.7.2"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Add a seccomp profile to the security context:
+       spec:
+         securityContext:
+           seccompProfile:
+             type: RuntimeDefault
+    3. For stricter control, use type: Localhost with a custom profile
+    4. Test the application with the profile enabled
+    5. Monitor for seccomp violations
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - seccomp
+  - syscalls
+  - defense-in-depth
+
+references:
+  - https://kubernetes.io/docs/tutorials/security/seccomp/

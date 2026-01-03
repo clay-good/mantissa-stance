@@ -1,0 +1,54 @@
+id: azure-identity-006
+name: MFA required for all users
+description: |
+  Ensure multi-factor authentication is required for all users.
+  MFA significantly reduces the risk of account compromise from
+  phishing and credential theft attacks.
+
+enabled: true
+severity: critical
+
+resource_type: azure_conditional_access_policy
+
+check:
+  type: expression
+  expression: |
+    resource.enforces_mfa == true and
+    resource.applies_to_all_users == true
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.1.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Active Directory > Security > Conditional Access
+    2. Create a new policy or edit existing
+    3. Under "Assignments > Users":
+       - Include "All users"
+       - Exclude emergency access accounts
+    4. Under "Cloud apps or actions":
+       - Include "All cloud apps"
+    5. Under "Access controls > Grant":
+       - Select "Require multi-factor authentication"
+    6. Enable the policy
+    7. Consider Security Defaults if you don't have Azure AD Premium
+  automation_supported: false
+
+tags:
+  - identity
+  - mfa
+  - authentication
+  - conditional-access
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-all-users-mfa
+  - https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults

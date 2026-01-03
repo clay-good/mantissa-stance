@@ -1,0 +1,47 @@
+id: container-010
+name: Container images should not contain sensitive files
+description: |
+  Container images should not contain secrets, credentials, or private
+  keys. These files may be exposed through image layers, registries,
+  or at runtime, leading to credential compromise.
+
+enabled: true
+severity: critical
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.has_sensitive_files == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "IA-5"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.10"
+  - framework: owasp
+    version: "2021"
+    control: "A01"
+
+remediation:
+  guidance: |
+    1. Scan image for secrets using tools like Trivy or Gitleaks
+    2. Remove sensitive files from Dockerfile
+    3. Use .dockerignore to exclude secrets from build context
+    4. Use multi-stage builds to avoid copying secrets
+    5. Pass secrets via environment variables or mounted volumes
+    6. Use secrets management systems (Vault, K8s secrets, etc.)
+    7. Rotate any exposed credentials immediately
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - secrets
+  - credentials
+  - sensitive-data
+
+references:
+  - https://docs.docker.com/develop/develop-images/dockerfile_best-practices/#add-or-copy

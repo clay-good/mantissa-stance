@@ -1,0 +1,48 @@
+id: aws-cloudtrail-002
+name: CloudTrail log file validation enabled
+description: |
+  Ensure CloudTrail log file validation is enabled. Log file validation
+  creates a digitally signed digest file that contains a hash of each log
+  file, enabling detection of log file modification, deletion, or tampering.
+
+enabled: true
+severity: high
+
+resource_type: aws_cloudtrail
+
+check:
+  type: expression
+  expression: "resource.log_file_validation_enabled == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-9"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "CloudTrail.4"
+
+remediation:
+  guidance: |
+    1. Open the AWS CloudTrail console
+    2. Select the trail
+    3. Choose Edit
+    4. Under General details, enable Log file validation
+    5. Save changes
+  automation_supported: false
+
+tags:
+  - cloudtrail
+  - logging
+  - integrity
+  - audit
+  - validation
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-log-file-validation-intro.html

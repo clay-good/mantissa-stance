@@ -1,0 +1,61 @@
+id: gcp-vertexai-001
+name: Vertex AI endpoint uses CMEK encryption
+description: |
+  Ensure Vertex AI endpoints use Customer-Managed Encryption Keys (CMEK).
+  CMEK provides additional control over encryption keys and meets
+  compliance requirements for data protection.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_endpoint
+
+check:
+  type: expression
+  expression: "resource.encryption_spec != null and resource.encryption_spec.kms_key_name != null"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To enable CMEK for Vertex AI endpoints:
+    1. Create a Cloud KMS key if not exists:
+       - gcloud kms keyrings create my-ring --location=us-central1
+       - gcloud kms keys create my-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --purpose=encryption
+    2. Grant Vertex AI access to the key:
+       - gcloud kms keys add-iam-policy-binding my-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --member=serviceAccount:service-PROJECT@gcp-sa-aiplatform.iam.gserviceaccount.com \
+           --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
+    3. Create endpoint with CMEK:
+       - gcloud ai endpoints create \
+           --display-name=my-endpoint \
+           --encryption-kms-key-name=projects/PROJECT/locations/LOCATION/keyRings/RING/cryptoKeys/KEY
+  automation_supported: false
+
+tags:
+  - vertexai
+  - encryption
+  - cmek
+  - endpoint
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/general/cmek
+  - https://cloud.google.com/vertex-ai/docs/predictions/deploy-model-api

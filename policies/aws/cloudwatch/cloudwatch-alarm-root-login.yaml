@@ -1,0 +1,46 @@
+id: aws-cloudwatch-001
+name: CloudWatch alarm for root account usage
+description: |
+  Ensure a CloudWatch alarm exists for root account usage. The root account
+  has unrestricted access to all resources, and its usage should be monitored
+  closely for unauthorized access or potential compromise.
+
+enabled: true
+severity: high
+
+resource_type: aws_cloudwatch_metric_alarm
+
+check:
+  type: expression
+  expression: "resource.alarm_for_root_login_exists == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "4.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Create a CloudWatch Logs metric filter for root account usage:
+       Filter pattern: { $.userIdentity.type = "Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType != "AwsServiceEvent" }
+    2. Create a CloudWatch alarm based on the metric filter
+    3. Set threshold to >= 1
+    4. Configure notification via SNS topic
+    5. Subscribe relevant security personnel to SNS topic
+  automation_supported: false
+
+tags:
+  - cloudwatch
+  - monitoring
+  - alerting
+  - root-account
+  - security-operations
+
+references:
+  - https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html

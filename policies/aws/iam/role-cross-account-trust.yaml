@@ -1,0 +1,55 @@
+id: aws-iam-007
+name: IAM role cross-account trust reviewed
+description: |
+  Ensure IAM roles with cross-account trust relationships are reviewed
+  and intentional. Cross-account access can be legitimate but also
+  introduces risk if not properly controlled. Roles allowing access
+  from other AWS accounts should be regularly audited.
+
+enabled: true
+severity: medium
+
+resource_type: aws_iam_role
+
+check:
+  type: expression
+  expression: "resource.allows_cross_account == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.17"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-17"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    1. Sign in to the AWS Console
+    2. Navigate to IAM > Roles
+    3. Select the role with cross-account trust
+    4. Review the Trust relationships tab
+    5. Verify that cross-account access is intentional:
+       - Confirm the external account IDs are known and trusted
+       - Verify the business need for cross-account access
+       - Consider adding conditions to restrict access
+    6. If cross-account access is not needed:
+       a. Edit the trust policy
+       b. Remove the external account principals
+       c. Save changes
+    7. Document approved cross-account relationships
+  automation_supported: false
+
+tags:
+  - iam
+  - roles
+  - trust-policy
+  - cross-account
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html

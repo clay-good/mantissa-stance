@@ -1,0 +1,46 @@
+id: container-006
+name: Container images should be from approved registries
+description: |
+  Images should only be pulled from trusted, approved container registries.
+  Using images from unapproved sources increases supply chain attack risk
+  and may introduce malicious or vulnerable code.
+
+enabled: true
+severity: high
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.registry in ['gcr.io', 'us-docker.pkg.dev', 'ecr.aws', 'azurecr.io', 'docker.io/library']"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SA-12"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.6"
+  - framework: slsa
+    version: "1.0"
+    control: "Source"
+
+remediation:
+  guidance: |
+    1. Identify the current image registry
+    2. Check if registry is on approved list
+    3. If not, find equivalent image in approved registry
+    4. Or mirror the image to approved registry after verification
+    5. Update image references in manifests
+    6. Implement registry allowlists in admission controllers
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - registry
+  - supply-chain
+  - trusted-sources
+
+references:
+  - https://slsa.dev/

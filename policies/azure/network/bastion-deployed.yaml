@@ -1,0 +1,53 @@
+id: azure-network-009
+name: Azure Bastion used for VM access
+description: |
+  Ensure Azure Bastion is deployed for secure VM access. Bastion provides
+  secure RDP/SSH access without exposing VMs to the public internet,
+  eliminating the need for public IPs or jump boxes.
+
+enabled: true
+severity: medium
+
+resource_type: azure_virtual_network
+
+check:
+  type: expression
+  expression: "resource.bastion_host_deployed == true or resource.no_vms_require_access == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-17"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.2.1"
+
+remediation:
+  guidance: |
+    1. Create AzureBastionSubnet:
+       - Navigate to Virtual Network
+       - Add subnet named "AzureBastionSubnet"
+       - Minimum size /26
+    2. Deploy Bastion:
+       - Navigate to Bastion
+       - Create new Bastion host
+       - Select VNet and subnet
+       - Choose SKU (Basic or Standard)
+    3. Remove public IPs from VMs
+    4. Access VMs through Portal:
+       - Select VM > Connect > Bastion
+       - Enter credentials
+  automation_supported: false
+
+tags:
+  - network
+  - bastion
+  - remote-access
+  - security
+  - vm
+
+references:
+  - https://docs.microsoft.com/en-us/azure/bastion/bastion-overview

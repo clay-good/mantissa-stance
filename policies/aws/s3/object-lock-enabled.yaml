@@ -1,0 +1,53 @@
+id: aws-s3-009
+name: S3 bucket Object Lock enabled for compliance
+description: |
+  Ensure S3 buckets storing compliance data have Object Lock enabled.
+  Object Lock provides write-once-read-many (WORM) protection, preventing
+  object deletion or modification for a specified retention period.
+
+enabled: true
+severity: medium
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: "resource.object_lock_enabled == true or resource.requires_worm == false"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-9"
+
+remediation:
+  guidance: |
+    Object Lock can only be enabled at bucket creation:
+
+    1. Create new bucket with Object Lock:
+       aws s3api create-bucket --bucket BUCKET_NAME \
+         --object-lock-enabled-for-bucket
+
+    2. Configure default retention:
+       - Governance mode (can be overridden with permission)
+       - Compliance mode (cannot be overridden)
+
+    3. For existing buckets:
+       - Create new bucket with Object Lock
+       - Copy objects with retention settings
+       - Update applications to use new bucket
+
+    Note: Cannot be enabled on existing buckets.
+  automation_supported: false
+
+tags:
+  - s3
+  - object-lock
+  - worm
+  - compliance
+  - immutability
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html

@@ -1,0 +1,48 @@
+id: aws-ec2-010
+name: EC2 instance public IP reviewed
+description: |
+  Ensure EC2 instances with public IP addresses are intentional and
+  reviewed. Instances with public IPs are directly accessible from
+  the internet and should be limited to those that require it.
+
+enabled: true
+severity: medium
+
+resource_type: aws_ec2_instance
+
+check:
+  type: expression
+  expression: "resource.public_ip_address not_exists"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.2"
+
+remediation:
+  guidance: |
+    1. Review if the instance requires direct internet access
+    2. If not required:
+       a. Stop the instance
+       b. Modify network settings to remove public IP
+       c. Use NAT Gateway for outbound internet access
+       d. Use Load Balancer for inbound traffic
+    3. If required:
+       a. Document business justification
+       b. Ensure security groups are properly configured
+       c. Enable IMDSv2 for metadata protection
+       d. Monitor access with VPC Flow Logs
+  automation_supported: false
+
+tags:
+  - ec2
+  - instance
+  - network
+  - public-ip
+  - exposure
+
+references:
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html

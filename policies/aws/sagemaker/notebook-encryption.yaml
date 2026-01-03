@@ -1,0 +1,54 @@
+id: aws-sagemaker-001
+name: SageMaker notebook instance uses KMS encryption
+description: |
+  Ensure SageMaker notebook instances use KMS encryption for data at rest.
+  Customer-managed KMS keys provide additional control over encryption keys
+  and are required for many compliance frameworks.
+
+enabled: true
+severity: high
+
+resource_type: aws_sagemaker_notebook
+
+check:
+  type: expression
+  expression: "resource.kms_key_id != null and resource.kms_key_id != ''"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.1.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "SageMaker.1"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To enable KMS encryption for SageMaker notebook instances:
+    1. Note: You cannot change encryption on existing instances
+    2. Create a new notebook instance with encryption:
+       - In the SageMaker console, choose Notebook instances
+       - Choose Create notebook instance
+       - Under Encryption key, select a KMS key
+       - Configure other settings as needed
+    3. Migrate your notebooks and data to the new instance
+    4. Delete the old unencrypted instance
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - encryption
+  - kms
+  - data-protection
+  - ai-ml
+  - notebook
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/encryption-at-rest.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/notebook-interface.html

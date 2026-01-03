@@ -1,0 +1,52 @@
+id: aws-rds-009
+name: RDS IAM database authentication enabled
+description: |
+  Ensure RDS instances support IAM database authentication where applicable.
+  IAM authentication eliminates the need for database passwords and provides
+  centralized access control through IAM policies.
+
+enabled: true
+severity: medium
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.iam_database_authentication_enabled == true or resource.engine not_in ['mysql', 'postgres', 'mariadb']"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.3.1"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Database authentication:
+       - Enable "IAM database authentication"
+    5. Choose when to apply the modification
+    6. Click Modify DB Instance
+
+    After enabling, configure IAM policies and create database users
+    that authenticate using IAM.
+
+    Supported engines: MySQL, PostgreSQL, MariaDB
+  automation_supported: false
+
+tags:
+  - rds
+  - iam
+  - database
+  - authentication
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html

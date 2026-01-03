@@ -1,0 +1,51 @@
+id: azure-network-004
+name: VPN Gateway uses IKEv2
+description: |
+  Ensure Azure VPN Gateways use IKEv2 for site-to-site connections.
+  IKEv2 provides improved security and faster reconnection compared
+  to IKEv1.
+
+enabled: true
+severity: medium
+
+resource_type: azure_vpn_gateway_connection
+
+check:
+  type: expression
+  expression: "resource.ike_version == 'IKEv2'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Virtual Network Gateway in Azure Portal
+    2. Select Connections
+    3. For each S2S connection:
+       - Click on the connection
+       - Go to Configuration
+       - Verify IKE Version is IKEv2
+    4. If using IKEv1:
+       - Create new connection with IKEv2
+       - Update on-premises VPN device
+       - Migrate traffic
+       - Delete old connection
+  automation_supported: false
+
+tags:
+  - network
+  - vpn
+  - ike
+  - encryption
+  - hybrid
+
+references:
+  - https://docs.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-about-vpn-devices

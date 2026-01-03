@@ -1,0 +1,49 @@
+id: aws-rds-004
+name: RDS instance Multi-AZ enabled for production
+description: |
+  Ensure RDS production database instances have Multi-AZ deployment enabled.
+  Multi-AZ provides high availability with automatic failover to a standby
+  replica in a different Availability Zone.
+
+enabled: true
+severity: medium
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.multi_az == true or resource.environment != 'production'"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-10"
+  - framework: pci-dss
+    version: "4.0"
+    control: "12.10.1"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Availability & durability:
+       - Select "Create a standby instance"
+    5. Choose when to apply (immediately or during maintenance)
+    6. Click Modify DB Instance
+
+    Note: Enabling Multi-AZ may cause brief downtime during conversion.
+  automation_supported: false
+
+tags:
+  - rds
+  - high-availability
+  - database
+  - multi-az
+  - resilience
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html

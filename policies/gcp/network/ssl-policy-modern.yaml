@@ -1,0 +1,50 @@
+id: gcp-network-003
+name: SSL policy uses modern profile
+description: |
+  Ensure SSL policies use MODERN or RESTRICTED profile. Legacy SSL
+  profiles allow weak cipher suites vulnerable to attacks. Modern
+  profiles enforce TLS 1.2+ with secure ciphers.
+
+enabled: true
+severity: high
+
+resource_type: gcp_compute_ssl_policy
+
+check:
+  type: expression
+  expression: "resource.profile == 'MODERN' or resource.profile == 'RESTRICTED'"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "3.8"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Security > SSL Policies
+    2. Select or create SSL policy
+    3. Configure:
+       - Profile: MODERN (recommended) or RESTRICTED
+       - Minimum TLS version: TLS 1.2
+    4. Apply policy to target proxies:
+       - Navigate to Load Balancing
+       - Edit load balancer frontend
+       - Select the SSL policy
+    5. Save configuration
+  automation_supported: false
+
+tags:
+  - network
+  - ssl
+  - tls
+  - encryption
+  - cipher
+
+references:
+  - https://cloud.google.com/load-balancing/docs/ssl-policies-concepts

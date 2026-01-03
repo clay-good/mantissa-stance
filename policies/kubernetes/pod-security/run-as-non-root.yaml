@@ -1,0 +1,47 @@
+id: k8s-pod-005
+name: Containers should run as non-root user
+description: |
+  Running containers as root increases the attack surface
+  and potential damage from a container escape. Containers
+  should run as a non-root user whenever possible.
+
+enabled: true
+severity: high
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.pod_security_context.run_as_non_root == True or resource.pod_security_context.run_as_user > 0"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.6"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.1"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Add securityContext at the pod level
+    3. Set runAsNonRoot: true
+    4. Optionally specify a runAsUser (non-zero)
+    5. Ensure the container image supports non-root execution
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - non-root
+  - least-privilege
+  - security-context
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/
+  - https://kubernetes.io/docs/tasks/configure-pod-container/security-context/

@@ -1,0 +1,44 @@
+id: azure-identity-003
+name: Role assignments scoped appropriately
+description: |
+  Ensure role assignments are scoped to resource groups or resources
+  rather than at the subscription level. Subscription-level assignments
+  grant broader access than typically necessary.
+
+enabled: true
+severity: medium
+
+resource_type: azure_role_assignment
+
+check:
+  type: expression
+  expression: "resource.is_subscription_scope == false or resource.is_management_group_scope == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.22"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6(3)"
+
+remediation:
+  guidance: |
+    1. Review role assignments at subscription level
+    2. Identify assignments that could be scoped to resource groups
+    3. Create new assignments at the appropriate resource group level
+    4. Remove overly broad subscription-level assignments
+    5. Use management groups for cross-subscription governance only
+    6. Document justification for any required subscription-level access
+  automation_supported: false
+
+tags:
+  - identity
+  - rbac
+  - scope
+  - least-privilege
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/role-based-access-control/scope-overview
+  - https://docs.microsoft.com/en-us/azure/role-based-access-control/best-practices

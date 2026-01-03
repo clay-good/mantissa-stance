@@ -1,0 +1,46 @@
+id: aws-ec2-004
+name: EBS volumes encrypted
+description: |
+  Ensure EBS volumes attached to EC2 instances are encrypted.
+  EBS encryption provides an additional layer of protection for
+  data at rest on block storage volumes.
+
+enabled: true
+severity: medium
+
+resource_type: aws_ec2_instance
+
+check:
+  type: expression
+  expression: "resource.ebs_encryption.all_encrypted == true"
+
+benchmark:
+  - cis-aws: "2.2.1"
+
+remediation:
+  guidance: |
+    For existing volumes:
+    1. Create a snapshot of the unencrypted volume
+    2. Copy the snapshot with encryption enabled
+    3. Create a new volume from the encrypted snapshot
+    4. Detach the unencrypted volume and attach the encrypted one
+
+    For new instances:
+    1. Enable EBS encryption by default in EC2 settings
+    2. Or specify encryption when creating volumes
+
+    To enable default encryption:
+    1. Open the Amazon EC2 console
+    2. Navigate to EBS > Encryption
+    3. Choose "Manage" and enable encryption by default
+  automation_supported: false
+
+tags:
+  - ec2
+  - ebs
+  - encryption
+  - storage
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html

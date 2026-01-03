@@ -1,0 +1,53 @@
+id: azure-network-006
+name: Private Link used for Azure services
+description: |
+  Ensure Private Link is used for accessing Azure PaaS services.
+  Private Link keeps traffic on Microsoft's network and eliminates
+  exposure to the public internet.
+
+enabled: true
+severity: medium
+
+resource_type: azure_private_endpoint
+
+check:
+  type: expression
+  expression: "resource.private_link_service_connection exists"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.3"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Private Link Center
+    2. Create Private Endpoint:
+       - Select resource type (Storage, SQL, etc.)
+       - Select target resource
+       - Select virtual network and subnet
+    3. Configure DNS:
+       - Enable private DNS zone integration
+       - Or configure custom DNS
+    4. Disable public access on target resource
+    5. Verify connectivity from VNet
+
+    Supported services: Storage, SQL, Cosmos DB,
+    Key Vault, and many more.
+  automation_supported: false
+
+tags:
+  - network
+  - private-link
+  - private-endpoint
+  - security
+  - paas
+
+references:
+  - https://docs.microsoft.com/en-us/azure/private-link/private-link-overview

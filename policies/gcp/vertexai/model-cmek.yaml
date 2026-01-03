@@ -1,0 +1,56 @@
+id: gcp-vertexai-006
+name: Vertex AI model uses CMEK encryption
+description: |
+  Ensure Vertex AI models use Customer-Managed Encryption Keys (CMEK).
+  Model artifacts contain trained weights and should be encrypted
+  with customer-controlled keys.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_model
+
+check:
+  type: expression
+  expression: "resource.encryption_spec != null and resource.encryption_spec.kms_key_name != null"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To enable CMEK for Vertex AI models:
+    1. Create Cloud KMS key for model encryption
+    2. Grant Vertex AI access to the key:
+       - gcloud kms keys add-iam-policy-binding model-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --member=serviceAccount:service-PROJECT@gcp-sa-aiplatform.iam.gserviceaccount.com \
+           --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
+    3. Upload model with CMEK:
+       - Use encryptionSpec in Model resource
+       - Specify kmsKeyName in upload request
+    4. For existing models:
+       - Export model artifacts
+       - Re-upload with CMEK enabled
+       - Update deployments to new model
+  automation_supported: false
+
+tags:
+  - vertexai
+  - model
+  - encryption
+  - cmek
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/general/cmek
+  - https://cloud.google.com/vertex-ai/docs/model-registry/import-model

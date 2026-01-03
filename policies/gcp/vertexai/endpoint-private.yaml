@@ -1,0 +1,59 @@
+id: gcp-vertexai-002
+name: Vertex AI endpoint uses private endpoint
+description: |
+  Ensure Vertex AI endpoints use private networking.
+  Private endpoints restrict access to VPC networks
+  and prevent exposure to the public internet.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_endpoint
+
+check:
+  type: expression
+  expression: "resource.network != null and resource.network != ''"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+
+remediation:
+  guidance: |
+    To configure private endpoints for Vertex AI:
+    1. Set up Private Service Connect:
+       - Create a VPC network if needed
+       - Configure Private Service Connect endpoint
+    2. Create private endpoint:
+       - gcloud ai endpoints create \
+           --display-name=my-private-endpoint \
+           --network=projects/PROJECT/global/networks/VPC_NAME \
+           --region=us-central1
+    3. Configure firewall rules:
+       - Allow traffic from authorized sources
+       - Block public internet access
+    4. Update client applications:
+       - Use private endpoint URL
+       - Ensure VPC connectivity
+  automation_supported: false
+
+tags:
+  - vertexai
+  - network
+  - private-endpoint
+  - vpc
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/predictions/using-private-endpoints
+  - https://cloud.google.com/vertex-ai/docs/general/vpc-network

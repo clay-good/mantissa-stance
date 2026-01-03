@@ -1,0 +1,51 @@
+id: azure-network-003
+name: Load Balancer diagnostic settings enabled
+description: |
+  Ensure Azure Load Balancers have diagnostic settings configured.
+  Diagnostic logs capture health probe and load balancer events
+  for monitoring and troubleshooting.
+
+enabled: true
+severity: medium
+
+resource_type: azure_load_balancer
+
+check:
+  type: expression
+  expression: "resource.diagnostic_settings_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Navigate to Load Balancer in Azure Portal
+    2. Under Monitoring, select Diagnostic settings
+    3. Add diagnostic setting:
+       - Enable LoadBalancerAlertEvent
+       - Enable LoadBalancerProbeHealthStatus
+       - Enable AllMetrics
+    4. Select destination:
+       - Log Analytics workspace (recommended)
+       - Storage account
+       - Event Hub
+    5. Save configuration
+  automation_supported: false
+
+tags:
+  - network
+  - load-balancer
+  - diagnostics
+  - logging
+  - monitoring
+
+references:
+  - https://docs.microsoft.com/en-us/azure/load-balancer/load-balancer-monitor-log

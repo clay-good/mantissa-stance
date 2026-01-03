@@ -1,0 +1,49 @@
+id: azure-storage-012
+name: Azure Storage geo-redundant replication
+description: |
+  Ensure critical Azure Storage accounts use geo-redundant storage (GRS)
+  or geo-zone-redundant storage (GZRS). Geo-redundancy provides disaster
+  recovery by replicating data to a secondary region.
+
+enabled: true
+severity: medium
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.sku_name contains 'GRS' or resource.sku_name contains 'GZRS' or resource.is_non_critical == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage Account in Azure Portal
+    2. Under Settings, select Configuration
+    3. Under Replication:
+       - Select GRS or RA-GRS (with read access)
+       - Or GZRS/RA-GZRS for zone + geo redundancy
+    4. Save changes
+
+    Replication options:
+    - GRS: 6 copies (3 primary, 3 secondary region)
+    - RA-GRS: Read access to secondary
+    - GZRS: Zone redundant + geo redundant
+    - RA-GZRS: Zone + geo with read access
+  automation_supported: false
+
+tags:
+  - storage
+  - replication
+  - geo-redundancy
+  - disaster-recovery
+  - availability
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/common/storage-redundancy

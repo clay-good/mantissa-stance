@@ -1,0 +1,51 @@
+id: gcp-logging-006
+name: Log metric and alert for project ownership changes
+description: |
+  Ensure a log-based metric and alert exist for project ownership changes.
+  Changes to project owners grant unrestricted access to project resources
+  and should be monitored and authorized through proper change management.
+
+enabled: true
+severity: critical
+
+resource_type: gcp_logging_metric
+
+check:
+  type: expression
+  expression: "resource.metric_for_project_ownership_changes_exists == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "2.6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Go to GCP Console > Logging > Log-based Metrics
+    2. Click Create Metric
+    3. Set filter:
+       (protoPayload.serviceName="cloudresourcemanager.googleapis.com") AND
+       (ProjectOwnership OR projectOwnerInvitee) OR
+       (protoPayload.serviceData.policyDelta.bindingDeltas.action="REMOVE" AND
+        protoPayload.serviceData.policyDelta.bindingDeltas.role="roles/owner") OR
+       (protoPayload.serviceData.policyDelta.bindingDeltas.action="ADD" AND
+        protoPayload.serviceData.policyDelta.bindingDeltas.role="roles/owner")
+    4. Create the metric
+    5. Create alerting policy with immediate notification
+  automation_supported: false
+
+tags:
+  - logging
+  - monitoring
+  - alerting
+  - project-ownership
+  - security-operations
+
+references:
+  - https://cloud.google.com/resource-manager/docs/creating-managing-projects

@@ -1,0 +1,47 @@
+id: k8s-pod-017
+name: Containers should have startup probes for slow-starting apps
+description: |
+  Startup probes prevent liveness probe failures during application
+  startup. Without startup probes, slow-starting containers may be
+  killed by liveness probes before they're ready.
+
+enabled: true
+severity: low
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_startup_probe == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Review container startup time requirements
+    2. Add startupProbe to containers that need it:
+       containers:
+       - name: app
+         startupProbe:
+           httpGet:
+             path: /healthz
+             port: 8080
+           failureThreshold: 30
+           periodSeconds: 10
+    3. Tune failureThreshold and periodSeconds for your app
+    4. Startup probe runs before liveness probe takes over
+    5. Test startup behavior under various conditions
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - startup-probe
+  - availability
+  - health-check
+
+references:
+  - https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/

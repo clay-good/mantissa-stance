@@ -1,0 +1,61 @@
+id: gcp-vertexai-004
+name: Vertex AI notebook has no public IP
+description: |
+  Ensure Vertex AI Workbench notebooks do not have public IP addresses.
+  Public IPs expose notebooks to the internet and increase
+  the attack surface for data exfiltration.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_notebook
+
+check:
+  type: expression
+  expression: "resource.no_public_ip == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "4.9"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+
+remediation:
+  guidance: |
+    To disable public IP for Vertex AI notebooks:
+    1. Create notebook without public IP:
+       - gcloud workbench instances create my-notebook \
+           --location=us-central1-a \
+           --no-public-ip \
+           --network=projects/PROJECT/global/networks/VPC \
+           --subnet=projects/PROJECT/regions/REGION/subnetworks/SUBNET
+    2. Set up Cloud NAT for outbound access:
+       - Create Cloud Router
+       - Configure Cloud NAT on the subnet
+    3. Use IAP for secure access:
+       - Enable Identity-Aware Proxy
+       - Grant users IAP access
+    4. For existing notebooks:
+       - Note: Cannot change after creation
+       - Create new notebook without public IP
+       - Migrate data and delete old instance
+  automation_supported: false
+
+tags:
+  - vertexai
+  - notebook
+  - network
+  - public-ip
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/workbench/managed/create-managed-notebooks-instance
+  - https://cloud.google.com/iap/docs/enabling-compute-howto

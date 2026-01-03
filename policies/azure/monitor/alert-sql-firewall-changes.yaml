@@ -1,0 +1,53 @@
+id: azure-monitor-008
+name: Alert for SQL Server firewall rule changes
+description: |
+  Ensure an alert exists for creating, updating, or deleting SQL Server firewall
+  rules. SQL firewall changes can expose databases to unauthorized access
+  and should trigger immediate investigation.
+
+enabled: true
+severity: high
+
+resource_type: azure_monitor_alert_rule
+
+check:
+  type: expression
+  expression: "resource.alert_for_sql_firewall_changes_exists == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.2.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Monitor > Alerts
+    2. Click Create > Alert rule
+    3. Select subscription as target
+    4. Configure condition:
+       - Signal type: Activity Log
+       - Category: Administrative
+       - Resource type: SQL servers
+       - Operations:
+         - Create/Update SQL Server Firewall Rule
+         - Delete SQL Server Firewall Rule
+    5. Configure action group for database team
+    6. Set alert rule name and severity (High)
+    7. Create alert rule
+  automation_supported: false
+
+tags:
+  - monitor
+  - alerting
+  - sql
+  - firewall
+  - database
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-sql/database/firewall-configure

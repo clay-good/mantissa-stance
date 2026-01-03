@@ -1,0 +1,46 @@
+id: gcp-logging-003
+name: Log bucket retention meets compliance requirements
+description: |
+  Ensure Cloud Logging log buckets have retention periods configured that
+  meet compliance requirements. The default retention is 30 days which may
+  not be sufficient for security investigations or regulatory compliance.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_logging_bucket
+
+check:
+  type: expression
+  expression: "resource.retention_days >= 90"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "2.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+
+remediation:
+  guidance: |
+    1. Go to GCP Console > Logging > Log Storage
+    2. Select the log bucket
+    3. Click Edit
+    4. Set retention period (minimum 90 days recommended, or per compliance)
+    5. Enable locked retention if immutability is required
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - logging
+  - retention
+  - compliance
+  - log-bucket
+  - storage
+
+references:
+  - https://cloud.google.com/logging/docs/buckets

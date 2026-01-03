@@ -1,0 +1,48 @@
+id: aws-ec2-008
+name: Default VPC not used for production
+description: |
+  Ensure the default VPC is not used for production workloads.
+  Default VPCs have permissive configurations that may not meet
+  security requirements. Use custom VPCs with proper network
+  segmentation instead.
+
+enabled: true
+severity: low
+
+resource_type: aws_vpc
+
+check:
+  type: expression
+  expression: "resource.is_default == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Create a custom VPC with appropriate CIDR ranges
+    2. Design proper network segmentation:
+       - Public subnets for internet-facing resources
+       - Private subnets for internal resources
+       - Isolated subnets for databases
+    3. Configure route tables appropriately
+    4. Migrate resources from default VPC to custom VPC
+    5. Consider deleting the default VPC if not needed
+    6. Use Infrastructure as Code for VPC management
+  automation_supported: false
+
+tags:
+  - ec2
+  - vpc
+  - network
+  - best-practices
+  - segmentation
+
+references:
+  - https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html
+  - https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Scenario2.html

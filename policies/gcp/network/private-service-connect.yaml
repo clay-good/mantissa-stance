@@ -1,0 +1,48 @@
+id: gcp-network-006
+name: Private Service Connect used for Google APIs
+description: |
+  Ensure Private Service Connect is used for accessing Google APIs
+  and services. PSC keeps traffic within Google's network and avoids
+  exposure to the public internet.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_network
+
+check:
+  type: expression
+  expression: "resource.private_service_connect_enabled == true or resource.requires_google_apis == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC Network > Private Service Connect
+    2. Create endpoint:
+       - Select target: All Google APIs or specific bundles
+       - Select network and subnetwork
+       - Assign IP address
+    3. Configure DNS:
+       - Create private DNS zone for googleapis.com
+       - Point to PSC endpoint
+    4. Verify connectivity from VMs
+
+    Traffic to Google APIs now stays on Google's network.
+  automation_supported: false
+
+tags:
+  - network
+  - private-service-connect
+  - google-apis
+  - private-access
+  - security
+
+references:
+  - https://cloud.google.com/vpc/docs/configure-private-service-connect-apis

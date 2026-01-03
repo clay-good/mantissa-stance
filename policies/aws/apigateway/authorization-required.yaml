@@ -1,0 +1,50 @@
+id: aws-apigateway-004
+name: API Gateway authorization configured
+description: |
+  Ensure API Gateway routes have authorization configured. APIs without
+  authorization allow unauthenticated access which may expose sensitive
+  functionality or data.
+
+enabled: true
+severity: critical
+
+resource_type: aws_api_gateway_method
+
+check:
+  type: expression
+  expression: "resource.authorization_type != 'NONE' or resource.api_key_required == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.10"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the API
+    3. Go to Resources
+    4. Select the method (GET, POST, etc.)
+    5. Configure authorization:
+       - IAM authorization
+       - Cognito User Pool authorizer
+       - Lambda authorizer
+       - API key requirement
+    6. Deploy API to apply changes
+  automation_supported: false
+
+tags:
+  - apigateway
+  - authorization
+  - api
+  - authentication
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-to-api.html

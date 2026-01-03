@@ -1,0 +1,47 @@
+id: container-007
+name: Container images should be signed
+description: |
+  Container image signatures verify authenticity and integrity.
+  Unsigned images cannot be verified as originating from trusted
+  sources and may have been tampered with.
+
+enabled: true
+severity: high
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.is_signed == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SA-12"
+  - framework: slsa
+    version: "1.0"
+    control: "Provenance"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.5"
+
+remediation:
+  guidance: |
+    1. Set up image signing in CI/CD pipeline
+    2. Use Cosign, Notary, or similar signing tool
+    3. Sign images after successful build and scan
+    4. Store signatures in registry or transparency log
+    5. Configure admission controllers to verify signatures
+    6. Document signing key management procedures
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - signing
+  - integrity
+  - supply-chain
+
+references:
+  - https://github.com/sigstore/cosign
+  - https://docs.docker.com/engine/security/trust/

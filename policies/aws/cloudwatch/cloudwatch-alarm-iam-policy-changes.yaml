@@ -1,0 +1,45 @@
+id: aws-cloudwatch-003
+name: CloudWatch alarm for IAM policy changes
+description: |
+  Ensure a CloudWatch alarm exists for IAM policy changes. Unauthorized
+  or unintended IAM policy changes can lead to privilege escalation,
+  unauthorized access, or security policy violations.
+
+enabled: true
+severity: medium
+
+resource_type: aws_cloudwatch_metric_alarm
+
+check:
+  type: expression
+  expression: "resource.alarm_for_iam_policy_changes_exists == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "4.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Create a CloudWatch Logs metric filter for IAM policy changes:
+       Filter pattern: { ($.eventName=DeleteGroupPolicy) || ($.eventName=DeleteRolePolicy) || ($.eventName=DeleteUserPolicy) || ($.eventName=PutGroupPolicy) || ($.eventName=PutRolePolicy) || ($.eventName=PutUserPolicy) || ($.eventName=CreatePolicy) || ($.eventName=DeletePolicy) || ($.eventName=CreatePolicyVersion) || ($.eventName=DeletePolicyVersion) || ($.eventName=AttachRolePolicy) || ($.eventName=DetachRolePolicy) || ($.eventName=AttachUserPolicy) || ($.eventName=DetachUserPolicy) || ($.eventName=AttachGroupPolicy) || ($.eventName=DetachGroupPolicy) }
+    2. Create a CloudWatch alarm based on the metric filter
+    3. Set threshold to >= 1
+    4. Configure notification via SNS topic
+  automation_supported: false
+
+tags:
+  - cloudwatch
+  - monitoring
+  - alerting
+  - iam
+  - policy-changes
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudwatch-alarms-for-cloudtrail.html

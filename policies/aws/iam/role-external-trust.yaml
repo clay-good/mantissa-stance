@@ -1,0 +1,58 @@
+id: aws-iam-008
+name: IAM role external trust reviewed
+description: |
+  Ensure IAM roles with external (federated) trust relationships are
+  reviewed. External trust allows non-AWS identities to assume roles,
+  which can be a security risk if not properly configured with
+  appropriate conditions and controls.
+
+enabled: true
+severity: medium
+
+resource_type: aws_iam_role
+
+check:
+  type: expression
+  expression: "resource.allows_external_principals == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.17"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-8"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.3"
+
+remediation:
+  guidance: |
+    1. Sign in to the AWS Console
+    2. Navigate to IAM > Roles
+    3. Select the role with external/federated trust
+    4. Review the Trust relationships tab
+    5. For SAML federation:
+       - Verify the identity provider is approved
+       - Ensure proper attribute conditions are set
+       - Review who has access through the IdP
+    6. For web identity federation:
+       - Verify the OIDC provider is approved
+       - Ensure audience conditions are properly set
+    7. If external trust is not needed:
+       a. Edit the trust policy
+       b. Remove federated principals
+       c. Save changes
+    8. Consider using AWS SSO/IAM Identity Center instead
+  automation_supported: false
+
+tags:
+  - iam
+  - roles
+  - trust-policy
+  - federation
+  - external-access
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers.html
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp.html

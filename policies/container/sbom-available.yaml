@@ -1,0 +1,47 @@
+id: container-011
+name: Container images should have SBOM available
+description: |
+  Software Bill of Materials (SBOM) provides a complete inventory
+  of components in a container image. SBOMs enable rapid vulnerability
+  response and supply chain transparency.
+
+enabled: true
+severity: low
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.has_sbom == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-8"
+  - framework: slsa
+    version: "1.0"
+    control: "Provenance"
+  - framework: eo-14028
+    version: "2021"
+    control: "4(e)"
+
+remediation:
+  guidance: |
+    1. Generate SBOM during image build
+    2. Use Syft, Trivy, or similar SBOM tools
+    3. Choose SBOM format: SPDX, CycloneDX, or SWID
+    4. Attach SBOM to image as attestation
+    5. Store SBOM in registry or artifact store
+    6. Include SBOM generation in CI/CD pipeline
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - sbom
+  - supply-chain
+  - inventory
+
+references:
+  - https://www.ntia.gov/SBOM
+  - https://github.com/anchore/syft

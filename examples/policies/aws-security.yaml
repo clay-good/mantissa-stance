@@ -1,0 +1,442 @@
+# AWS Security Policy Pack
+# This policy pack contains common AWS security best practices.
+#
+# Usage:
+#   stance scan --policies ./aws-security.yaml
+
+metadata:
+  name: aws-security
+  version: "1.0.0"
+  description: AWS security best practices policy pack
+  author: Security Team
+  tags:
+    - aws
+    - security
+    - compliance
+
+# Global policy settings
+settings:
+  # Default severity for rules without explicit severity
+  default_severity: medium
+
+  # Continue scanning on rule errors
+  continue_on_error: true
+
+rules:
+  # S3 Bucket Security
+  - id: AWS-S3-001
+    name: s3-bucket-public-access
+    description: S3 buckets should not allow public access
+    severity: critical
+    resource_type: aws_s3_bucket
+    condition: |
+      resource.public_access_block_configuration.block_public_acls == true &&
+      resource.public_access_block_configuration.block_public_policy == true &&
+      resource.public_access_block_configuration.ignore_public_acls == true &&
+      resource.public_access_block_configuration.restrict_public_buckets == true
+    remediation: |
+      Enable S3 Block Public Access settings on the bucket:
+
+      aws s3api put-public-access-block \
+        --bucket BUCKET_NAME \
+        --public-access-block-configuration \
+          BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+    references:
+      - https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html
+    tags:
+      - s3
+      - data-protection
+
+  - id: AWS-S3-002
+    name: s3-bucket-encryption
+    description: S3 buckets should have server-side encryption enabled
+    severity: high
+    resource_type: aws_s3_bucket
+    condition: |
+      resource.server_side_encryption_configuration != null &&
+      len(resource.server_side_encryption_configuration.rules) > 0
+    remediation: |
+      Enable default encryption on the S3 bucket:
+
+      aws s3api put-bucket-encryption \
+        --bucket BUCKET_NAME \
+        --server-side-encryption-configuration '{
+          "Rules": [{
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "aws:kms",
+              "KMSMasterKeyID": "alias/aws/s3"
+            }
+          }]
+        }'
+    references:
+      - https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html
+    tags:
+      - s3
+      - encryption
+
+  - id: AWS-S3-003
+    name: s3-bucket-versioning
+    description: S3 buckets should have versioning enabled for data protection
+    severity: medium
+    resource_type: aws_s3_bucket
+    condition: |
+      resource.versioning.status == "Enabled"
+    remediation: |
+      Enable versioning on the S3 bucket:
+
+      aws s3api put-bucket-versioning \
+        --bucket BUCKET_NAME \
+        --versioning-configuration Status=Enabled
+    references:
+      - https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html
+    tags:
+      - s3
+      - data-protection
+
+  - id: AWS-S3-004
+    name: s3-bucket-logging
+    description: S3 buckets should have access logging enabled
+    severity: medium
+    resource_type: aws_s3_bucket
+    condition: |
+      resource.logging_configuration != null &&
+      resource.logging_configuration.target_bucket != null
+    remediation: |
+      Enable access logging on the S3 bucket:
+
+      aws s3api put-bucket-logging \
+        --bucket BUCKET_NAME \
+        --bucket-logging-status '{
+          "LoggingEnabled": {
+            "TargetBucket": "LOGGING_BUCKET_NAME",
+            "TargetPrefix": "logs/"
+          }
+        }'
+    references:
+      - https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html
+    tags:
+      - s3
+      - logging
+
+  # EC2 Security
+  - id: AWS-EC2-001
+    name: ec2-imdsv2-required
+    description: EC2 instances should require IMDSv2 for metadata access
+    severity: high
+    resource_type: aws_instance
+    condition: |
+      resource.metadata_options.http_tokens == "required"
+    remediation: |
+      Configure the instance to require IMDSv2:
+
+      aws ec2 modify-instance-metadata-options \
+        --instance-id INSTANCE_ID \
+        --http-tokens required \
+        --http-endpoint enabled
+    references:
+      - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+    tags:
+      - ec2
+      - metadata
+
+  - id: AWS-EC2-002
+    name: ec2-ebs-encryption
+    description: EC2 EBS volumes should be encrypted
+    severity: high
+    resource_type: aws_ebs_volume
+    condition: |
+      resource.encrypted == true
+    remediation: |
+      Create encrypted EBS volumes by default:
+
+      aws ec2 enable-ebs-encryption-by-default
+
+      For existing volumes, create an encrypted snapshot and restore.
+    references:
+      - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html
+    tags:
+      - ec2
+      - encryption
+
+  - id: AWS-EC2-003
+    name: ec2-public-ip
+    description: EC2 instances should not have public IP addresses unless required
+    severity: medium
+    resource_type: aws_instance
+    condition: |
+      resource.public_ip_address == null ||
+      resource.tags.PublicAccess == "allowed"
+    remediation: |
+      Launch instances without public IPs and use NAT gateways or bastion hosts:
+
+      aws ec2 run-instances \
+        --no-associate-public-ip-address \
+        ...
+    references:
+      - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html
+    tags:
+      - ec2
+      - network
+
+  # Security Groups
+  - id: AWS-SG-001
+    name: security-group-no-ingress-all
+    description: Security groups should not allow unrestricted ingress from 0.0.0.0/0
+    severity: critical
+    resource_type: aws_security_group
+    condition: |
+      !any(resource.ip_permissions, rule =>
+        any(rule.ip_ranges, range => range.cidr_ip == "0.0.0.0/0") &&
+        (rule.from_port == 0 && rule.to_port == 65535)
+      )
+    remediation: |
+      Restrict security group rules to specific IP ranges:
+
+      aws ec2 revoke-security-group-ingress \
+        --group-id SG_ID \
+        --protocol all \
+        --cidr 0.0.0.0/0
+    references:
+      - https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html
+    tags:
+      - security-groups
+      - network
+
+  - id: AWS-SG-002
+    name: security-group-no-ssh-all
+    description: Security groups should not allow SSH (port 22) from 0.0.0.0/0
+    severity: critical
+    resource_type: aws_security_group
+    condition: |
+      !any(resource.ip_permissions, rule =>
+        rule.from_port <= 22 && rule.to_port >= 22 &&
+        any(rule.ip_ranges, range => range.cidr_ip == "0.0.0.0/0")
+      )
+    remediation: |
+      Restrict SSH access to specific IP ranges or use Session Manager:
+
+      aws ec2 revoke-security-group-ingress \
+        --group-id SG_ID \
+        --protocol tcp \
+        --port 22 \
+        --cidr 0.0.0.0/0
+    references:
+      - https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
+    tags:
+      - security-groups
+      - ssh
+
+  - id: AWS-SG-003
+    name: security-group-no-rdp-all
+    description: Security groups should not allow RDP (port 3389) from 0.0.0.0/0
+    severity: critical
+    resource_type: aws_security_group
+    condition: |
+      !any(resource.ip_permissions, rule =>
+        rule.from_port <= 3389 && rule.to_port >= 3389 &&
+        any(rule.ip_ranges, range => range.cidr_ip == "0.0.0.0/0")
+      )
+    remediation: |
+      Restrict RDP access to specific IP ranges or use a bastion host.
+    references:
+      - https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/connecting_to_windows_instance.html
+    tags:
+      - security-groups
+      - rdp
+
+  # IAM Security
+  - id: AWS-IAM-001
+    name: iam-no-inline-policies
+    description: IAM users should not have inline policies
+    severity: medium
+    resource_type: aws_iam_user
+    condition: |
+      len(resource.inline_policies) == 0
+    remediation: |
+      Move inline policies to managed policies and attach them:
+
+      aws iam put-user-policy --user-name USER --policy-name POLICY --policy-document file://policy.json
+      # Then delete inline policy
+      aws iam delete-user-policy --user-name USER --policy-name INLINE_POLICY
+    references:
+      - https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html
+    tags:
+      - iam
+      - policies
+
+  - id: AWS-IAM-002
+    name: iam-mfa-enabled
+    description: IAM users should have MFA enabled
+    severity: high
+    resource_type: aws_iam_user
+    condition: |
+      len(resource.mfa_devices) > 0 ||
+      resource.tags.ServiceAccount == "true"
+    remediation: |
+      Enable MFA for the IAM user:
+
+      1. Sign in to AWS Console
+      2. Go to IAM > Users > Select user
+      3. Security credentials tab
+      4. Assign MFA device
+    references:
+      - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html
+    tags:
+      - iam
+      - mfa
+
+  - id: AWS-IAM-003
+    name: iam-password-policy
+    description: Account should have a strong password policy
+    severity: medium
+    resource_type: aws_iam_account_password_policy
+    condition: |
+      resource.minimum_password_length >= 14 &&
+      resource.require_symbols == true &&
+      resource.require_numbers == true &&
+      resource.require_uppercase_characters == true &&
+      resource.require_lowercase_characters == true &&
+      resource.max_password_age <= 90 &&
+      resource.password_reuse_prevention >= 24
+    remediation: |
+      Update the account password policy:
+
+      aws iam update-account-password-policy \
+        --minimum-password-length 14 \
+        --require-symbols \
+        --require-numbers \
+        --require-uppercase-characters \
+        --require-lowercase-characters \
+        --max-password-age 90 \
+        --password-reuse-prevention 24
+    references:
+      - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_passwords_account-policy.html
+    tags:
+      - iam
+      - passwords
+
+  # RDS Security
+  - id: AWS-RDS-001
+    name: rds-encryption-enabled
+    description: RDS instances should have encryption at rest enabled
+    severity: high
+    resource_type: aws_db_instance
+    condition: |
+      resource.storage_encrypted == true
+    remediation: |
+      Enable encryption when creating RDS instances. For existing instances,
+      create an encrypted snapshot and restore from it.
+    references:
+      - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html
+    tags:
+      - rds
+      - encryption
+
+  - id: AWS-RDS-002
+    name: rds-public-access
+    description: RDS instances should not be publicly accessible
+    severity: critical
+    resource_type: aws_db_instance
+    condition: |
+      resource.publicly_accessible == false
+    remediation: |
+      Modify the RDS instance to disable public accessibility:
+
+      aws rds modify-db-instance \
+        --db-instance-identifier INSTANCE_ID \
+        --no-publicly-accessible
+    references:
+      - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
+    tags:
+      - rds
+      - network
+
+  - id: AWS-RDS-003
+    name: rds-multi-az
+    description: Production RDS instances should have Multi-AZ enabled
+    severity: medium
+    resource_type: aws_db_instance
+    condition: |
+      resource.multi_az == true ||
+      resource.tags.Environment != "production"
+    remediation: |
+      Enable Multi-AZ for the RDS instance:
+
+      aws rds modify-db-instance \
+        --db-instance-identifier INSTANCE_ID \
+        --multi-az
+    references:
+      - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html
+    tags:
+      - rds
+      - availability
+
+  # CloudTrail
+  - id: AWS-CT-001
+    name: cloudtrail-enabled
+    description: CloudTrail should be enabled in all regions
+    severity: critical
+    resource_type: aws_cloudtrail
+    condition: |
+      resource.is_multi_region_trail == true &&
+      resource.is_logging == true
+    remediation: |
+      Create a multi-region CloudTrail:
+
+      aws cloudtrail create-trail \
+        --name my-trail \
+        --s3-bucket-name my-bucket \
+        --is-multi-region-trail
+
+      aws cloudtrail start-logging --name my-trail
+    references:
+      - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-create-and-update-a-trail.html
+    tags:
+      - cloudtrail
+      - logging
+
+  - id: AWS-CT-002
+    name: cloudtrail-log-validation
+    description: CloudTrail should have log file validation enabled
+    severity: medium
+    resource_type: aws_cloudtrail
+    condition: |
+      resource.log_file_validation_enabled == true
+    remediation: |
+      Enable log file validation:
+
+      aws cloudtrail update-trail \
+        --name TRAIL_NAME \
+        --enable-log-file-validation
+    references:
+      - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-log-file-validation-intro.html
+    tags:
+      - cloudtrail
+      - integrity
+
+  # KMS
+  - id: AWS-KMS-001
+    name: kms-key-rotation
+    description: KMS customer managed keys should have rotation enabled
+    severity: medium
+    resource_type: aws_kms_key
+    condition: |
+      resource.key_rotation_enabled == true ||
+      resource.key_manager == "AWS"
+    remediation: |
+      Enable automatic key rotation:
+
+      aws kms enable-key-rotation --key-id KEY_ID
+    references:
+      - https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html
+    tags:
+      - kms
+      - encryption
+
+# Suppressions for known exceptions
+suppressions:
+  # Example: Allow public access for static website bucket
+  - rule_id: AWS-S3-001
+    resource_pattern: "arn:aws:s3:::*-public-website"
+    reason: "Static website hosting requires public access"
+    expires: "2025-12-31"

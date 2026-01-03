@@ -1,0 +1,46 @@
+id: container-003
+name: Container images should not have CISA KEV vulnerabilities
+description: |
+  The CISA Known Exploited Vulnerabilities (KEV) catalog contains CVEs
+  that are actively exploited in the wild. These vulnerabilities must
+  be addressed with highest priority as they represent real threats.
+
+enabled: true
+severity: critical
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.kev_vulnerability_count == 0"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "RA-5"
+  - framework: cisa-bod
+    version: "22-01"
+    control: "KEV"
+
+remediation:
+  guidance: |
+    1. Review KEV vulnerabilities immediately
+    2. CISA mandates federal agencies fix KEV vulns by due date
+    3. Check CISA KEV catalog for remediation deadlines
+    4. Update or patch affected packages immediately
+    5. If no fix available, implement compensating controls
+    6. Consider replacing affected components if necessary
+    7. Document remediation actions taken
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - vulnerability
+  - kev
+  - cisa
+  - exploited
+
+references:
+  - https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+  - https://www.cisa.gov/binding-operational-directive-22-01

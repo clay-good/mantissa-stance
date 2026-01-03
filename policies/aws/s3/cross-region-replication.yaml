@@ -1,0 +1,50 @@
+id: aws-s3-010
+name: S3 bucket has cross-region replication for DR
+description: |
+  Ensure critical S3 buckets have cross-region replication configured.
+  CRR provides disaster recovery by automatically replicating objects
+  to a bucket in a different AWS region.
+
+enabled: true
+severity: medium
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: "resource.replication_enabled == true or resource.is_non_critical == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+
+remediation:
+  guidance: |
+    1. Enable versioning on source bucket
+    2. Create destination bucket in different region
+    3. Enable versioning on destination bucket
+    4. Open source bucket > Management > Replication rules
+    5. Create replication rule:
+       - Select scope (all or filtered)
+       - Choose destination bucket
+       - Select IAM role (create new or existing)
+       - Configure options (encryption, metrics)
+    6. Save rule
+
+    Note: Versioning required on both buckets.
+    Consider replication time control (RTC) for SLAs.
+  automation_supported: false
+
+tags:
+  - s3
+  - replication
+  - disaster-recovery
+  - storage
+  - availability
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html

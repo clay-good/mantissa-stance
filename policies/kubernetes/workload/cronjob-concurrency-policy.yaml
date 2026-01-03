@@ -1,0 +1,43 @@
+id: k8s-wl-007
+name: CronJobs should have concurrency policy defined
+description: |
+  Without a concurrency policy, CronJobs may allow multiple jobs to run
+  simultaneously, which can cause resource contention or data corruption.
+  Defining a policy ensures predictable job execution.
+
+enabled: true
+severity: low
+
+resource_type: k8s_cronjob
+
+check:
+  type: expression
+  expression: "resource.concurrency_policy != null"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-6"
+
+remediation:
+  guidance: |
+    1. Review the CronJob specification
+    2. Add a concurrency policy:
+       spec:
+         concurrencyPolicy: Forbid  # or Allow or Replace
+    3. Choose based on job requirements:
+       - Forbid: Skip new job if previous is still running
+       - Replace: Replace previous job with new one
+       - Allow: Allow concurrent execution
+    4. Forbid is safest for most use cases
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - cronjob
+  - concurrency
+  - scheduling
+  - configuration
+
+references:
+  - https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#concurrency-policy

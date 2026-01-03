@@ -1,0 +1,50 @@
+id: aws-apigateway-001
+name: API Gateway REST API logging enabled
+description: |
+  Ensure API Gateway REST APIs have execution logging enabled. API logging
+  captures request/response details for security monitoring, debugging,
+  and compliance auditing.
+
+enabled: true
+severity: medium
+
+resource_type: aws_api_gateway_stage
+
+check:
+  type: expression
+  expression: "resource.logging_level != 'OFF'"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the REST API
+    3. Go to Stages
+    4. Select the stage (e.g., prod)
+    5. Under Logs/Tracing:
+       - Enable CloudWatch Logs
+       - Set Log level to INFO or ERROR
+       - Enable Access Logging
+       - Specify CloudWatch log group ARN
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - apigateway
+  - logging
+  - api
+  - monitoring
+  - security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-logging.html

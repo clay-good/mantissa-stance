@@ -1,0 +1,48 @@
+id: azure-sql-001
+name: SQL Database TDE enabled
+description: |
+  Ensure Transparent Data Encryption (TDE) is enabled for Azure
+  SQL databases. TDE encrypts data at rest and is enabled by
+  default for new databases but should be verified.
+
+enabled: true
+severity: high
+
+resource_type: azure_sql_database
+
+check:
+  type: expression
+  expression: "resource.transparent_data_encryption_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "4.1.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure SQL Database in Azure Portal
+    2. Select the database
+    3. Go to Security > Transparent data encryption
+    4. Set "Data encryption" to ON
+    5. Save changes
+
+    Note: TDE is enabled by default for new databases created
+    after 2017. Verify existing databases have TDE enabled.
+  automation_supported: false
+
+tags:
+  - sql
+  - encryption
+  - tde
+  - database
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-sql/database/transparent-data-encryption-tde-overview

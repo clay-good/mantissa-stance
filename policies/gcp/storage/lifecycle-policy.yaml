@@ -1,0 +1,48 @@
+id: gcp-storage-007
+name: Cloud Storage bucket has lifecycle policy
+description: |
+  Ensure Cloud Storage buckets have lifecycle policies configured.
+  Lifecycle policies automate object transitions to cheaper storage
+  classes and deletion of old data for cost optimization.
+
+enabled: true
+severity: low
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.lifecycle_rules_count >= 1"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in Console
+    2. Select the bucket
+    3. Go to Lifecycle tab
+    4. Add lifecycle rules:
+       - Set storage class transition (e.g., to Nearline)
+       - Delete objects after X days
+       - Delete noncurrent versions
+    5. Save rules
+
+    Example rule: Transition to Coldline after 90 days,
+    delete after 365 days.
+  automation_supported: false
+
+tags:
+  - storage
+  - lifecycle
+  - gcs
+  - cost-optimization
+  - retention
+
+references:
+  - https://cloud.google.com/storage/docs/lifecycle

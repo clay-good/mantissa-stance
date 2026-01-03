@@ -1,0 +1,46 @@
+id: k8s-rbac-001
+name: Cluster-admin role should not be widely used
+description: |
+  The cluster-admin role provides full access to all resources
+  in all namespaces. Bindings to this role should be limited
+  to essential administrators only.
+
+enabled: true
+severity: critical
+
+resource_type: k8s_cluster_role_binding
+
+check:
+  type: expression
+  expression: "resource.grants_cluster_admin == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.1"
+
+remediation:
+  guidance: |
+    1. Review the cluster role binding
+    2. Identify all subjects with cluster-admin access
+    3. Create specific roles with minimal required permissions
+    4. Migrate users to appropriate roles
+    5. Remove unnecessary cluster-admin bindings
+    6. Document remaining cluster-admin users
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - cluster-admin
+  - least-privilege
+  - access-control
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/rbac/

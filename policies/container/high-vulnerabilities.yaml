@@ -1,0 +1,43 @@
+id: container-002
+name: Container images should minimize high severity vulnerabilities
+description: |
+  High severity vulnerabilities can be exploited to gain unauthorized
+  access or cause significant damage. While some high CVEs may be
+  acceptable with compensating controls, they should be minimized.
+
+enabled: true
+severity: high
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.high_vulnerability_count <= 5"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "RA-5"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.1"
+
+remediation:
+  guidance: |
+    1. Review high severity vulnerabilities
+    2. Prioritize based on EPSS scores and KEV catalog
+    3. Update vulnerable packages where fixes are available
+    4. For unfixed vulns, assess risk and apply mitigations
+    5. Document accepted risks with justification
+    6. Re-scan after remediation
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - vulnerability
+  - high
+  - cve
+
+references:
+  - https://nvd.nist.gov/

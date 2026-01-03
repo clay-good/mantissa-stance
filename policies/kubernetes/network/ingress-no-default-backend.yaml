@@ -1,0 +1,50 @@
+id: k8s-net-004
+name: Ingress resources should not use default backends
+description: |
+  Default backends in Ingress resources act as catch-all routes that
+  can inadvertently expose services. Explicitly defining rules for
+  each path is more secure and reduces attack surface.
+
+enabled: true
+severity: low
+
+resource_type: k8s_ingress
+
+check:
+  type: expression
+  expression: "resource.has_default_backend == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-3"
+
+remediation:
+  guidance: |
+    1. Review the Ingress configuration
+    2. Remove the defaultBackend specification
+    3. Define explicit rules for each path that needs routing:
+       spec:
+         rules:
+         - host: example.com
+           http:
+             paths:
+             - path: /api
+               pathType: Prefix
+               backend:
+                 service:
+                   name: api-service
+                   port:
+                     number: 80
+    4. Consider using a 404 service for unmatched routes
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - ingress
+  - default-backend
+  - access-control
+  - routing
+
+references:
+  - https://kubernetes.io/docs/concepts/services-networking/ingress/#default-backend

@@ -1,0 +1,48 @@
+id: container-009
+name: Container images should not run as root
+description: |
+  Running containers as root increases the impact of container escapes.
+  If an attacker escapes the container, they may gain root on the host.
+  Images should specify a non-root USER in the Dockerfile.
+
+enabled: true
+severity: high
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.runs_as_root == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.1"
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.6"
+
+remediation:
+  guidance: |
+    1. Review Dockerfile for USER instruction
+    2. Create non-root user in Dockerfile:
+       RUN adduser --disabled-password --gecos '' appuser
+       USER appuser
+    3. Ensure file permissions allow non-root access
+    4. Update entrypoint scripts for non-root execution
+    5. Test application functionality as non-root user
+    6. Use runAsNonRoot in Kubernetes security context
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - root
+  - privilege
+  - least-privilege
+
+references:
+  - https://docs.docker.com/develop/develop-images/dockerfile_best-practices/#user

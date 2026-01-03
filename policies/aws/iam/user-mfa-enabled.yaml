@@ -1,0 +1,55 @@
+id: aws-iam-004
+name: MFA enabled for IAM users with console access
+description: |
+  Ensure MFA is enabled for all IAM users that have console access (password).
+  Multi-factor authentication provides an additional layer of protection
+  against unauthorized access to AWS accounts.
+
+enabled: true
+severity: high
+
+resource_type: aws_iam_user
+
+check:
+  type: expression
+  expression: |
+    resource.has_console_access == false or
+    resource.mfa_enabled == true
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.10"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.4.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "IAM.5"
+
+remediation:
+  guidance: |
+    1. Sign in to the AWS Console
+    2. Navigate to IAM > Users
+    3. Select the user without MFA
+    4. Go to Security credentials tab
+    5. In the MFA section, click "Manage"
+    6. Choose MFA device type:
+       - Virtual MFA device (authenticator app)
+       - U2F security key
+       - Hardware MFA device
+    7. Follow the wizard to complete MFA setup
+  automation_supported: false
+
+tags:
+  - iam
+  - mfa
+  - authentication
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#enable-mfa-for-privileged-users

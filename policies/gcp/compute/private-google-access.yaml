@@ -1,0 +1,46 @@
+id: gcp-compute-009
+name: Private Google Access enabled
+description: |
+  Ensure Private Google Access is enabled for subnets. This allows
+  VM instances without external IP addresses to reach Google APIs
+  and services without requiring a NAT gateway.
+
+enabled: true
+severity: low
+
+resource_type: gcp_compute_subnetwork
+
+check:
+  type: expression
+  expression: "resource.private_ip_google_access == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "3.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC Network > VPC networks in GCP Console
+    2. Select the VPC network
+    3. Click on the subnet name
+    4. Edit the subnet
+    5. Enable "Private Google Access"
+    6. Save changes
+    7. Consider also enabling Private Service Connect for
+       enhanced security and performance
+  automation_supported: false
+
+tags:
+  - compute
+  - vpc
+  - subnet
+  - private-access
+  - gcp
+
+references:
+  - https://cloud.google.com/vpc/docs/private-google-access
+  - https://cloud.google.com/vpc/docs/configure-private-google-access

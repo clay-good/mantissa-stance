@@ -1,0 +1,54 @@
+id: aws-rds-005
+name: RDS instance not publicly accessible
+description: |
+  Ensure RDS database instances are not publicly accessible. Public RDS
+  instances can be accessed from the internet, increasing the attack surface.
+  Databases should be in private subnets with access through VPN or bastion.
+
+enabled: true
+severity: critical
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.publicly_accessible == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.3.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.2"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Connectivity:
+       - Expand Additional configuration
+       - Set "Publicly accessible" to No
+    5. Choose when to apply the modification
+    6. Click Modify DB Instance
+
+    Note: Ensure applications can still reach the database through
+    VPC, VPN, or AWS Direct Connect.
+  automation_supported: false
+
+tags:
+  - rds
+  - network
+  - database
+  - public-access
+  - security
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html

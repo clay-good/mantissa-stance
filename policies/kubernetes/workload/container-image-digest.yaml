@@ -1,0 +1,45 @@
+id: k8s-wl-010
+name: Container images should use digest references
+description: |
+  Using image digests instead of tags ensures immutability and
+  reproducibility. Tags like 'latest' or version tags can change,
+  leading to unexpected behavior or security vulnerabilities.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.uses_image_digests == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.5.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-2"
+
+remediation:
+  guidance: |
+    1. Review the pod/deployment container images
+    2. Replace tags with digests:
+       containers:
+       - name: app
+         image: myregistry.io/app@sha256:abc123...
+    3. Use CI/CD to automatically resolve and pin digests
+    4. Consider using admission controllers to enforce this
+    5. Keep a record of digest to version mappings
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - container
+  - image
+  - digest
+  - immutability
+
+references:
+  - https://kubernetes.io/docs/concepts/containers/images/

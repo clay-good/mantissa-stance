@@ -1,0 +1,52 @@
+id: k8s-net-006
+name: Namespaces should have resource quotas defined
+description: |
+  Resource quotas prevent a single namespace from consuming excessive
+  cluster resources. Without quotas, a misbehaving or compromised
+  workload could cause a denial of service affecting other tenants.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_namespace
+
+check:
+  type: expression
+  expression: "resource.has_resource_quota == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Determine appropriate resource limits for the namespace
+    2. Create a ResourceQuota:
+       apiVersion: v1
+       kind: ResourceQuota
+       metadata:
+         name: compute-quota
+       spec:
+         hard:
+           requests.cpu: "4"
+           requests.memory: 8Gi
+           limits.cpu: "8"
+           limits.memory: 16Gi
+           pods: "20"
+    3. Apply the quota to the namespace
+    4. Monitor quota usage and adjust as needed
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - resource-quota
+  - availability
+  - multi-tenancy
+  - resource-management
+
+references:
+  - https://kubernetes.io/docs/concepts/policy/resource-quotas/

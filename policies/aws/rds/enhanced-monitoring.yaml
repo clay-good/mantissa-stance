@@ -1,0 +1,51 @@
+id: aws-rds-010
+name: RDS enhanced monitoring enabled
+description: |
+  Ensure RDS instances have enhanced monitoring enabled. Enhanced monitoring
+  provides real-time operating system metrics with granular visibility into
+  database performance and resource utilization.
+
+enabled: true
+severity: low
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.enhanced_monitoring_enabled == true"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.6"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Monitoring:
+       - Enable "Enhanced monitoring"
+       - Select monitoring interval (1, 5, 10, 15, 30, or 60 seconds)
+       - Select or create the monitoring IAM role
+    5. Choose when to apply the modification
+    6. Click Modify DB Instance
+
+    Enhanced monitoring metrics are published to CloudWatch Logs.
+  automation_supported: false
+
+tags:
+  - rds
+  - monitoring
+  - database
+  - observability
+  - performance
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Monitoring.OS.html

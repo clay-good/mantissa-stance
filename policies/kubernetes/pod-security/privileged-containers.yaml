@@ -1,0 +1,47 @@
+id: k8s-pod-001
+name: Containers should not run privileged
+description: |
+  Privileged containers have access to all host capabilities and
+  can potentially compromise the node. Containers should not run
+  in privileged mode unless absolutely necessary.
+
+enabled: true
+severity: critical
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_privileged_container == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.1"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Locate containers with privileged: true
+    3. Remove the privileged setting or set to false
+    4. Consider using specific capabilities instead
+    5. If privileged access is required, document the exception
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - privileged
+  - containers
+  - security-context
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/
+  - https://kubernetes.io/docs/tasks/configure-pod-container/security-context/

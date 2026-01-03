@@ -1,0 +1,45 @@
+id: azure-compute-003
+name: VMs use managed identity
+description: |
+  Ensure Virtual Machines use managed identities for Azure resources.
+  Managed identities eliminate the need to store credentials in code
+  and provide automatic credential rotation.
+
+enabled: true
+severity: medium
+
+resource_type: azure_virtual_machine
+
+check:
+  type: expression
+  expression: "resource.has_managed_identity == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "7.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-5"
+
+remediation:
+  guidance: |
+    1. Navigate to Virtual machines in Azure Portal
+    2. Select the VM
+    3. Go to Identity under Settings
+    4. Enable System assigned managed identity
+    5. Or configure a User assigned managed identity
+    6. Grant the managed identity appropriate RBAC roles
+    7. Update applications to use managed identity for authentication
+  automation_supported: false
+
+tags:
+  - compute
+  - vm
+  - managed-identity
+  - authentication
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
+  - https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/qs-configure-portal-windows-vm

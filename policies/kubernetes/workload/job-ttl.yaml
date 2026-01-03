@@ -1,0 +1,41 @@
+id: k8s-wl-005
+name: Jobs should have TTL for automatic cleanup
+description: |
+  Completed and failed jobs remain in the cluster consuming resources.
+  Setting ttlSecondsAfterFinished enables automatic cleanup of finished
+  jobs, preventing resource accumulation.
+
+enabled: true
+severity: low
+
+resource_type: k8s_job
+
+check:
+  type: expression
+  expression: "resource.ttl_seconds_after_finished != null"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-7"
+
+remediation:
+  guidance: |
+    1. Review the Job specification
+    2. Add ttlSecondsAfterFinished for automatic cleanup:
+       spec:
+         ttlSecondsAfterFinished: 86400
+    3. Choose a TTL that allows for log collection and debugging
+    4. Consider using CronJobs with history limits instead
+    5. Monitor job history to adjust TTL as needed
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - job
+  - ttl
+  - cleanup
+  - resource-management
+
+references:
+  - https://kubernetes.io/docs/concepts/workloads/controllers/job/#ttl-mechanism-for-finished-jobs

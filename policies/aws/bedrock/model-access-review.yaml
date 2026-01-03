@@ -1,0 +1,53 @@
+id: aws-bedrock-005
+name: Bedrock foundation model access reviewed
+description: |
+  Ensure access to high-risk foundation models is reviewed.
+  Models with higher capabilities may pose greater risks
+  and should have controlled access.
+
+enabled: true
+severity: medium
+
+resource_type: aws_bedrock_model_access
+
+check:
+  type: expression
+  expression: "resource.model_access_status == 'ENABLED' and resource.model_risk_level in ['low', 'medium']"
+
+compliance:
+  - framework: nist-ai-rmf
+    version: "1.0"
+    control: "GOVERN 1.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To review Bedrock model access:
+    1. Audit enabled foundation models:
+       - aws bedrock list-foundation-models
+       - Review model capabilities and risks
+    2. Disable access to unused models:
+       - aws bedrock delete-model-access-permission
+    3. Implement approval workflow:
+       - Require justification for high-risk models
+       - Document use case and safeguards
+    4. Configure CloudTrail logging:
+       - Monitor model invocations
+       - Alert on unusual usage patterns
+  automation_supported: false
+
+tags:
+  - bedrock
+  - access-control
+  - model-access
+  - governance
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/security-iam.html

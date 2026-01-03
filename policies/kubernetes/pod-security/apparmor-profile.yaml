@@ -1,0 +1,45 @@
+id: k8s-pod-015
+name: Pods should have AppArmor profile configured
+description: |
+  AppArmor provides mandatory access control for containers, limiting
+  their access to host resources. Without an AppArmor profile,
+  containers rely only on DAC for security.
+
+enabled: true
+severity: low
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_apparmor_profile == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.7.3"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-3"
+
+remediation:
+  guidance: |
+    1. Ensure AppArmor is enabled on cluster nodes
+    2. Add AppArmor annotation to the pod:
+       metadata:
+         annotations:
+           container.apparmor.security.beta.kubernetes.io/container-name: runtime/default
+    3. For custom profiles, use localhost/profile-name
+    4. Test application compatibility with the profile
+    5. Monitor for AppArmor denials
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - apparmor
+  - mac
+  - defense-in-depth
+
+references:
+  - https://kubernetes.io/docs/tutorials/security/apparmor/

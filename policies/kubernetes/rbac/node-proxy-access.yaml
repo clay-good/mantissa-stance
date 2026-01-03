@@ -1,0 +1,43 @@
+id: k8s-rbac-005
+name: Roles with node/proxy access should be limited
+description: |
+  The ability to proxy to nodes allows accessing the kubelet API,
+  which can be used to execute commands on nodes, access logs, and
+  potentially escalate privileges.
+
+enabled: true
+severity: critical
+
+resource_type: k8s_cluster_role
+
+check:
+  type: expression
+  expression: "resource.risk_analysis.has_node_proxy_access == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.5"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the role definition
+    2. Identify rules granting nodes/proxy access
+    3. Remove nodes/proxy unless absolutely necessary
+    4. Use more specific access patterns if possible
+    5. Implement audit logging for node access
+    6. Consider using dedicated monitoring tools instead
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - node-proxy
+  - privilege-escalation
+  - kubelet
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/rbac/

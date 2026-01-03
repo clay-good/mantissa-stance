@@ -1,0 +1,50 @@
+id: azure-network-007
+name: ExpressRoute uses MACsec encryption
+description: |
+  Ensure ExpressRoute Direct connections use MACsec encryption.
+  MACsec provides link-layer encryption for data in transit between
+  on-premises and Azure.
+
+enabled: true
+severity: high
+
+resource_type: azure_express_route
+
+check:
+  type: expression
+  expression: "resource.macsec_enabled == true or resource.circuit_type != 'ExpressRouteDirect'"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to ExpressRoute Direct in Azure Portal
+    2. Select the ExpressRoute Direct resource
+    3. Enable MACsec:
+       - Configure MACsec cipher (GcmAes256)
+       - Generate and configure CAK/CKN
+       - Apply to both ports
+    4. Configure on-premises router:
+       - Match cipher and keys
+       - Enable MACsec on interface
+    5. Verify encrypted traffic
+
+    Note: MACsec available on ExpressRoute Direct only.
+    Standard ExpressRoute uses provider's encryption.
+  automation_supported: false
+
+tags:
+  - network
+  - expressroute
+  - macsec
+  - encryption
+  - hybrid
+
+references:
+  - https://docs.microsoft.com/en-us/azure/expressroute/expressroute-howto-macsec

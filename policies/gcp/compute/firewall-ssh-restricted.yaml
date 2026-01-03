@@ -1,0 +1,47 @@
+id: gcp-compute-003
+name: SSH access restricted from internet
+description: |
+  Ensure firewall rules do not allow SSH (port 22) access from the
+  internet (0.0.0.0/0). Unrestricted SSH access exposes instances to
+  brute force attacks and should be limited to specific trusted IPs.
+
+enabled: true
+severity: high
+
+resource_type: gcp_compute_firewall
+
+check:
+  type: expression
+  expression: "resource.allows_ssh_from_internet == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "3.6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC Network > Firewall in GCP Console
+    2. Identify rules allowing SSH from 0.0.0.0/0
+    3. Edit the rule to restrict source ranges to trusted IPs
+    4. Consider using Identity-Aware Proxy (IAP) for SSH access
+    5. Or use Cloud VPN/Interconnect for secure access
+    6. Delete or disable unnecessary SSH rules
+  automation_supported: false
+
+tags:
+  - compute
+  - firewall
+  - ssh
+  - network-security
+  - gcp
+
+references:
+  - https://cloud.google.com/vpc/docs/firewalls
+  - https://cloud.google.com/iap/docs/using-tcp-forwarding

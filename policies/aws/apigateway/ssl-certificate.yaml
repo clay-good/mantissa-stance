@@ -1,0 +1,44 @@
+id: aws-apigateway-003
+name: API Gateway uses ACM certificate
+description: |
+  Ensure API Gateway custom domains use ACM certificates for TLS.
+  ACM certificates are automatically renewed and provide secure
+  HTTPS connections for API endpoints.
+
+enabled: true
+severity: high
+
+resource_type: aws_api_gateway_domain_name
+
+check:
+  type: expression
+  expression: "resource.certificate_arn exists and resource.security_policy == 'TLS_1_2'"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Request or import certificate in ACM
+    2. Navigate to API Gateway > Custom Domain Names
+    3. Create or edit custom domain
+    4. Select ACM certificate
+    5. Set minimum TLS version to TLS 1.2
+    6. Configure API mappings
+    7. Update DNS to point to API Gateway endpoint
+  automation_supported: false
+
+tags:
+  - apigateway
+  - ssl
+  - tls
+  - certificate
+  - encryption
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html

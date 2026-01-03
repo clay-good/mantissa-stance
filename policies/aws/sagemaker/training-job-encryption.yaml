@@ -1,0 +1,56 @@
+id: aws-sagemaker-007
+name: SageMaker training job uses KMS encryption
+description: |
+  Ensure SageMaker training jobs use KMS encryption for output data.
+  Training output including model artifacts should be encrypted
+  to protect sensitive intellectual property and data.
+
+enabled: true
+severity: high
+
+resource_type: aws_sagemaker_training_job
+
+check:
+  type: expression
+  expression: "resource.output_kms_key_id != null and resource.output_kms_key_id != ''"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(a)(2)(iv)"
+
+remediation:
+  guidance: |
+    To enable KMS encryption for training jobs:
+    1. When creating training jobs, specify output KMS key:
+       - aws sagemaker create-training-job \
+           --output-data-config \
+             S3OutputPath=s3://bucket/output,\
+             KmsKeyId=arn:aws:kms:region:account:key/key-id \
+           --resource-config ...
+    2. Also specify volume KMS key for training volumes:
+       - --resource-config \
+           InstanceType=ml.m5.xlarge,\
+           VolumeKmsKeyId=arn:aws:kms:region:account:key/key-id
+    3. Ensure KMS key policy allows SageMaker access
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - encryption
+  - kms
+  - training
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/encryption-at-rest.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/train-encrypt.html

@@ -1,0 +1,43 @@
+id: k8s-pod-018
+name: Containers should use Always or IfNotPresent image pull policy
+description: |
+  Image pull policy controls when images are pulled from registries.
+  Using Never for non-local images may result in running outdated
+  or compromised images if the node cache is stale.
+
+enabled: true
+severity: low
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_valid_image_pull_policy == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-2"
+
+remediation:
+  guidance: |
+    1. Review the container image pull policy
+    2. Set imagePullPolicy to Always or IfNotPresent:
+       containers:
+       - name: app
+         image: myregistry.io/app:v1.0.0
+         imagePullPolicy: Always
+    3. Use Always for mutable tags like latest
+    4. IfNotPresent is acceptable for immutable tags/digests
+    5. Configure imagePullSecrets for private registries
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - image
+  - pull-policy
+  - configuration
+
+references:
+  - https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy

@@ -1,0 +1,545 @@
+# CIS Benchmark Compliance Policy Pack
+# Based on CIS AWS Foundations Benchmark v1.5.0
+#
+# Usage:
+#   stance scan --policies ./compliance-cis.yaml
+
+metadata:
+  name: cis-aws-foundations
+  version: "1.5.0"
+  description: CIS AWS Foundations Benchmark compliance checks
+  author: Security Team
+  framework: CIS
+  framework_version: "1.5.0"
+  tags:
+    - cis
+    - compliance
+    - aws
+    - benchmark
+
+settings:
+  default_severity: medium
+  continue_on_error: true
+
+rules:
+  # Section 1: Identity and Access Management
+
+  - id: CIS-1.1
+    name: cis-root-account-usage
+    description: "1.1 Maintain current contact details"
+    severity: low
+    resource_type: aws_account
+    condition: |
+      resource.contact_details.email != null &&
+      resource.contact_details.phone != null
+    remediation: |
+      Update account contact details in AWS Console:
+      1. Sign in as root user
+      2. Go to Account Settings
+      3. Update contact information
+    cis_controls:
+      - "1.1"
+    tags:
+      - identity
+      - account
+
+  - id: CIS-1.4
+    name: cis-root-mfa
+    description: "1.4 Ensure MFA is enabled for the root account"
+    severity: critical
+    resource_type: aws_account
+    condition: |
+      resource.root_mfa_enabled == true
+    remediation: |
+      Enable MFA for root account:
+      1. Sign in as root user
+      2. Navigate to Security Credentials
+      3. Enable virtual or hardware MFA
+    cis_controls:
+      - "1.4"
+    tags:
+      - identity
+      - mfa
+      - root
+
+  - id: CIS-1.5
+    name: cis-root-no-access-keys
+    description: "1.5 Ensure no root account access key exists"
+    severity: critical
+    resource_type: aws_account
+    condition: |
+      len(resource.root_access_keys) == 0
+    remediation: |
+      Delete root account access keys:
+      1. Sign in as root user
+      2. Go to Security Credentials
+      3. Delete any active access keys
+    cis_controls:
+      - "1.5"
+    tags:
+      - identity
+      - access-keys
+      - root
+
+  - id: CIS-1.8
+    name: cis-password-policy-length
+    description: "1.8 Ensure IAM password policy requires minimum length of 14"
+    severity: medium
+    resource_type: aws_iam_account_password_policy
+    condition: |
+      resource.minimum_password_length >= 14
+    remediation: |
+      Update password policy:
+      aws iam update-account-password-policy --minimum-password-length 14
+    cis_controls:
+      - "1.8"
+    tags:
+      - identity
+      - password
+
+  - id: CIS-1.9
+    name: cis-password-policy-reuse
+    description: "1.9 Ensure IAM password policy prevents password reuse"
+    severity: medium
+    resource_type: aws_iam_account_password_policy
+    condition: |
+      resource.password_reuse_prevention >= 24
+    remediation: |
+      Update password policy:
+      aws iam update-account-password-policy --password-reuse-prevention 24
+    cis_controls:
+      - "1.9"
+    tags:
+      - identity
+      - password
+
+  - id: CIS-1.10
+    name: cis-user-mfa
+    description: "1.10 Ensure MFA is enabled for all IAM users with console access"
+    severity: high
+    resource_type: aws_iam_user
+    condition: |
+      resource.password_enabled == false ||
+      len(resource.mfa_devices) > 0
+    remediation: |
+      Enable MFA for IAM users with console access.
+    cis_controls:
+      - "1.10"
+    tags:
+      - identity
+      - mfa
+
+  - id: CIS-1.12
+    name: cis-access-key-rotation
+    description: "1.12 Ensure credentials unused for 45 days are disabled"
+    severity: medium
+    resource_type: aws_iam_user
+    condition: |
+      all(resource.access_keys, key =>
+        key.last_used_date == null ||
+        days_since(key.last_used_date) <= 45
+      )
+    remediation: |
+      Disable unused access keys:
+      aws iam update-access-key --user-name USER --access-key-id KEY_ID --status Inactive
+    cis_controls:
+      - "1.12"
+    tags:
+      - identity
+      - access-keys
+
+  - id: CIS-1.14
+    name: cis-access-key-age
+    description: "1.14 Ensure access keys are rotated every 90 days"
+    severity: medium
+    resource_type: aws_iam_user
+    condition: |
+      all(resource.access_keys, key =>
+        days_since(key.create_date) <= 90
+      )
+    remediation: |
+      Rotate access keys older than 90 days:
+      1. Create new access key
+      2. Update applications with new key
+      3. Disable old access key
+      4. Delete old access key
+    cis_controls:
+      - "1.14"
+    tags:
+      - identity
+      - access-keys
+
+  - id: CIS-1.16
+    name: cis-no-attached-policies
+    description: "1.16 Ensure IAM policies are attached only to groups or roles"
+    severity: medium
+    resource_type: aws_iam_user
+    condition: |
+      len(resource.attached_policies) == 0 &&
+      len(resource.inline_policies) == 0
+    remediation: |
+      Move policies from users to groups:
+      1. Create IAM group with required policies
+      2. Add user to group
+      3. Remove policies from user
+    cis_controls:
+      - "1.16"
+    tags:
+      - identity
+      - policies
+
+  # Section 2: Storage
+
+  - id: CIS-2.1.1
+    name: cis-s3-deny-http
+    description: "2.1.1 Ensure S3 bucket policy denies HTTP requests"
+    severity: medium
+    resource_type: aws_s3_bucket
+    condition: |
+      resource.policy != null &&
+      contains(resource.policy, "aws:SecureTransport")
+    remediation: |
+      Add bucket policy to deny HTTP:
+      {
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": "s3:*",
+        "Resource": ["arn:aws:s3:::BUCKET/*"],
+        "Condition": {
+          "Bool": {"aws:SecureTransport": "false"}
+        }
+      }
+    cis_controls:
+      - "2.1.1"
+    tags:
+      - storage
+      - s3
+      - encryption
+
+  - id: CIS-2.1.2
+    name: cis-s3-mfa-delete
+    description: "2.1.2 Ensure MFA Delete is enabled on S3 buckets"
+    severity: medium
+    resource_type: aws_s3_bucket
+    condition: |
+      resource.versioning.mfa_delete == "Enabled" ||
+      resource.tags.DataClassification != "sensitive"
+    remediation: |
+      Enable MFA delete (requires root credentials):
+      aws s3api put-bucket-versioning \
+        --bucket BUCKET \
+        --versioning-configuration Status=Enabled,MFADelete=Enabled \
+        --mfa "SERIAL_NUMBER TOKEN"
+    cis_controls:
+      - "2.1.2"
+    tags:
+      - storage
+      - s3
+
+  - id: CIS-2.2.1
+    name: cis-ebs-encryption
+    description: "2.2.1 Ensure EBS volume encryption is enabled by default"
+    severity: medium
+    resource_type: aws_ec2_ebs_default_encryption
+    condition: |
+      resource.enabled == true
+    remediation: |
+      Enable EBS encryption by default:
+      aws ec2 enable-ebs-encryption-by-default
+    cis_controls:
+      - "2.2.1"
+    tags:
+      - storage
+      - ebs
+      - encryption
+
+  - id: CIS-2.3.1
+    name: cis-rds-encryption
+    description: "2.3.1 Ensure RDS encryption is enabled"
+    severity: high
+    resource_type: aws_db_instance
+    condition: |
+      resource.storage_encrypted == true
+    remediation: |
+      RDS encryption must be enabled at creation.
+      For existing instances, create encrypted snapshot and restore.
+    cis_controls:
+      - "2.3.1"
+    tags:
+      - storage
+      - rds
+      - encryption
+
+  # Section 3: Logging
+
+  - id: CIS-3.1
+    name: cis-cloudtrail-all-regions
+    description: "3.1 Ensure CloudTrail is enabled in all regions"
+    severity: critical
+    resource_type: aws_cloudtrail
+    condition: |
+      resource.is_multi_region_trail == true &&
+      resource.is_logging == true
+    remediation: |
+      Create multi-region CloudTrail:
+      aws cloudtrail create-trail \
+        --name my-trail \
+        --s3-bucket-name BUCKET \
+        --is-multi-region-trail
+    cis_controls:
+      - "3.1"
+    tags:
+      - logging
+      - cloudtrail
+
+  - id: CIS-3.2
+    name: cis-cloudtrail-log-validation
+    description: "3.2 Ensure CloudTrail log file validation is enabled"
+    severity: medium
+    resource_type: aws_cloudtrail
+    condition: |
+      resource.log_file_validation_enabled == true
+    remediation: |
+      Enable log file validation:
+      aws cloudtrail update-trail --name TRAIL --enable-log-file-validation
+    cis_controls:
+      - "3.2"
+    tags:
+      - logging
+      - cloudtrail
+
+  - id: CIS-3.3
+    name: cis-cloudtrail-s3-not-public
+    description: "3.3 Ensure CloudTrail S3 bucket is not publicly accessible"
+    severity: critical
+    resource_type: aws_s3_bucket
+    condition: |
+      !resource.is_cloudtrail_bucket ||
+      (resource.public_access_block_configuration.block_public_acls == true &&
+       resource.public_access_block_configuration.block_public_policy == true)
+    remediation: |
+      Block public access on CloudTrail S3 bucket.
+    cis_controls:
+      - "3.3"
+    tags:
+      - logging
+      - cloudtrail
+      - s3
+
+  - id: CIS-3.4
+    name: cis-cloudtrail-cloudwatch
+    description: "3.4 Ensure CloudTrail trails are integrated with CloudWatch Logs"
+    severity: medium
+    resource_type: aws_cloudtrail
+    condition: |
+      resource.cloud_watch_logs_log_group_arn != null
+    remediation: |
+      Configure CloudWatch Logs integration:
+      aws cloudtrail update-trail \
+        --name TRAIL \
+        --cloud-watch-logs-log-group-arn LOG_GROUP_ARN \
+        --cloud-watch-logs-role-arn ROLE_ARN
+    cis_controls:
+      - "3.4"
+    tags:
+      - logging
+      - cloudtrail
+      - cloudwatch
+
+  - id: CIS-3.6
+    name: cis-cloudtrail-kms
+    description: "3.6 Ensure CloudTrail logs are encrypted with KMS CMKs"
+    severity: medium
+    resource_type: aws_cloudtrail
+    condition: |
+      resource.kms_key_id != null
+    remediation: |
+      Enable KMS encryption for CloudTrail:
+      aws cloudtrail update-trail --name TRAIL --kms-key-id KEY_ID
+    cis_controls:
+      - "3.6"
+    tags:
+      - logging
+      - cloudtrail
+      - encryption
+
+  - id: CIS-3.7
+    name: cis-kms-key-rotation
+    description: "3.7 Ensure rotation for customer-created CMKs is enabled"
+    severity: medium
+    resource_type: aws_kms_key
+    condition: |
+      resource.key_rotation_enabled == true ||
+      resource.key_manager == "AWS"
+    remediation: |
+      Enable key rotation:
+      aws kms enable-key-rotation --key-id KEY_ID
+    cis_controls:
+      - "3.7"
+    tags:
+      - logging
+      - kms
+
+  - id: CIS-3.8
+    name: cis-vpc-flow-logs
+    description: "3.8 Ensure VPC flow logging is enabled in all VPCs"
+    severity: medium
+    resource_type: aws_vpc
+    condition: |
+      len(resource.flow_logs) > 0
+    remediation: |
+      Enable VPC flow logs:
+      aws ec2 create-flow-logs \
+        --resource-type VPC \
+        --resource-ids VPC_ID \
+        --traffic-type ALL \
+        --log-destination-type cloud-watch-logs \
+        --log-group-name VPC_FLOW_LOGS
+    cis_controls:
+      - "3.8"
+    tags:
+      - logging
+      - vpc
+
+  # Section 4: Monitoring
+
+  - id: CIS-4.1
+    name: cis-alarm-unauthorized-api
+    description: "4.1 Ensure alarm exists for unauthorized API calls"
+    severity: medium
+    resource_type: aws_cloudwatch_metric_alarm
+    condition: |
+      resource.metric_name == "UnauthorizedAPICalls" ||
+      resource.filter_pattern contains "UnauthorizedOperation"
+    remediation: |
+      Create CloudWatch alarm for unauthorized API calls.
+    cis_controls:
+      - "4.1"
+    tags:
+      - monitoring
+      - cloudwatch
+
+  - id: CIS-4.3
+    name: cis-alarm-root-login
+    description: "4.3 Ensure alarm exists for root account usage"
+    severity: critical
+    resource_type: aws_cloudwatch_metric_alarm
+    condition: |
+      resource.metric_name == "RootAccountUsage" ||
+      resource.filter_pattern contains "Root"
+    remediation: |
+      Create CloudWatch alarm for root account usage.
+    cis_controls:
+      - "4.3"
+    tags:
+      - monitoring
+      - cloudwatch
+      - root
+
+  # Section 5: Networking
+
+  - id: CIS-5.1
+    name: cis-no-nacl-allow-all
+    description: "5.1 Ensure no NACLs allow ingress from 0.0.0.0/0 to remote admin ports"
+    severity: critical
+    resource_type: aws_network_acl
+    condition: |
+      !any(resource.entries, entry =>
+        entry.egress == false &&
+        entry.rule_action == "allow" &&
+        entry.cidr_block == "0.0.0.0/0" &&
+        (entry.port_range.from <= 22 && entry.port_range.to >= 22 ||
+         entry.port_range.from <= 3389 && entry.port_range.to >= 3389)
+      )
+    remediation: |
+      Remove or restrict NACL rules allowing SSH/RDP from 0.0.0.0/0.
+    cis_controls:
+      - "5.1"
+    tags:
+      - networking
+      - nacl
+
+  - id: CIS-5.2
+    name: cis-no-sg-allow-all-ssh
+    description: "5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to SSH"
+    severity: critical
+    resource_type: aws_security_group
+    condition: |
+      !any(resource.ip_permissions, rule =>
+        rule.from_port <= 22 && rule.to_port >= 22 &&
+        any(rule.ip_ranges, range => range.cidr_ip == "0.0.0.0/0")
+      )
+    remediation: |
+      Restrict SSH access in security group:
+      aws ec2 revoke-security-group-ingress \
+        --group-id SG_ID \
+        --protocol tcp \
+        --port 22 \
+        --cidr 0.0.0.0/0
+    cis_controls:
+      - "5.2"
+    tags:
+      - networking
+      - security-groups
+
+  - id: CIS-5.3
+    name: cis-no-sg-allow-all-rdp
+    description: "5.3 Ensure no security groups allow ingress from 0.0.0.0/0 to RDP"
+    severity: critical
+    resource_type: aws_security_group
+    condition: |
+      !any(resource.ip_permissions, rule =>
+        rule.from_port <= 3389 && rule.to_port >= 3389 &&
+        any(rule.ip_ranges, range => range.cidr_ip == "0.0.0.0/0")
+      )
+    remediation: |
+      Restrict RDP access in security group.
+    cis_controls:
+      - "5.3"
+    tags:
+      - networking
+      - security-groups
+
+  - id: CIS-5.4
+    name: cis-default-sg-restrict
+    description: "5.4 Ensure default security group restricts all traffic"
+    severity: medium
+    resource_type: aws_security_group
+    condition: |
+      resource.group_name != "default" ||
+      (len(resource.ip_permissions) == 0 && len(resource.ip_permissions_egress) == 0)
+    remediation: |
+      Remove all rules from default security group:
+      aws ec2 revoke-security-group-ingress --group-id SG_ID --protocol all
+      aws ec2 revoke-security-group-egress --group-id SG_ID --protocol all
+    cis_controls:
+      - "5.4"
+    tags:
+      - networking
+      - security-groups
+
+# Compliance report settings
+compliance:
+  framework: CIS AWS Foundations Benchmark
+  version: "1.5.0"
+
+  # Scoring sections
+  sections:
+    - id: "1"
+      name: Identity and Access Management
+      weight: 25
+    - id: "2"
+      name: Storage
+      weight: 20
+    - id: "3"
+      name: Logging
+      weight: 25
+    - id: "4"
+      name: Monitoring
+      weight: 15
+    - id: "5"
+      name: Networking
+      weight: 15
+
+# Known exceptions
+suppressions: []

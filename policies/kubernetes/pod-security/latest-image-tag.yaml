@@ -1,0 +1,43 @@
+id: k8s-pod-011
+name: Container images should not use latest tag
+description: |
+  Using the 'latest' tag for container images makes deployments
+  unpredictable and can lead to unexpected changes. Use specific
+  image versions or digests for reproducibility.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.uses_latest_tag == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.5.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-2"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Identify containers using :latest tag
+    3. Replace with specific version tags
+    4. Consider using image digests for immutability
+    5. Implement image scanning in CI/CD pipeline
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - image-tag
+  - latest
+  - reproducibility
+
+references:
+  - https://kubernetes.io/docs/concepts/containers/images/

@@ -1,0 +1,47 @@
+id: k8s-pod-020
+name: Containers should have CPU requests defined
+description: |
+  CPU requests help the scheduler make better placement decisions
+  and ensure fair CPU allocation. Without requests, pods may
+  starve other workloads or be scheduled on overloaded nodes.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_cpu_requests == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.4.1"
+
+remediation:
+  guidance: |
+    1. Review container CPU requirements
+    2. Add CPU requests to each container:
+       containers:
+       - name: app
+         resources:
+           requests:
+             cpu: "100m"
+    3. Set requests based on typical usage
+    4. Consider setting limits to prevent CPU hogging
+    5. Monitor actual usage and adjust requests
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - resources
+  - cpu
+  - scheduling
+
+references:
+  - https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/

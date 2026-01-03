@@ -1,0 +1,43 @@
+id: k8s-rbac-006
+name: Roles with impersonation access should be limited
+description: |
+  The ability to impersonate users, groups, or service accounts allows
+  bypassing RBAC controls by acting as other identities. This is a
+  powerful privilege that should be strictly limited.
+
+enabled: true
+severity: critical
+
+resource_type: k8s_cluster_role
+
+check:
+  type: expression
+  expression: "resource.risk_analysis.has_impersonation_access == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.6"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the role definition
+    2. Identify rules granting impersonate verb
+    3. Remove impersonation unless absolutely necessary
+    4. Limit impersonation to specific resources if needed
+    5. Implement audit logging for impersonation actions
+    6. Review all bindings to this role
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - impersonation
+  - privilege-escalation
+  - identity
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation

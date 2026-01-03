@@ -1,0 +1,50 @@
+id: aws-lambda-007
+name: Lambda function code signing configured
+description: |
+  Ensure Lambda functions have code signing configured to verify deployment
+  packages. Code signing ensures only trusted code is deployed and prevents
+  unauthorized modifications to function code.
+
+enabled: true
+severity: high
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: "resource.code_signing_config_arn exists"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CM-14"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.2.4"
+
+remediation:
+  guidance: |
+    1. Create a code signing configuration:
+       - Navigate to Lambda > Code signing configurations
+       - Click "Create configuration"
+       - Select signing profiles from AWS Signer
+       - Configure untrusted artifact policy
+    2. Apply to function:
+       - Select the Lambda function
+       - Go to Configuration > Code signing
+       - Click Edit
+       - Select the code signing configuration
+       - Save changes
+
+    Note: All deployment packages must be signed after enabling.
+  automation_supported: false
+
+tags:
+  - lambda
+  - code-signing
+  - integrity
+  - serverless
+  - supply-chain
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/configuration-codesigning.html

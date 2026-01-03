@@ -1,0 +1,51 @@
+id: aws-cloudtrail-003
+name: CloudTrail logs encrypted with KMS
+description: |
+  Ensure CloudTrail logs are encrypted at rest using AWS KMS. Server-side
+  encryption with KMS provides additional security controls and audit
+  capabilities through AWS CloudTrail and AWS KMS key policies.
+
+enabled: true
+severity: high
+
+resource_type: aws_cloudtrail
+
+check:
+  type: expression
+  expression: "resource.kms_key_id exists and resource.kms_key_id != ''"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "CloudTrail.2"
+
+remediation:
+  guidance: |
+    1. Create a KMS key for CloudTrail encryption if not already exists
+    2. Open the AWS CloudTrail console
+    3. Select the trail
+    4. Choose Edit
+    5. Under Log file SSE-KMS encryption, enable
+    6. Select or create a KMS key
+    7. Update KMS key policy to allow CloudTrail to use the key
+    8. Save changes
+  automation_supported: false
+
+tags:
+  - cloudtrail
+  - logging
+  - encryption
+  - kms
+  - compliance
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/encrypting-cloudtrail-log-files-with-aws-kms.html

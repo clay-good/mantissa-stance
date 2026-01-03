@@ -1,0 +1,50 @@
+id: gcp-functions-002
+name: Cloud Function ingress restricted
+description: |
+  Ensure Cloud Functions have ingress settings configured to restrict
+  access. Functions should only allow internal traffic or traffic through
+  load balancers unless public access is required.
+
+enabled: true
+severity: high
+
+resource_type: gcp_cloud_function
+
+check:
+  type: expression
+  expression: "resource.ingress_settings != 'ALLOW_ALL'"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "7.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Functions in Google Cloud Console
+    2. Select the function
+    3. Click Edit
+    4. Under Networking > Ingress settings:
+       - Select "Allow internal traffic only" or
+       - Select "Allow internal traffic and traffic from Cloud Load Balancing"
+    5. Deploy the function
+
+    Consider using Cloud Load Balancing with Cloud Armor for
+    public-facing functions.
+  automation_supported: false
+
+tags:
+  - functions
+  - ingress
+  - network
+  - serverless
+  - access-control
+
+references:
+  - https://cloud.google.com/functions/docs/networking/network-settings

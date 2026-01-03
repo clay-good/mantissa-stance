@@ -1,0 +1,46 @@
+id: container-012
+name: Container images should use minimal base images
+description: |
+  Minimal base images like distroless, scratch, or Alpine reduce attack
+  surface by removing unnecessary packages, shells, and utilities.
+  Fewer components mean fewer potential vulnerabilities.
+
+enabled: true
+severity: low
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.is_minimal_base == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-7"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.3"
+
+remediation:
+  guidance: |
+    1. Review current base image size and packages
+    2. Consider switching to minimal images:
+       - gcr.io/distroless/* for production
+       - alpine:* for smaller images
+       - scratch for static binaries
+    3. Use multi-stage builds to minimize final image
+    4. Remove unnecessary packages and files
+    5. Test application functionality with minimal base
+    6. Document any required additional packages
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - minimal
+  - distroless
+  - attack-surface
+
+references:
+  - https://github.com/GoogleContainerTools/distroless

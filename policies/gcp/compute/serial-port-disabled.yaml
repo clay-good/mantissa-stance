@@ -1,0 +1,44 @@
+id: gcp-compute-001
+name: Serial port access disabled
+description: |
+  Ensure serial port access is disabled on Compute Engine instances.
+  Serial port access provides a potential entry point for attackers
+  and should be disabled unless specifically required for debugging.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_instance
+
+check:
+  type: expression
+  expression: "resource.serial_port_enabled == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "4.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-17"
+
+remediation:
+  guidance: |
+    1. Navigate to Compute Engine > VM instances
+    2. Select the instance
+    3. Click Edit
+    4. Under Metadata, remove or set "serial-port-enable" to "false"
+    5. Save the changes
+    6. Or set organization policy "compute.disableSerialPortAccess" to true
+  automation_supported: false
+
+tags:
+  - compute
+  - serial-port
+  - access-control
+  - hardening
+  - gcp
+
+references:
+  - https://cloud.google.com/compute/docs/troubleshooting/troubleshooting-using-serial-console
+  - https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints

@@ -1,0 +1,39 @@
+id: aws-ec2-002
+name: Security group RDP access restricted
+description: |
+  Ensure no security group allows unrestricted inbound RDP access.
+  Security groups that allow RDP from 0.0.0.0/0 expose Windows
+  instances to potential brute force attacks.
+
+enabled: true
+severity: high
+
+resource_type: aws_security_group
+
+check:
+  type: expression
+  expression: "'0.0.0.0/0' not_in resource.rdp_open_cidrs"
+
+benchmark:
+  - cis-aws: "5.3"
+
+remediation:
+  guidance: |
+    1. Open the Amazon EC2 console
+    2. Navigate to Security Groups
+    3. Select the security group
+    4. Choose Inbound rules tab
+    5. Edit rules that allow RDP (port 3389) from 0.0.0.0/0
+    6. Restrict source to specific IP ranges or security groups
+    7. Save rules
+  automation_supported: false
+
+tags:
+  - ec2
+  - security-group
+  - network
+  - rdp
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules.html

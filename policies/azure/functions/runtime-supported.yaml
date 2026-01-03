@@ -1,0 +1,49 @@
+id: azure-functions-004
+name: Azure Function uses supported runtime
+description: |
+  Ensure Azure Functions use a supported runtime version. Deprecated
+  runtimes do not receive security patches and may have known vulnerabilities.
+  Upgrade to supported versions for continued security updates.
+
+enabled: true
+severity: high
+
+resource_type: azure_function_app
+
+check:
+  type: expression
+  expression: "resource.runtime_deprecated == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.3.3"
+
+remediation:
+  guidance: |
+    1. Navigate to Function App in Azure Portal
+    2. Under Settings, select Configuration
+    3. Go to General settings
+    4. Select supported runtime version:
+       - .NET: 6.0, 8.0
+       - Node.js: 18, 20
+       - Python: 3.9, 3.10, 3.11
+       - Java: 11, 17, 21
+    5. Also update Functions runtime version if needed
+    6. Save and restart the function app
+
+    Test thoroughly after runtime upgrade.
+  automation_supported: false
+
+tags:
+  - functions
+  - runtime
+  - patching
+  - serverless
+  - deprecation
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-functions/functions-versions

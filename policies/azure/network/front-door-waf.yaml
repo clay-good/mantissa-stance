@@ -1,0 +1,50 @@
+id: azure-network-002
+name: Azure Front Door WAF enabled
+description: |
+  Ensure Azure Front Door has Web Application Firewall policy attached.
+  WAF at the edge provides global protection against web vulnerabilities
+  and DDoS attacks.
+
+enabled: true
+severity: high
+
+resource_type: azure_front_door
+
+check:
+  type: expression
+  expression: "resource.waf_policy_id exists"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Create WAF Policy:
+       - Navigate to Web Application Firewall policies
+       - Create new policy for Front Door
+       - Configure managed rules (OWASP, Bot protection)
+       - Set policy mode to Prevention
+    2. Associate with Front Door:
+       - Navigate to Front Door
+       - Select WAF policy in settings
+       - Apply to endpoints/routes
+    3. Save configuration
+  automation_supported: false
+
+tags:
+  - network
+  - front-door
+  - waf
+  - security
+  - edge
+
+references:
+  - https://docs.microsoft.com/en-us/azure/web-application-firewall/afds/afds-overview

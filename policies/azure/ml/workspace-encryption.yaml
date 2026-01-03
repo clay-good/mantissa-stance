@@ -1,0 +1,60 @@
+id: azure-ml-001
+name: Azure ML workspace uses CMK encryption
+description: |
+  Ensure Azure Machine Learning workspaces use Customer-Managed Keys (CMK)
+  for encryption. CMK provides additional control over encryption keys
+  and meets compliance requirements.
+
+enabled: true
+severity: high
+
+resource_type: azure_ml_workspace
+
+check:
+  type: expression
+  expression: "resource.encryption != null and resource.encryption.key_vault_properties != null"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.12"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To enable CMK for Azure ML workspace:
+    1. Create Key Vault with soft-delete and purge protection:
+       - az keyvault create --name my-kv \
+           --resource-group my-rg \
+           --enable-soft-delete \
+           --enable-purge-protection
+    2. Create encryption key:
+       - az keyvault key create --vault-name my-kv --name ml-key
+    3. Create workspace with CMK:
+       - az ml workspace create --name my-ws \
+           --resource-group my-rg \
+           --cmk-keyvault /subscriptions/.../vaults/my-kv \
+           --resource-cmk-uri https://my-kv.vault.azure.net/keys/ml-key/version
+    4. Note: Cannot add CMK to existing workspace
+       - Create new workspace with CMK
+       - Migrate resources and delete old workspace
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - encryption
+  - cmk
+  - workspace
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/concept-data-encryption
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-create-workspace-template

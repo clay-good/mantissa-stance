@@ -1,0 +1,43 @@
+id: container-013
+name: Container images should not have high EPSS score vulnerabilities
+description: |
+  EPSS (Exploit Prediction Scoring System) predicts the likelihood of
+  a vulnerability being exploited. Vulnerabilities with high EPSS scores
+  (>10%) require urgent attention regardless of CVSS severity.
+
+enabled: true
+severity: high
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.high_epss_vulnerability_count == 0"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "RA-5"
+  - framework: first
+    version: "2023"
+    control: "EPSS"
+
+remediation:
+  guidance: |
+    1. Review vulnerabilities with high EPSS scores
+    2. EPSS >10% indicates likely exploitation
+    3. Prioritize these over low-EPSS critical CVEs
+    4. Apply patches or mitigations immediately
+    5. Monitor for exploitation attempts
+    6. Consider compensating controls while patching
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - vulnerability
+  - epss
+  - exploit-prediction
+
+references:
+  - https://www.first.org/epss/

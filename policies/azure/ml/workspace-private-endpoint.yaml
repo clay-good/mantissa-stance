@@ -1,0 +1,62 @@
+id: azure-ml-002
+name: Azure ML workspace uses private endpoint
+description: |
+  Ensure Azure Machine Learning workspaces use private endpoints.
+  Private endpoints provide secure connectivity without
+  exposing the workspace to the public internet.
+
+enabled: true
+severity: high
+
+resource_type: azure_ml_workspace
+
+check:
+  type: expression
+  expression: "resource.public_network_access == 'Disabled' or resource.private_endpoint_connections != null"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+
+remediation:
+  guidance: |
+    To configure private endpoints for Azure ML:
+    1. Create private endpoint for workspace:
+       - az network private-endpoint create \
+           --name ml-private-endpoint \
+           --resource-group my-rg \
+           --vnet-name my-vnet \
+           --subnet my-subnet \
+           --private-connection-resource-id /subscriptions/.../workspaces/my-ws \
+           --group-ids amlworkspace \
+           --connection-name ml-connection
+    2. Disable public network access:
+       - az ml workspace update --name my-ws \
+           --resource-group my-rg \
+           --public-network-access disabled
+    3. Configure private DNS zone:
+       - Create private DNS zone for privatelink.api.azureml.ms
+       - Link to VNet
+    4. Update client applications to use private endpoint
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - network
+  - private-endpoint
+  - workspace
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-configure-private-link
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-secure-workspace-vnet

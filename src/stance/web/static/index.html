@@ -1,0 +1,4677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mantissa Stance Dashboard</title>
+    <style>
+        /* Monochrome color scheme - Light mode (default) */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #ebebeb;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --accent: #333333;
+            --critical: #1a1a1a;
+            --high: #4a4a4a;
+            --medium: #7a7a7a;
+            --low: #aaaaaa;
+            --info: #cccccc;
+        }
+
+        /* Dark mode colors */
+        :root.dark-mode {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-muted: #777777;
+            --border: #3a3a3a;
+            --accent: #ffffff;
+            --critical: #ffffff;
+            --high: #cccccc;
+            --medium: #999999;
+            --low: #666666;
+            --info: #444444;
+        }
+
+        /* System preference dark mode (when no explicit preference set) */
+        @media (prefers-color-scheme: dark) {
+            :root:not(.light-mode) {
+                --bg-primary: #1a1a1a;
+                --bg-secondary: #2a2a2a;
+                --bg-tertiary: #3a3a3a;
+                --text-primary: #ffffff;
+                --text-secondary: #aaaaaa;
+                --text-muted: #777777;
+                --border: #3a3a3a;
+                --accent: #ffffff;
+                --critical: #ffffff;
+                --high: #cccccc;
+                --medium: #999999;
+                --low: #666666;
+                --info: #444444;
+            }
+        }
+
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        /* Accessibility: Screen reader only content */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Accessibility: Focus visible styles for keyboard navigation */
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* Remove default focus outline, rely on focus-visible */
+        :focus:not(:focus-visible) {
+            outline: none;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        nav {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        nav button {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+
+        nav button:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        nav button.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        /* Main content */
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        section {
+            display: none;
+        }
+
+        section.active {
+            display: block;
+        }
+
+        /* Cards grid */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+        }
+
+        .card-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .card-value.critical { color: var(--critical); }
+        .card-value.high { color: var(--high); }
+        .card-value.medium { color: var(--medium); }
+        .card-value.low { color: var(--low); }
+
+        /* Score display */
+        .score {
+            font-size: 4rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .score.good { color: var(--text-primary); }
+        .score.warning { color: var(--medium); }
+        .score.bad { color: var(--critical); }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover td {
+            background: var(--bg-secondary);
+        }
+
+        /* Severity badges */
+        .severity {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .severity.critical {
+            background: var(--critical);
+            color: var(--bg-primary);
+        }
+
+        .severity.high {
+            background: var(--high);
+            color: var(--bg-primary);
+        }
+
+        .severity.medium {
+            background: var(--medium);
+            color: var(--bg-primary);
+        }
+
+        .severity.low {
+            background: var(--low);
+            color: var(--text-primary);
+        }
+
+        .severity.info {
+            background: var(--info);
+            color: var(--text-primary);
+        }
+
+        /* Status badges */
+        .status {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filters select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Section headers */
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Compliance framework cards */
+        .framework-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .framework-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 1rem;
+        }
+
+        .framework-name {
+            font-weight: 600;
+        }
+
+        .framework-score {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .framework-meta {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        /* Empty state */
+        .empty {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        /* Truncate long text */
+        .truncate {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Clickable rows */
+        tr.clickable {
+            cursor: pointer;
+        }
+
+        tr.clickable:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            max-width: 800px;
+            width: 100%;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .modal-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .detail-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 0.875rem;
+            word-break: break-word;
+        }
+
+        .detail-value.code {
+            font-family: monospace;
+            font-size: 0.8125rem;
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+        }
+
+        .detail-description {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        .detail-remediation {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.8;
+        }
+
+        .detail-remediation ol {
+            margin-left: 1.25rem;
+        }
+
+        .detail-remediation li {
+            margin-bottom: 0.5rem;
+        }
+
+        .finding-link {
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .finding-link:hover {
+            color: var(--text-primary);
+        }
+
+        .mini-table {
+            width: 100%;
+            font-size: 0.8125rem;
+        }
+
+        .mini-table th,
+        .mini-table td {
+            padding: 0.5rem 0.75rem;
+        }
+
+        /* Back link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+
+        .back-link:hover {
+            color: var(--text-primary);
+        }
+
+        /* Search */
+        .search-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 0.5rem 1rem;
+            padding-right: 2.5rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            width: 250px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0;
+            display: none;
+        }
+
+        .search-clear.visible {
+            display: block;
+        }
+
+        .search-clear:hover {
+            color: var(--text-primary);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-top: none;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .search-results.visible {
+            display: block;
+        }
+
+        .search-category {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-result-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .search-result-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-title {
+            flex: 1;
+            font-size: 0.875rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .search-result-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .search-no-results {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Filter Presets */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .preset-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn-small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .btn-small:hover {
+            background: var(--bg-secondary);
+        }
+
+        .btn-small.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .btn-small.primary:hover {
+            opacity: 0.9;
+        }
+
+        .preset-dropdown {
+            position: relative;
+        }
+
+        .preset-dropdown-content {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .preset-dropdown-content.visible {
+            display: block;
+        }
+
+        .preset-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preset-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .preset-item:last-child {
+            border-bottom: none;
+        }
+
+        .preset-item-name {
+            font-size: 0.875rem;
+        }
+
+        .preset-item-delete {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .preset-item-delete:hover {
+            color: #dc3545;
+        }
+
+        .preset-empty {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Share URL section */
+        .share-url-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .share-url-container input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .share-url-container.hidden {
+            display: none;
+        }
+
+        /* Preset save modal */
+        .preset-modal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .preset-modal-form input,
+        .preset-modal-form textarea {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .preset-modal-form textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .preset-modal-form .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        /* Keyboard Shortcuts Modal */
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .shortcut-group {
+            margin-bottom: 1rem;
+        }
+
+        .shortcut-group-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .shortcut-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.25rem 0;
+        }
+
+        .shortcut-keys {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .shortcut-key {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            font-family: monospace;
+            font-size: 0.75rem;
+            min-width: 1.5rem;
+            text-align: center;
+        }
+
+        .shortcut-desc {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .shortcuts-help-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1;
+        }
+
+        .shortcuts-help-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Posture Score Gauge */
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .gauge-wrapper {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .gauge-svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-background {
+            fill: none;
+            stroke: var(--bg-tertiary);
+            stroke-width: 8;
+        }
+
+        .gauge-progress {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease-out, stroke 0.3s ease;
+        }
+
+        .gauge-progress.good {
+            stroke: var(--text-primary);
+        }
+
+        .gauge-progress.warning {
+            stroke: var(--medium);
+        }
+
+        .gauge-progress.bad {
+            stroke: var(--critical);
+        }
+
+        .gauge-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .gauge-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .gauge-value.good { color: var(--text-primary); }
+        .gauge-value.warning { color: var(--medium); }
+        .gauge-value.bad { color: var(--critical); }
+
+        .gauge-label {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Drift Detection View */
+        .drift-status-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .drift-status-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .drift-status-icon.has-baseline {
+            background: var(--bg-tertiary);
+        }
+
+        .drift-status-icon.no-baseline {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+        }
+
+        .drift-status-content {
+            flex: 1;
+        }
+
+        .drift-status-title {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .drift-status-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .drift-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .drift-stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .drift-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .drift-stat-value.has-drift {
+            color: var(--critical);
+        }
+
+        .drift-stat-value.no-drift {
+            color: var(--text-primary);
+        }
+
+        .drift-stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .drift-severity-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+        }
+
+        .drift-severity-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .drift-severity-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .drift-severity-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .drift-severity-label {
+            width: 80px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .drift-severity-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-tertiary);
+            position: relative;
+        }
+
+        .drift-severity-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .drift-severity-fill.critical { background: var(--critical); }
+        .drift-severity-fill.high { background: var(--high); }
+        .drift-severity-fill.medium { background: var(--medium); }
+        .drift-severity-fill.low { background: var(--low); }
+
+        .drift-severity-count {
+            width: 40px;
+            text-align: right;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .no-baseline-message {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .no-baseline-message h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .no-baseline-message p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .no-baseline-message code {
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Snapshot Selector */
+        .snapshot-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-right: 1rem;
+        }
+
+        .snapshot-selector-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .snapshot-selector select {
+            padding: 0.375rem 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            min-width: 180px;
+        }
+
+        .snapshot-selector select:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .snapshot-option-date {
+            color: var(--text-secondary);
+        }
+
+        /* Trend Charts */
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+        }
+
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .chart-legend-color {
+            width: 12px;
+            height: 3px;
+        }
+
+        .chart-legend-color.findings { background: var(--critical); }
+        .chart-legend-color.critical { background: var(--critical); }
+        .chart-legend-color.high { background: var(--high); }
+        .chart-legend-color.medium { background: var(--medium); }
+        .chart-legend-color.assets { background: var(--text-secondary); stroke-dasharray: 4 2; }
+
+        .chart-svg {
+            width: 100%;
+            height: 200px;
+        }
+
+        .chart-axis-label {
+            font-size: 0.625rem;
+            fill: var(--text-secondary);
+        }
+
+        .chart-grid-line {
+            stroke: var(--border);
+            stroke-width: 1;
+        }
+
+        .chart-line {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .chart-line.findings { stroke: var(--critical); }
+        .chart-line.critical { stroke: var(--critical); }
+        .chart-line.high { stroke: var(--high); }
+        .chart-line.medium { stroke: var(--medium); }
+        .chart-line.assets { stroke: var(--text-secondary); stroke-dasharray: 4 2; }
+
+        .chart-point {
+            r: 3;
+        }
+
+        .chart-point.findings { fill: var(--critical); }
+        .chart-point.critical { fill: var(--critical); }
+        .chart-point.high { fill: var(--high); }
+        .chart-point.medium { fill: var(--medium); }
+        .chart-point.assets { fill: var(--text-secondary); }
+
+        .chart-tooltip {
+            position: absolute;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+
+        .chart-tooltip.visible {
+            display: block;
+        }
+
+        .chart-tooltip-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .chart-tooltip-value {
+            color: var(--text-secondary);
+        }
+
+        .chart-area {
+            opacity: 0.1;
+        }
+
+        .chart-area.findings { fill: var(--critical); }
+        .chart-area.critical { fill: var(--critical); }
+
+        .chart-no-data {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .theme-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+        }
+
+        .theme-toggle-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .theme-toggle-btn .icon-sun,
+        .theme-toggle-btn .icon-moon,
+        .theme-toggle-btn .icon-auto {
+            display: none;
+        }
+
+        /* Show appropriate icon based on theme state */
+        .theme-toggle-btn[data-theme="light"] .icon-sun {
+            display: inline;
+        }
+
+        .theme-toggle-btn[data-theme="dark"] .icon-moon {
+            display: inline;
+        }
+
+        .theme-toggle-btn[data-theme="auto"] .icon-auto {
+            display: inline;
+        }
+
+        /* Responsive adjustments */
+        /* Export menu */
+        .export-menu select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .export-menu select:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            nav {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .export-menu {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+
+            .export-menu select {
+                width: 100%;
+            }
+        }
+
+        /* Attack Paths View */
+        .attack-paths-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .attack-path-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .attack-path-card:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .attack-path-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .attack-path-type {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+        }
+
+        .attack-path-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .attack-path-steps {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .attack-path-step {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .attack-path-step-icon {
+            width: 20px;
+            height: 20px;
+            background: var(--bg-tertiary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.625rem;
+        }
+
+        .attack-path-arrow {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .attack-path-detail-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .attack-path-detail-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .attack-path-step-detail {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .attack-path-step-detail:last-child {
+            border-bottom: none;
+        }
+
+        .attack-path-step-number {
+            width: 24px;
+            height: 24px;
+            background: var(--bg-tertiary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .attack-path-step-content {
+            flex: 1;
+        }
+
+        .attack-path-step-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .attack-path-step-action {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .attack-path-step-type {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .attack-paths-filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .attack-paths-filters select {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .attack-path-empty {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .attack-path-empty-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Settings View */
+        .settings-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+
+        .settings-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .settings-label-text {
+            font-weight: 500;
+        }
+
+        .settings-label-description {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .settings-toggle {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .settings-toggle.active {
+            background: var(--accent);
+        }
+
+        .settings-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: var(--bg-primary);
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .settings-toggle.active::after {
+            transform: translateX(24px);
+        }
+
+        .destination-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .destination-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .destination-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .destination-details h4 {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .destination-details .destination-type {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .destination-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .destination-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .destination-status-dot.configured {
+            background: var(--accent);
+        }
+
+        .destination-status-dot.not-configured {
+            background: var(--text-muted);
+        }
+
+        .destination-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .destination-actions button {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .destination-actions button:hover {
+            background: var(--bg-primary);
+        }
+
+        .add-destination-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 1rem;
+            border: 2px dashed var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .add-destination-btn:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        .notification-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .notification-history-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-history-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .notification-history-destination {
+            font-weight: 500;
+        }
+
+        .notification-history-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .notification-history-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+        }
+
+        .notification-history-status.success {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .notification-history-status.failed {
+            background: var(--critical);
+            color: var(--bg-primary);
+        }
+
+        /* Destination Form Modal */
+        .destination-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.625rem;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: -1px;
+        }
+
+        .form-group .hint {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .form-actions button {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .form-actions .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+        }
+
+        .form-actions .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Screen reader announcements -->
+    <div id="aria-live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <header role="banner">
+        <h1>Mantissa Stance</h1>
+        <nav role="navigation" aria-label="Main navigation">
+            <button data-view="summary" class="active" aria-pressed="true">Overview</button>
+            <button data-view="findings" aria-pressed="false">Findings</button>
+            <button data-view="assets" aria-pressed="false">Assets</button>
+            <button data-view="compliance" aria-pressed="false">Compliance</button>
+            <button data-view="risk" aria-pressed="false">Risk</button>
+            <button data-view="attack-paths" aria-pressed="false">Attack Paths</button>
+            <button data-view="drift" aria-pressed="false">Drift</button>
+            <button data-view="trends" aria-pressed="false">Trends</button>
+            <button data-view="settings" aria-pressed="false">Settings</button>
+        </nav>
+        <div class="search-container" role="search">
+            <input type="text" id="search-input" class="search-input" placeholder="Search findings and assets..." autocomplete="off" aria-label="Search findings and assets">
+            <button id="search-clear" class="search-clear" aria-label="Clear search">&times;</button>
+            <div id="search-results" class="search-results" role="listbox" aria-label="Search results"></div>
+        </div>
+        <div class="snapshot-selector">
+            <span class="snapshot-selector-label">Snapshot:</span>
+            <select id="snapshot-select" aria-label="Select scan snapshot">
+                <option value="">Latest</option>
+            </select>
+        </div>
+        <div class="export-menu">
+            <select id="export-format" aria-label="Export report format">
+                <option value="">Export Report...</option>
+                <option value="json">JSON</option>
+                <option value="csv">CSV</option>
+                <option value="html">HTML</option>
+                <option value="pdf">PDF</option>
+            </select>
+        </div>
+        <div class="theme-toggle">
+            <button id="theme-toggle-btn" class="theme-toggle-btn" data-theme="auto" title="Toggle theme (Light/Dark/Auto)" aria-label="Toggle theme between Light, Dark, and Auto modes">
+                <span class="icon-sun" aria-hidden="true">&#9728;</span>
+                <span class="icon-moon" aria-hidden="true">&#9790;</span>
+                <span class="icon-auto" aria-hidden="true">&#9788;</span>
+            </button>
+        </div>
+        <button id="shortcuts-help-btn" class="shortcuts-help-btn" title="Keyboard shortcuts (?)" aria-label="Show keyboard shortcuts help">?</button>
+    </header>
+
+    <main role="main">
+        <!-- Summary View -->
+        <section id="summary-view" class="active">
+            <div class="cards" id="summary-cards">
+                <div class="loading">Loading...</div>
+            </div>
+            <h2>Recent Findings</h2>
+            <div class="table-container">
+                <table id="recent-findings">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Findings View -->
+        <section id="findings-view">
+            <h2>Findings</h2>
+            <div class="filter-bar">
+                <div class="filters">
+                    <select id="findings-severity">
+                        <option value="">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                        <option value="info">Info</option>
+                    </select>
+                    <select id="findings-status">
+                        <option value="">All Statuses</option>
+                        <option value="open">Open</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="suppressed">Suppressed</option>
+                    </select>
+                </div>
+                <div class="preset-actions">
+                    <button class="btn-small" onclick="openPresetModal()">Save Preset</button>
+                    <button class="btn-small" onclick="toggleShareUrl('findings-share-url')">Share</button>
+                </div>
+            </div>
+            <div id="findings-share-url" class="share-url-container hidden">
+                <input type="text" id="share-url-input" readonly>
+                <button class="btn-small" onclick="copyShareUrl()">Copy</button>
+            </div>
+            <div class="table-container">
+                <table id="findings-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Asset</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="findings-pagination"></div>
+        </section>
+
+        <!-- Assets View -->
+        <section id="assets-view">
+            <h2>Assets</h2>
+            <div class="filters">
+                <select id="assets-type">
+                    <option value="">All Types</option>
+                </select>
+                <select id="assets-exposure">
+                    <option value="">All Exposure</option>
+                    <option value="internet_facing">Internet Facing</option>
+                    <option value="internal">Internal</option>
+                    <option value="isolated">Isolated</option>
+                </select>
+            </div>
+            <div class="table-container">
+                <table id="assets-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Name</th>
+                            <th>Region</th>
+                            <th>Exposure</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="assets-pagination"></div>
+        </section>
+
+        <!-- Compliance View -->
+        <section id="compliance-view">
+            <h2>Compliance</h2>
+            <div id="compliance-score" class="cards">
+                <div class="loading">Loading...</div>
+            </div>
+            <div id="compliance-frameworks"></div>
+        </section>
+
+        <!-- Risk View -->
+        <section id="risk-view">
+            <h2>Risk Assessment</h2>
+            <div id="risk-overview" class="cards">
+                <div class="loading">Loading...</div>
+            </div>
+            <h3 style="margin: 1.5rem 0 1rem 0;">Highest Risk Assets</h3>
+            <div class="table-container">
+                <table id="risk-table">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Type</th>
+                            <th>Risk Score</th>
+                            <th>Risk Level</th>
+                            <th>Critical</th>
+                            <th>High</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Drift Detection View -->
+        <section id="drift-view">
+            <h2>Configuration Drift</h2>
+            <div id="drift-content">
+                <div class="loading">Loading drift status...</div>
+            </div>
+        </section>
+
+        <!-- Trends View -->
+        <section id="trends-view">
+            <h2>Historical Trends</h2>
+            <div class="filters">
+                <select id="trends-period">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                </select>
+            </div>
+            <div id="trends-summary" class="cards">
+                <div class="loading">Loading...</div>
+            </div>
+
+            <!-- Findings Trend Chart -->
+            <div class="chart-container" id="findings-chart-container">
+                <div class="chart-header">
+                    <span class="chart-title">Findings Over Time</span>
+                    <div class="chart-legend">
+                        <div class="chart-legend-item">
+                            <span class="chart-legend-color findings"></span>
+                            <span>Total Findings</span>
+                        </div>
+                        <div class="chart-legend-item">
+                            <span class="chart-legend-color assets"></span>
+                            <span>Assets</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="findings-chart">
+                    <div class="chart-no-data">Loading chart...</div>
+                </div>
+            </div>
+
+            <!-- Severity Trend Chart -->
+            <div class="chart-container" id="severity-chart-container">
+                <div class="chart-header">
+                    <span class="chart-title">Findings by Severity</span>
+                    <div class="chart-legend">
+                        <div class="chart-legend-item">
+                            <span class="chart-legend-color critical"></span>
+                            <span>Critical</span>
+                        </div>
+                        <div class="chart-legend-item">
+                            <span class="chart-legend-color high"></span>
+                            <span>High</span>
+                        </div>
+                        <div class="chart-legend-item">
+                            <span class="chart-legend-color medium"></span>
+                            <span>Medium</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="severity-chart">
+                    <div class="chart-no-data">Loading chart...</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 1.5rem 0 1rem 0;">Snapshot History</h3>
+            <div class="table-container">
+                <table id="trends-table">
+                    <thead>
+                        <tr>
+                            <th>Snapshot</th>
+                            <th>Assets</th>
+                            <th>Findings</th>
+                            <th>Critical</th>
+                            <th>High</th>
+                            <th>Medium</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Attack Paths View -->
+        <section id="attack-paths-view">
+            <h2>Attack Path Analysis</h2>
+
+            <!-- Summary Cards -->
+            <div id="attack-paths-summary" class="attack-paths-summary">
+                <div class="loading">Loading attack paths...</div>
+            </div>
+
+            <!-- Filters -->
+            <div class="attack-paths-filters">
+                <select id="attack-path-type-filter" aria-label="Filter by attack path type" onchange="loadAttackPaths()">
+                    <option value="">All Path Types</option>
+                    <option value="internet_to_internal">Internet to Internal</option>
+                    <option value="privilege_escalation">Privilege Escalation</option>
+                    <option value="lateral_movement">Lateral Movement</option>
+                    <option value="data_exfiltration">Data Exfiltration</option>
+                    <option value="credential_exposure">Credential Exposure</option>
+                    <option value="data_theft">Data Theft</option>
+                    <option value="ransomware_spread">Ransomware Spread</option>
+                    <option value="crypto_mining">Crypto Mining</option>
+                    <option value="identity_theft">Identity Theft</option>
+                </select>
+                <select id="attack-path-severity-filter" aria-label="Filter by severity" onchange="loadAttackPaths()">
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+
+            <!-- Attack Paths List -->
+            <div id="attack-paths-list">
+                <div class="loading">Loading attack paths...</div>
+            </div>
+        </section>
+
+        <!-- Settings View -->
+        <section id="settings-view">
+            <h2>Notification Settings</h2>
+
+            <!-- Notification Enable/Disable -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">General Settings</h3>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        <span class="settings-label-text">Enable Notifications</span>
+                        <span class="settings-label-description">Master switch for all notification features</span>
+                    </div>
+                    <button id="notifications-enabled-toggle" class="settings-toggle" role="switch" aria-checked="false" onclick="toggleNotificationsEnabled()"></button>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        <span class="settings-label-text">Notify on Critical Findings</span>
+                        <span class="settings-label-description">Send alerts when critical severity findings are detected</span>
+                    </div>
+                    <button id="notify-critical-toggle" class="settings-toggle" role="switch" aria-checked="false" onclick="toggleNotifySetting('notify_on_critical')"></button>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        <span class="settings-label-text">Notify on High Findings</span>
+                        <span class="settings-label-description">Send alerts for high severity findings</span>
+                    </div>
+                    <button id="notify-high-toggle" class="settings-toggle" role="switch" aria-checked="false" onclick="toggleNotifySetting('notify_on_high')"></button>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        <span class="settings-label-text">Notify on New Findings</span>
+                        <span class="settings-label-description">Alert when new findings appear between scans</span>
+                    </div>
+                    <button id="notify-new-toggle" class="settings-toggle" role="switch" aria-checked="false" onclick="toggleNotifySetting('notify_on_new_findings')"></button>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        <span class="settings-label-text">Minimum Severity</span>
+                        <span class="settings-label-description">Only send notifications for findings at or above this level</span>
+                    </div>
+                    <select id="min-severity-select" onchange="updateMinSeverity()" aria-label="Minimum severity for notifications">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                        <option value="info">Info</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Configured Destinations -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">Notification Destinations</h3>
+                <div id="destinations-list">
+                    <div class="loading">Loading destinations...</div>
+                </div>
+                <button class="add-destination-btn" onclick="openAddDestinationModal()">
+                    <span>+</span>
+                    <span>Add Destination</span>
+                </button>
+            </div>
+
+            <!-- Notification History -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">Recent Notifications</h3>
+                <div id="notification-history">
+                    <div class="loading">Loading history...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Chart Tooltip -->
+    <div id="chart-tooltip" class="chart-tooltip">
+        <div class="chart-tooltip-title"></div>
+        <div class="chart-tooltip-value"></div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Detail View</h3>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-content">
+                <div class="loading" aria-live="polite">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preset Modal -->
+    <div id="preset-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 id="preset-modal-title">Save Filter Preset</h3>
+                <button class="modal-close" onclick="closePresetModal()" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form class="preset-modal-form" onsubmit="handlePresetSave(event)">
+                    <div>
+                        <label class="detail-label" for="preset-name">Preset Name</label>
+                        <input type="text" id="preset-name" placeholder="My Filter Preset" required maxlength="50" aria-required="true">
+                    </div>
+                    <div>
+                        <label class="detail-label" for="preset-description">Description (optional)</label>
+                        <textarea id="preset-description" placeholder="Describe this filter configuration..."></textarea>
+                    </div>
+                    <div class="btn-row">
+                        <button type="button" class="btn-small" onclick="closePresetModal()">Cancel</button>
+                        <button type="submit" class="btn-small primary">Save Preset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="shortcuts-modal-title">Keyboard Shortcuts</h3>
+                <button class="modal-close" onclick="closeShortcutsModal()" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcuts-grid">
+                    <div class="shortcut-group">
+                        <div class="shortcut-group-title">Navigation</div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">1</span></span>
+                            <span class="shortcut-desc">Summary view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">2</span></span>
+                            <span class="shortcut-desc">Findings view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">3</span></span>
+                            <span class="shortcut-desc">Assets view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">4</span></span>
+                            <span class="shortcut-desc">Compliance view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">5</span></span>
+                            <span class="shortcut-desc">Risk view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">6</span></span>
+                            <span class="shortcut-desc">Attack Paths view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">7</span></span>
+                            <span class="shortcut-desc">Drift view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">8</span></span>
+                            <span class="shortcut-desc">Trends view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">9</span></span>
+                            <span class="shortcut-desc">Settings view</span>
+                        </div>
+                    </div>
+                    <div class="shortcut-group">
+                        <div class="shortcut-group-title">Actions</div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">/</span></span>
+                            <span class="shortcut-desc">Focus search</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">Esc</span></span>
+                            <span class="shortcut-desc">Close modal / Clear search</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">t</span></span>
+                            <span class="shortcut-desc">Toggle theme</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">r</span></span>
+                            <span class="shortcut-desc">Refresh current view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">e</span></span>
+                            <span class="shortcut-desc">Focus export menu</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-keys"><span class="shortcut-key">?</span></span>
+                            <span class="shortcut-desc">Show this help</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Destination Modal -->
+    <div id="destination-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="destination-modal-title">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="destination-modal-title">Add Notification Destination</h3>
+                <button class="modal-close" onclick="closeDestinationModal()" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="destination-form" class="destination-form" onsubmit="saveDestination(event)">
+                    <div class="form-group">
+                        <label for="dest-name">Name</label>
+                        <input type="text" id="dest-name" required placeholder="e.g., Security Team Slack">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-type">Type</label>
+                        <select id="dest-type" required onchange="updateDestinationFields()">
+                            <option value="">Select destination type...</option>
+                            <option value="slack">Slack</option>
+                            <option value="pagerduty">PagerDuty</option>
+                            <option value="email">Email</option>
+                            <option value="teams">Microsoft Teams</option>
+                            <option value="jira">Jira</option>
+                            <option value="webhook">Webhook</option>
+                        </select>
+                    </div>
+                    <div id="dest-type-fields">
+                        <!-- Dynamic fields based on selected type -->
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeDestinationModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Destination</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            currentView: 'summary',
+            findings: { offset: 0, limit: 50 },
+            assets: { offset: 0, limit: 50 },
+            presets: [],
+            selectedSnapshotId: null
+        };
+
+        // Modal functions
+        function openModal(title) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = '<div class="loading">Loading...</div>';
+            document.getElementById('detail-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on overlay click
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Keyboard shortcuts modal functions
+        function openShortcutsModal() {
+            document.getElementById('shortcuts-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeShortcutsModal() {
+            document.getElementById('shortcuts-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // Close shortcuts modal on overlay click
+        document.getElementById('shortcuts-modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeShortcutsModal();
+            }
+        });
+
+        // Shortcuts help button event listener
+        document.getElementById('shortcuts-help-btn').addEventListener('click', openShortcutsModal);
+
+        /**
+         * Check if we should ignore keyboard shortcuts
+         * (when user is typing in an input field)
+         */
+        function shouldIgnoreShortcut(e) {
+            const tag = e.target.tagName.toLowerCase();
+            return tag === 'input' || tag === 'textarea' || tag === 'select';
+        }
+
+        /**
+         * Get the refresh function for the current view
+         */
+        function refreshCurrentView() {
+            const viewFunctions = {
+                'summary': loadSummary,
+                'findings': loadFindings,
+                'assets': loadAssets,
+                'compliance': loadCompliance,
+                'risk': loadRisk,
+                'trends': loadTrends
+            };
+            const fn = viewFunctions[state.currentView];
+            if (fn) fn();
+        }
+
+        /**
+         * Handle keyboard shortcuts
+         */
+        function handleKeyboardShortcut(e) {
+            // Don't handle shortcuts when typing in inputs
+            if (shouldIgnoreShortcut(e)) return;
+
+            // Navigation shortcuts (number keys 1-9)
+            if (e.key >= '1' && e.key <= '9') {
+                const views = ['summary', 'findings', 'assets', 'compliance', 'risk', 'attack-paths', 'drift', 'trends', 'settings'];
+                const index = parseInt(e.key) - 1;
+                if (index < views.length) {
+                    showView(views[index]);
+                    e.preventDefault();
+                }
+                return;
+            }
+
+            // Action shortcuts
+            switch (e.key) {
+                case '/':
+                    // Focus search input
+                    e.preventDefault();
+                    document.getElementById('search-input').focus();
+                    break;
+
+                case 'Escape':
+                    // Close modals or clear search
+                    const shortcutsModal = document.getElementById('shortcuts-modal');
+                    const presetModal = document.getElementById('preset-modal');
+                    const detailModal = document.getElementById('detail-modal');
+
+                    if (!shortcutsModal.classList.contains('hidden')) {
+                        closeShortcutsModal();
+                    } else if (!presetModal.classList.contains('hidden')) {
+                        closePresetModal();
+                    } else if (!detailModal.classList.contains('hidden')) {
+                        closeModal();
+                    } else {
+                        // Clear search
+                        document.getElementById('search-input').value = '';
+                        document.getElementById('search-results').classList.remove('active');
+                    }
+                    break;
+
+                case 't':
+                    // Toggle theme
+                    cycleTheme();
+                    break;
+
+                case 'r':
+                    // Refresh current view
+                    refreshCurrentView();
+                    break;
+
+                case 'e':
+                    // Focus export dropdown
+                    e.preventDefault();
+                    document.getElementById('export-format').focus();
+                    break;
+
+                case '?':
+                    // Show keyboard shortcuts help
+                    e.preventDefault();
+                    openShortcutsModal();
+                    break;
+            }
+        }
+
+        // Register keyboard shortcut handler
+        document.addEventListener('keydown', handleKeyboardShortcut);
+
+        // Show finding detail
+        async function showFindingDetail(findingId) {
+            openModal('Finding Details');
+
+            const data = await fetchAPI(`/api/findings/${encodeURIComponent(findingId)}`);
+
+            if (data.error) {
+                document.getElementById('modal-content').innerHTML = `<div class="empty">${escapeHtml(data.error)}</div>`;
+                return;
+            }
+
+            const finding = data.finding;
+            const asset = data.asset;
+
+            // Build compliance frameworks list
+            const frameworks = finding.compliance_frameworks || [];
+            const frameworksHtml = frameworks.length > 0
+                ? frameworks.map(f => `<span class="severity info">${escapeHtml(f)}</span>`).join(' ')
+                : '<span class="status">None</span>';
+
+            // Build remediation HTML
+            let remediationHtml = '<span class="status">No guidance available</span>';
+            if (finding.remediation_guidance) {
+                const steps = finding.remediation_guidance.split('\n').filter(s => s.trim());
+                if (steps.length > 1) {
+                    remediationHtml = `<ol>${steps.map(s => `<li>${escapeHtml(s.replace(/^\d+\.\s*/, ''))}</li>`).join('')}</ol>`;
+                } else {
+                    remediationHtml = escapeHtml(finding.remediation_guidance);
+                }
+            }
+
+            const content = `
+                <div class="detail-section">
+                    <div class="detail-section-title">Overview</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Severity</div>
+                            <div class="detail-value"><span class="severity ${finding.severity}">${finding.severity}</span></div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value">${finding.status}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Type</div>
+                            <div class="detail-value">${finding.finding_type}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Rule ID</div>
+                            <div class="detail-value code">${escapeHtml(finding.rule_id || 'N/A')}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Finding</div>
+                    <div class="detail-item" style="margin-bottom: 1rem;">
+                        <div class="detail-label">Title</div>
+                        <div class="detail-value">${escapeHtml(finding.title)}</div>
+                    </div>
+                    ${finding.description ? `
+                    <div class="detail-description">${escapeHtml(finding.description)}</div>
+                    ` : ''}
+                </div>
+
+                ${finding.cve_id || finding.cvss_score ? `
+                <div class="detail-section">
+                    <div class="detail-section-title">Vulnerability Details</div>
+                    <div class="detail-grid">
+                        ${finding.cve_id ? `
+                        <div class="detail-item">
+                            <div class="detail-label">CVE ID</div>
+                            <div class="detail-value code">${escapeHtml(finding.cve_id)}</div>
+                        </div>
+                        ` : ''}
+                        ${finding.cvss_score ? `
+                        <div class="detail-item">
+                            <div class="detail-label">CVSS Score</div>
+                            <div class="detail-value">${finding.cvss_score}</div>
+                        </div>
+                        ` : ''}
+                        ${finding.package_name ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Package</div>
+                            <div class="detail-value code">${escapeHtml(finding.package_name)}</div>
+                        </div>
+                        ` : ''}
+                        ${finding.installed_version ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Installed Version</div>
+                            <div class="detail-value">${escapeHtml(finding.installed_version)}</div>
+                        </div>
+                        ` : ''}
+                        ${finding.fixed_version ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Fixed Version</div>
+                            <div class="detail-value">${escapeHtml(finding.fixed_version)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${finding.expected_value || finding.actual_value ? `
+                <div class="detail-section">
+                    <div class="detail-section-title">Configuration</div>
+                    <div class="detail-grid">
+                        ${finding.resource_path ? `
+                        <div class="detail-item" style="grid-column: 1 / -1;">
+                            <div class="detail-label">Resource Path</div>
+                            <div class="detail-value code">${escapeHtml(finding.resource_path)}</div>
+                        </div>
+                        ` : ''}
+                        ${finding.expected_value ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Expected Value</div>
+                            <div class="detail-value code">${escapeHtml(finding.expected_value)}</div>
+                        </div>
+                        ` : ''}
+                        ${finding.actual_value ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Actual Value</div>
+                            <div class="detail-value code">${escapeHtml(finding.actual_value)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Compliance Frameworks</div>
+                    <div>${frameworksHtml}</div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Remediation Guidance</div>
+                    <div class="detail-remediation">${remediationHtml}</div>
+                </div>
+
+                ${asset ? `
+                <div class="detail-section">
+                    <div class="detail-section-title">Affected Asset</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Name</div>
+                            <div class="detail-value">
+                                <span class="finding-link" onclick="showAssetDetail('${escapeHtml(asset.id)}')">${escapeHtml(asset.name)}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Type</div>
+                            <div class="detail-value">${escapeHtml(asset.resource_type)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Region</div>
+                            <div class="detail-value">${escapeHtml(asset.region)}</div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Timestamps</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">First Seen</div>
+                            <div class="detail-value">${finding.first_seen ? formatDate(finding.first_seen) : 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Last Seen</div>
+                            <div class="detail-value">${finding.last_seen ? formatDate(finding.last_seen) : 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Identifiers</div>
+                    <div class="detail-item">
+                        <div class="detail-label">Finding ID</div>
+                        <div class="detail-value code" style="font-size: 0.75rem;">${escapeHtml(finding.id)}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modal-content').innerHTML = content;
+        }
+
+        // Show asset detail
+        async function showAssetDetail(assetId) {
+            openModal('Asset Details');
+
+            const data = await fetchAPI(`/api/assets/${encodeURIComponent(assetId)}`);
+
+            if (data.error) {
+                document.getElementById('modal-content').innerHTML = `<div class="empty">${escapeHtml(data.error)}</div>`;
+                return;
+            }
+
+            const asset = data.asset;
+            const findings = data.findings || [];
+            const findingsBySeverity = data.findings_by_severity || {};
+
+            // Build tags HTML
+            const tags = asset.tags || {};
+            const tagsHtml = Object.keys(tags).length > 0
+                ? Object.entries(tags).map(([k, v]) => `<span class="severity info">${escapeHtml(k)}: ${escapeHtml(v)}</span>`).join(' ')
+                : '<span class="status">No tags</span>';
+
+            // Build findings table
+            let findingsTableHtml = '<div class="empty">No findings for this asset</div>';
+            if (findings.length > 0) {
+                findingsTableHtml = `
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${findings.map(f => `
+                                <tr class="clickable" onclick="showFindingDetail('${escapeHtml(f.id)}')">
+                                    <td><span class="severity ${f.severity}">${f.severity}</span></td>
+                                    <td>${escapeHtml(f.title)}</td>
+                                    <td class="status">${f.status}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            const content = `
+                <div class="detail-section">
+                    <div class="detail-section-title">Asset Information</div>
+                    <div class="detail-item" style="margin-bottom: 1rem;">
+                        <div class="detail-label">Name</div>
+                        <div class="detail-value">${escapeHtml(asset.name)}</div>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Type</div>
+                            <div class="detail-value">${escapeHtml(asset.resource_type)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Cloud Provider</div>
+                            <div class="detail-value">${escapeHtml(asset.cloud_provider || 'Unknown')}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Region</div>
+                            <div class="detail-value">${escapeHtml(asset.region)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Account ID</div>
+                            <div class="detail-value code">${escapeHtml(asset.account_id || 'N/A')}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Network Exposure</div>
+                            <div class="detail-value">${escapeHtml(asset.network_exposure)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Tags</div>
+                    <div>${tagsHtml}</div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Findings Summary (${data.finding_count || 0})</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Critical</div>
+                            <div class="detail-value critical">${findingsBySeverity.critical || 0}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">High</div>
+                            <div class="detail-value high">${findingsBySeverity.high || 0}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Medium</div>
+                            <div class="detail-value medium">${findingsBySeverity.medium || 0}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Low</div>
+                            <div class="detail-value low">${findingsBySeverity.low || 0}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Associated Findings</div>
+                    ${findingsTableHtml}
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Timestamps</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Created</div>
+                            <div class="detail-value">${asset.created_at ? formatDate(asset.created_at) : 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Last Seen</div>
+                            <div class="detail-value">${asset.last_seen ? formatDate(asset.last_seen) : 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Identifiers</div>
+                    <div class="detail-item">
+                        <div class="detail-label">Asset ID</div>
+                        <div class="detail-value code" style="font-size: 0.75rem;">${escapeHtml(asset.id)}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modal-content').innerHTML = content;
+        }
+
+        // Format date for display
+        function formatDate(isoString) {
+            if (!isoString) return 'N/A';
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+
+        // Search functionality
+        let searchTimeout = null;
+        const searchInput = document.getElementById('search-input');
+        const searchClear = document.getElementById('search-clear');
+        const searchResults = document.getElementById('search-results');
+
+        async function performSearch(query) {
+            if (!query || query.length < 2) {
+                hideSearchResults();
+                return;
+            }
+
+            try {
+                const data = await fetchAPI('/api/search', { q: query });
+
+                if (data.error && data.total === undefined) {
+                    showSearchError(data.error);
+                    return;
+                }
+
+                displaySearchResults(data);
+            } catch (err) {
+                showSearchError('Search failed');
+            }
+        }
+
+        function displaySearchResults(data) {
+            if (data.total === 0) {
+                searchResults.innerHTML = '<div class="search-no-results">No results found</div>';
+                searchResults.classList.add('visible');
+                return;
+            }
+
+            let html = '';
+
+            // Findings results
+            if (data.findings && data.findings.length > 0) {
+                html += '<div class="search-category">Findings (' + data.findings.length + ')</div>';
+                data.findings.forEach(f => {
+                    html += `
+                        <div class="search-result-item" onclick="handleSearchResultClick('finding', '${escapeHtml(f.id)}')">
+                            <span class="severity ${f.severity}">${f.severity}</span>
+                            <span class="search-result-title">${escapeHtml(f.title)}</span>
+                            <span class="search-result-meta">${f.finding_type}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Assets results
+            if (data.assets && data.assets.length > 0) {
+                html += '<div class="search-category">Assets (' + data.assets.length + ')</div>';
+                data.assets.forEach(a => {
+                    html += `
+                        <div class="search-result-item" onclick="handleSearchResultClick('asset', '${escapeHtml(a.id)}')">
+                            <span class="search-result-meta">${a.resource_type}</span>
+                            <span class="search-result-title">${escapeHtml(a.name)}</span>
+                            <span class="search-result-meta">${a.region || ''}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            searchResults.innerHTML = html;
+            searchResults.classList.add('visible');
+        }
+
+        function showSearchError(message) {
+            searchResults.innerHTML = `<div class="search-no-results">${escapeHtml(message)}</div>`;
+            searchResults.classList.add('visible');
+        }
+
+        function hideSearchResults() {
+            searchResults.classList.remove('visible');
+            searchResults.innerHTML = '';
+        }
+
+        function clearSearch() {
+            searchInput.value = '';
+            searchClear.classList.remove('visible');
+            hideSearchResults();
+        }
+
+        function handleSearchResultClick(type, id) {
+            clearSearch();
+            if (type === 'finding') {
+                showFindingDetail(id);
+            } else if (type === 'asset') {
+                showAssetDetail(id);
+            }
+        }
+
+        // Search event listeners
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+
+            // Show/hide clear button
+            if (query.length > 0) {
+                searchClear.classList.add('visible');
+            } else {
+                searchClear.classList.remove('visible');
+            }
+
+            // Debounce search
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            if (query.length < 2) {
+                hideSearchResults();
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 300);
+        });
+
+        searchInput.addEventListener('focus', () => {
+            const query = searchInput.value.trim();
+            if (query.length >= 2 && searchResults.innerHTML) {
+                searchResults.classList.add('visible');
+            }
+        });
+
+        searchClear.addEventListener('click', clearSearch);
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                hideSearchResults();
+            }
+        });
+
+        // Keyboard shortcuts for search
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + K to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        // =========================================================================
+        // Filter Preset Functions
+        // =========================================================================
+
+        function openPresetModal() {
+            document.getElementById('preset-name').value = '';
+            document.getElementById('preset-description').value = '';
+            document.getElementById('preset-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('preset-name').focus();
+        }
+
+        function closePresetModal() {
+            document.getElementById('preset-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // Close preset modal on overlay click
+        document.getElementById('preset-modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closePresetModal();
+            }
+        });
+
+        // Get current filters for a view
+        function getCurrentFilters() {
+            const view = state.currentView;
+            const filters = {};
+
+            if (view === 'findings') {
+                const severity = document.getElementById('findings-severity').value;
+                const status = document.getElementById('findings-status').value;
+                if (severity) filters.severity = severity;
+                if (status) filters.status = status;
+            } else if (view === 'assets') {
+                const type = document.getElementById('assets-type').value;
+                const exposure = document.getElementById('assets-exposure').value;
+                if (type) filters.type = type;
+                if (exposure) filters.exposure = exposure;
+            } else if (view === 'compliance') {
+                const framework = document.getElementById('compliance-framework').value;
+                if (framework) filters.framework = framework;
+            }
+
+            return filters;
+        }
+
+        // Apply filters from a preset
+        function applyFilters(view, filters) {
+            if (view === 'findings') {
+                if (filters.severity) document.getElementById('findings-severity').value = filters.severity;
+                if (filters.status) document.getElementById('findings-status').value = filters.status;
+                loadFindings();
+            } else if (view === 'assets') {
+                if (filters.type) document.getElementById('assets-type').value = filters.type;
+                if (filters.exposure) document.getElementById('assets-exposure').value = filters.exposure;
+                loadAssets();
+            } else if (view === 'compliance') {
+                if (filters.framework) document.getElementById('compliance-framework').value = filters.framework;
+                loadCompliance();
+            }
+        }
+
+        // Handle preset save
+        async function handlePresetSave(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('preset-name').value.trim();
+            const description = document.getElementById('preset-description').value.trim();
+            const view = state.currentView;
+            const filters = getCurrentFilters();
+
+            try {
+                const response = await fetch('/api/presets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, view, filters })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error saving preset: ' + data.error);
+                    return;
+                }
+
+                closePresetModal();
+                loadPresets();
+                updateShareUrl();
+            } catch (err) {
+                alert('Failed to save preset');
+            }
+        }
+
+        // Load presets from server
+        async function loadPresets() {
+            try {
+                const data = await fetchAPI('/api/presets');
+                state.presets = data.presets || [];
+            } catch (err) {
+                state.presets = [];
+            }
+        }
+
+        // Apply a preset
+        async function applyPreset(presetName) {
+            try {
+                const data = await fetchAPI(`/api/presets/${encodeURIComponent(presetName)}`);
+
+                if (data.error) {
+                    alert('Error loading preset: ' + data.error);
+                    return;
+                }
+
+                // Switch to the view
+                if (data.view && data.view !== state.currentView) {
+                    switchView(data.view);
+                }
+
+                // Apply filters
+                applyFilters(data.view, data.filters || {});
+
+            } catch (err) {
+                alert('Failed to apply preset');
+            }
+        }
+
+        // Delete a preset
+        async function deletePreset(presetName, event) {
+            event.stopPropagation();
+
+            if (!confirm(`Delete preset "${presetName}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/presets/${encodeURIComponent(presetName)}/delete`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error deleting preset: ' + data.error);
+                    return;
+                }
+
+                loadPresets();
+            } catch (err) {
+                alert('Failed to delete preset');
+            }
+        }
+
+        // Generate share URL with current filters
+        function generateShareUrl() {
+            const view = state.currentView;
+            const filters = getCurrentFilters();
+
+            const url = new URL(window.location.origin);
+            url.searchParams.set('view', view);
+
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value) url.searchParams.set(key, value);
+            });
+
+            return url.toString();
+        }
+
+        // Update the share URL display
+        function updateShareUrl() {
+            const shareUrlInput = document.getElementById('share-url-input');
+            if (shareUrlInput) {
+                shareUrlInput.value = generateShareUrl();
+            }
+        }
+
+        // Copy share URL to clipboard
+        function copyShareUrl() {
+            const shareUrlInput = document.getElementById('share-url-input');
+            if (shareUrlInput) {
+                shareUrlInput.select();
+                document.execCommand('copy');
+                alert('URL copied to clipboard!');
+            }
+        }
+
+        // Toggle share URL visibility
+        function toggleShareUrl(containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.classList.toggle('hidden');
+                if (!container.classList.contains('hidden')) {
+                    updateShareUrl();
+                }
+            }
+        }
+
+        // Apply filters from URL parameters on page load
+        function applyUrlFilters() {
+            const params = new URLSearchParams(window.location.search);
+            const view = params.get('view');
+
+            if (view && ['summary', 'findings', 'assets', 'compliance', 'risk', 'trends'].includes(view)) {
+                switchView(view);
+
+                // Apply filters based on view
+                if (view === 'findings') {
+                    const severity = params.get('severity');
+                    const status = params.get('status');
+                    if (severity) document.getElementById('findings-severity').value = severity;
+                    if (status) document.getElementById('findings-status').value = status;
+                } else if (view === 'assets') {
+                    const type = params.get('type');
+                    const exposure = params.get('exposure');
+                    if (type) document.getElementById('assets-type').value = type;
+                    if (exposure) document.getElementById('assets-exposure').value = exposure;
+                } else if (view === 'compliance') {
+                    const framework = params.get('framework');
+                    if (framework) document.getElementById('compliance-framework').value = framework;
+                }
+            }
+        }
+
+        // API client
+        async function fetchAPI(endpoint, params = {}) {
+            const url = new URL(endpoint, window.location.origin);
+            // Add snapshot_id if selected and not already in params
+            if (state.selectedSnapshotId && !params.snapshot_id) {
+                params.snapshot_id = state.selectedSnapshotId;
+            }
+            Object.entries(params).forEach(([key, value]) => {
+                if (value) url.searchParams.set(key, value);
+            });
+            const response = await fetch(url);
+            return response.json();
+        }
+
+        // Snapshot selector functions
+        async function loadSnapshots() {
+            const select = document.getElementById('snapshot-select');
+            try {
+                const data = await fetchAPI('/api/snapshots');
+                if (data.error) {
+                    console.error('Error loading snapshots:', data.error);
+                    return;
+                }
+
+                const snapshots = data.snapshots || [];
+                select.innerHTML = '<option value="">Latest</option>';
+
+                snapshots.forEach(snapshot => {
+                    const option = document.createElement('option');
+                    option.value = snapshot.id || snapshot;
+                    const date = snapshot.created_at ? formatSnapshotDate(snapshot.created_at) : '';
+                    option.textContent = date ? `${snapshot.id} (${date})` : snapshot.id || snapshot;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load snapshots:', error);
+            }
+        }
+
+        function formatSnapshotDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch {
+                return '';
+            }
+        }
+
+        function onSnapshotChange(event) {
+            const snapshotId = event.target.value;
+            state.selectedSnapshotId = snapshotId || null;
+
+            // Announce change to screen readers
+            if (snapshotId) {
+                announceToScreenReader(`Viewing snapshot ${snapshotId}`);
+            } else {
+                announceToScreenReader('Viewing latest snapshot');
+            }
+
+            // Reload the current view with the new snapshot
+            refreshCurrentView();
+        }
+
+        // View navigation
+        function showView(viewName) {
+            state.currentView = viewName;
+            document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+            document.getElementById(viewName + '-view').classList.add('active');
+            document.querySelectorAll('nav button').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            const activeBtn = document.querySelector(`nav button[data-view="${viewName}"]`);
+            activeBtn.classList.add('active');
+            activeBtn.setAttribute('aria-pressed', 'true');
+
+            // Announce view change to screen readers
+            announceToScreenReader(`${viewName} view loaded`);
+
+            // Load data for view
+            if (viewName === 'summary') loadSummary();
+            else if (viewName === 'findings') loadFindings();
+            else if (viewName === 'assets') loadAssets();
+            else if (viewName === 'compliance') loadCompliance();
+            else if (viewName === 'risk') loadRisk();
+            else if (viewName === 'attack-paths') loadAttackPaths();
+            else if (viewName === 'drift') loadDrift();
+            else if (viewName === 'trends') loadTrends();
+            else if (viewName === 'settings') loadSettings();
+        }
+
+        /**
+         * Announce a message to screen readers via aria-live region
+         * @param {string} message - Message to announce
+         */
+        function announceToScreenReader(message) {
+            const liveRegion = document.getElementById('aria-live-region');
+            if (liveRegion) {
+                liveRegion.textContent = message;
+                // Clear after announcement
+                setTimeout(() => { liveRegion.textContent = ''; }, 1000);
+            }
+        }
+
+        // Summary view - uses enhanced /api/overview
+        async function loadSummary() {
+            const data = await fetchAPI('/api/overview');
+
+            const cards = document.getElementById('summary-cards');
+            const severities = data.findings_by_severity || {};
+            const compliance = data.compliance_scores || {};
+
+            // Get compliance score
+            const score = compliance.overall || 0;
+
+            cards.innerHTML = `
+                <div class="card" id="posture-gauge-card">
+                    <!-- Gauge will be rendered here -->
+                </div>
+                <div class="card">
+                    <div class="card-label">Total Assets</div>
+                    <div class="card-value">${data.total_assets || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Internet Facing</div>
+                    <div class="card-value">${data.internet_facing_assets || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Total Findings</div>
+                    <div class="card-value">${data.total_findings || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Critical</div>
+                    <div class="card-value critical">${severities.critical || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">High</div>
+                    <div class="card-value high">${severities.high || 0}</div>
+                </div>
+            `;
+
+            // Render the posture gauge
+            renderGauge('posture-gauge-card', score, 'Posture');
+
+            // Load recent findings
+            const findings = await fetchAPI('/api/findings', { limit: 10 });
+            const tbody = document.querySelector('#recent-findings tbody');
+
+            if (!findings.items || findings.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty">No findings found. Run a scan first.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = findings.items.map(f => `
+                <tr class="clickable" onclick="showFindingDetail('${escapeHtml(f.id)}')">
+                    <td><span class="severity ${f.severity}">${f.severity}</span></td>
+                    <td class="truncate">${escapeHtml(f.title)}</td>
+                    <td>${f.finding_type}</td>
+                    <td class="status">${f.status}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Findings view
+        async function loadFindings() {
+            const severity = document.getElementById('findings-severity').value;
+            const status = document.getElementById('findings-status').value;
+
+            const data = await fetchAPI('/api/findings', {
+                severity,
+                status,
+                limit: state.findings.limit,
+                offset: state.findings.offset
+            });
+
+            const tbody = document.querySelector('#findings-table tbody');
+
+            if (!data.items || data.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">No findings found.</td></tr>';
+                updatePagination('findings', 0, 0, 0);
+                return;
+            }
+
+            tbody.innerHTML = data.items.map(f => `
+                <tr class="clickable" onclick="showFindingDetail('${escapeHtml(f.id)}')">
+                    <td><span class="severity ${f.severity}">${f.severity}</span></td>
+                    <td class="truncate">${escapeHtml(f.title)}</td>
+                    <td>${f.finding_type}</td>
+                    <td class="status">${f.status}</td>
+                    <td class="truncate">${escapeHtml(f.asset_id || '')}</td>
+                </tr>
+            `).join('');
+
+            updatePagination('findings', data.total, data.offset, data.limit);
+        }
+
+        // Assets view
+        async function loadAssets() {
+            const type = document.getElementById('assets-type').value;
+            const exposure = document.getElementById('assets-exposure').value;
+
+            const data = await fetchAPI('/api/assets', {
+                type,
+                exposure,
+                limit: state.assets.limit,
+                offset: state.assets.offset
+            });
+
+            const tbody = document.querySelector('#assets-table tbody');
+
+            if (!data.items || data.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty">No assets found.</td></tr>';
+                updatePagination('assets', 0, 0, 0);
+                return;
+            }
+
+            tbody.innerHTML = data.items.map(a => `
+                <tr class="clickable" onclick="showAssetDetail('${escapeHtml(a.id)}')">
+                    <td>${a.resource_type}</td>
+                    <td class="truncate">${escapeHtml(a.name)}</td>
+                    <td>${a.region}</td>
+                    <td>${a.network_exposure}</td>
+                </tr>
+            `).join('');
+
+            updatePagination('assets', data.total, data.offset, data.limit);
+
+            // Populate type filter if empty
+            const typeSelect = document.getElementById('assets-type');
+            if (typeSelect.options.length === 1) {
+                const types = [...new Set(data.items.map(a => a.resource_type))];
+                types.sort().forEach(t => {
+                    const option = document.createElement('option');
+                    option.value = t;
+                    option.textContent = t;
+                    typeSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Compliance view
+        async function loadCompliance() {
+            const data = await fetchAPI('/api/compliance');
+
+            const scoreDiv = document.getElementById('compliance-score');
+            const scoreClass = data.overall_score >= 80 ? 'good' : (data.overall_score >= 60 ? 'warning' : 'bad');
+
+            scoreDiv.innerHTML = `
+                <div class="card">
+                    <div class="card-label">Overall Compliance Score</div>
+                    <div class="score ${scoreClass}">${(data.overall_score || 0).toFixed(0)}%</div>
+                </div>
+            `;
+
+            const frameworksDiv = document.getElementById('compliance-frameworks');
+
+            if (!data.frameworks || data.frameworks.length === 0) {
+                frameworksDiv.innerHTML = '<div class="empty">No compliance frameworks configured.</div>';
+                return;
+            }
+
+            frameworksDiv.innerHTML = data.frameworks.map(f => `
+                <div class="framework-card">
+                    <div class="framework-header">
+                        <span class="framework-name">${escapeHtml(f.framework_name)}</span>
+                        <span class="framework-score">${f.score_percentage.toFixed(0)}%</span>
+                    </div>
+                    <div class="framework-meta">
+                        ${f.version ? `Version ${f.version} | ` : ''}
+                        ${f.controls_passed} passed / ${f.controls_failed} failed / ${f.controls_total} total
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Risk view
+        async function loadRisk() {
+            const data = await fetchAPI('/api/risk');
+
+            const overview = document.getElementById('risk-overview');
+
+            if (data.error) {
+                overview.innerHTML = `<div class="empty">${escapeHtml(data.error)}</div>`;
+                return;
+            }
+
+            const riskClass = data.overall_risk_level === 'critical' ? 'critical' :
+                             data.overall_risk_level === 'high' ? 'high' :
+                             data.overall_risk_level === 'medium' ? 'medium' : 'low';
+
+            overview.innerHTML = `
+                <div class="card">
+                    <div class="card-label">Overall Risk Score</div>
+                    <div class="card-value ${riskClass}">${(data.overall_score || 0).toFixed(0)}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Risk Level</div>
+                    <div class="card-value">${(data.overall_risk_level || 'Unknown').toUpperCase()}</div>
+                </div>
+                ${Object.entries(data.risk_by_cloud || {}).map(([cloud, score]) => `
+                    <div class="card">
+                        <div class="card-label">${escapeHtml(cloud.toUpperCase())}</div>
+                        <div class="card-value">${score.toFixed(0)}</div>
+                    </div>
+                `).join('')}
+            `;
+
+            const tbody = document.querySelector('#risk-table tbody');
+
+            if (!data.top_risks || data.top_risks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">No risk data available.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.top_risks.map(r => {
+                const levelClass = r.risk_level === 'critical' ? 'critical' :
+                                  r.risk_level === 'high' ? 'high' :
+                                  r.risk_level === 'medium' ? 'medium' : 'low';
+                return `
+                    <tr class="clickable" onclick="showAssetDetail('${escapeHtml(r.asset_id)}')">
+                        <td class="truncate">${escapeHtml(r.asset_name || r.asset_id)}</td>
+                        <td>${r.asset_type}</td>
+                        <td>${r.score.toFixed(0)}</td>
+                        <td><span class="severity ${levelClass}">${r.risk_level}</span></td>
+                        <td class="critical">${r.critical_findings}</td>
+                        <td class="high">${r.high_findings}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // =========================================================================
+        // Gauge Rendering Functions
+        // =========================================================================
+
+        /**
+         * Calculate the stroke dash offset for a gauge progress ring
+         * @param {number} score - Score value (0-100)
+         * @param {number} radius - Circle radius
+         * @returns {Object} - {circumference, offset}
+         */
+        function calculateGaugeProgress(score, radius = 50) {
+            const circumference = 2 * Math.PI * radius;
+            const progress = Math.min(100, Math.max(0, score)) / 100;
+            const offset = circumference * (1 - progress);
+            return { circumference, offset };
+        }
+
+        /**
+         * Render a circular gauge for the given score
+         * @param {string} containerId - ID of the container element
+         * @param {number} score - Score value (0-100)
+         * @param {string} label - Label text below the score
+         */
+        function renderGauge(containerId, score, label = 'Posture') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const radius = 50;
+            const { circumference, offset } = calculateGaugeProgress(score, radius);
+            const scoreClass = score >= 80 ? 'good' : (score >= 60 ? 'warning' : 'bad');
+
+            container.innerHTML = `
+                <div class="gauge-container">
+                    <div class="gauge-wrapper">
+                        <svg class="gauge-svg" viewBox="0 0 120 120">
+                            <circle class="gauge-background" cx="60" cy="60" r="${radius}"/>
+                            <circle class="gauge-progress ${scoreClass}" cx="60" cy="60" r="${radius}"
+                                    stroke-dasharray="${circumference}"
+                                    stroke-dashoffset="${circumference}"
+                                    data-target-offset="${offset}"/>
+                        </svg>
+                        <div class="gauge-center">
+                            <div class="gauge-value ${scoreClass}">${score.toFixed(0)}%</div>
+                            <div class="gauge-label">${label}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Animate the gauge fill
+            requestAnimationFrame(() => {
+                const progressCircle = container.querySelector('.gauge-progress');
+                if (progressCircle) {
+                    progressCircle.style.strokeDashoffset = offset;
+                }
+            });
+        }
+
+        /**
+         * Animate gauge from 0 to target value
+         * @param {string} containerId - ID of the container element
+         */
+        function animateGauge(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const progressCircle = container.querySelector('.gauge-progress');
+            if (!progressCircle) return;
+
+            const targetOffset = parseFloat(progressCircle.dataset.targetOffset);
+            progressCircle.style.strokeDashoffset = targetOffset;
+        }
+
+        // =========================================================================
+        // Chart Rendering Functions
+        // =========================================================================
+
+        /**
+         * Render an SVG line chart
+         * @param {string} containerId - ID of container element
+         * @param {Array} data - Array of data points
+         * @param {Array} series - Array of series configs [{key, label, className}]
+         * @param {Object} options - Chart options
+         */
+        function renderLineChart(containerId, data, series, options = {}) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            // Check if we have data
+            if (!data || data.length < 2) {
+                container.innerHTML = '<div class="chart-no-data">Not enough data points to display chart. Run more scans to see trends.</div>';
+                return;
+            }
+
+            const {
+                width = container.clientWidth || 600,
+                height = 200,
+                padding = { top: 20, right: 20, bottom: 30, left: 50 },
+                showArea = false,
+                showPoints = true,
+                gridLines = 5
+            } = options;
+
+            const chartWidth = width - padding.left - padding.right;
+            const chartHeight = height - padding.top - padding.bottom;
+
+            // Calculate scales
+            const xScale = chartWidth / (data.length - 1);
+
+            // Find max value across all series
+            let maxValue = 0;
+            series.forEach(s => {
+                data.forEach(d => {
+                    const value = typeof s.key === 'function' ? s.key(d) : d[s.key];
+                    if (value > maxValue) maxValue = value;
+                });
+            });
+            maxValue = maxValue || 1; // Prevent division by zero
+
+            // Add some headroom
+            maxValue = Math.ceil(maxValue * 1.1);
+
+            const yScale = chartHeight / maxValue;
+
+            // Build SVG
+            let svg = `<svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">`;
+
+            // Grid lines
+            for (let i = 0; i <= gridLines; i++) {
+                const y = padding.top + (chartHeight / gridLines) * i;
+                const value = Math.round(maxValue - (maxValue / gridLines) * i);
+                svg += `<line class="chart-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"/>`;
+                svg += `<text class="chart-axis-label" x="${padding.left - 8}" y="${y + 3}" text-anchor="end">${value}</text>`;
+            }
+
+            // X-axis labels (show subset of dates)
+            const labelInterval = Math.max(1, Math.floor(data.length / 6));
+            data.forEach((d, i) => {
+                if (i % labelInterval === 0 || i === data.length - 1) {
+                    const x = padding.left + i * xScale;
+                    const label = formatChartDate(d.snapshot_id || d.timestamp);
+                    svg += `<text class="chart-axis-label" x="${x}" y="${height - 5}" text-anchor="middle">${label}</text>`;
+                }
+            });
+
+            // Render each series
+            series.forEach(s => {
+                const points = data.map((d, i) => {
+                    const value = typeof s.key === 'function' ? s.key(d) : d[s.key];
+                    const x = padding.left + i * xScale;
+                    const y = padding.top + chartHeight - (value * yScale);
+                    return { x, y, value, data: d };
+                });
+
+                // Draw area fill if enabled
+                if (showArea) {
+                    const areaPath = `M${points[0].x},${padding.top + chartHeight} ` +
+                        points.map(p => `L${p.x},${p.y}`).join(' ') +
+                        ` L${points[points.length - 1].x},${padding.top + chartHeight} Z`;
+                    svg += `<path class="chart-area ${s.className}" d="${areaPath}"/>`;
+                }
+
+                // Draw line
+                const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+                svg += `<path class="chart-line ${s.className}" d="${linePath}"/>`;
+
+                // Draw points
+                if (showPoints) {
+                    points.forEach((p, i) => {
+                        svg += `<circle class="chart-point ${s.className}" cx="${p.x}" cy="${p.y}" r="3"
+                            data-tooltip-title="${s.label}"
+                            data-tooltip-value="${p.value}"
+                            data-snapshot="${escapeHtml(data[i].snapshot_id || '')}"/>`;
+                    });
+                }
+            });
+
+            svg += '</svg>';
+            container.innerHTML = svg;
+
+            // Add tooltip handlers
+            const chartTooltip = document.getElementById('chart-tooltip');
+            container.querySelectorAll('.chart-point').forEach(point => {
+                point.addEventListener('mouseenter', (e) => {
+                    const title = e.target.dataset.tooltipTitle;
+                    const value = e.target.dataset.tooltipValue;
+                    const snapshot = e.target.dataset.snapshot;
+                    chartTooltip.querySelector('.chart-tooltip-title').textContent = title;
+                    chartTooltip.querySelector('.chart-tooltip-value').textContent = `Value: ${value}${snapshot ? ' | ' + snapshot : ''}`;
+                    chartTooltip.classList.add('visible');
+                });
+                point.addEventListener('mousemove', (e) => {
+                    chartTooltip.style.left = (e.pageX + 10) + 'px';
+                    chartTooltip.style.top = (e.pageY - 30) + 'px';
+                });
+                point.addEventListener('mouseleave', () => {
+                    chartTooltip.classList.remove('visible');
+                });
+            });
+        }
+
+        /**
+         * Format date from snapshot ID for chart labels
+         */
+        function formatChartDate(snapshotId) {
+            if (!snapshotId) return '';
+            // Snapshot format: YYYYMMDD-HHMMSS or ISO date
+            if (snapshotId.includes('-') && snapshotId.length === 15) {
+                const date = snapshotId.substring(0, 8);
+                return `${date.substring(4, 6)}/${date.substring(6, 8)}`;
+            }
+            // Try ISO format
+            try {
+                const date = new Date(snapshotId);
+                if (!isNaN(date)) {
+                    return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+                }
+            } catch (e) {
+                // Ignore
+            }
+            // Fallback: return last 5 chars
+            return snapshotId.substring(snapshotId.length - 5);
+        }
+
+        /**
+         * Render the findings trend chart
+         */
+        function renderFindingsChart(dataPoints) {
+            const reversedData = [...dataPoints].reverse(); // Oldest first
+            renderLineChart('findings-chart', reversedData, [
+                { key: 'finding_count', label: 'Total Findings', className: 'findings' },
+                { key: 'asset_count', label: 'Assets', className: 'assets' }
+            ], {
+                showArea: true,
+                showPoints: true
+            });
+        }
+
+        /**
+         * Render the severity trend chart
+         */
+        function renderSeverityChart(dataPoints) {
+            const reversedData = [...dataPoints].reverse(); // Oldest first
+            renderLineChart('severity-chart', reversedData, [
+                { key: d => (d.findings_by_severity?.critical || 0), label: 'Critical', className: 'critical' },
+                { key: d => (d.findings_by_severity?.high || 0), label: 'High', className: 'high' },
+                { key: d => (d.findings_by_severity?.medium || 0), label: 'Medium', className: 'medium' }
+            ], {
+                showArea: false,
+                showPoints: true
+            });
+        }
+
+        // Drift detection view
+        async function loadDrift() {
+            const content = document.getElementById('drift-content');
+            content.innerHTML = '<div class="loading">Loading drift status...</div>';
+
+            const data = await fetchAPI('/api/drift');
+
+            if (data.error) {
+                content.innerHTML = `
+                    <div class="no-baseline-message">
+                        <h3>Error Loading Drift Data</h3>
+                        <p>${data.error}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (!data.has_baseline) {
+                content.innerHTML = `
+                    <div class="no-baseline-message">
+                        <h3>No Baseline Configured</h3>
+                        <p>Drift detection requires a baseline to compare against.</p>
+                        <p>Create a baseline using the CLI:</p>
+                        <code>stance baseline create</code>
+                    </div>
+                `;
+                return;
+            }
+
+            renderDriftView(data);
+        }
+
+        function renderDriftView(data) {
+            const content = document.getElementById('drift-content');
+            const hasDrift = data.has_drift;
+            const driftBySeverity = data.drift_by_severity || {};
+            const totalDrift = data.assets_with_drift || 0;
+            const maxDrift = Math.max(
+                driftBySeverity.critical || 0,
+                driftBySeverity.high || 0,
+                driftBySeverity.medium || 0,
+                driftBySeverity.low || 0,
+                1
+            );
+
+            content.innerHTML = `
+                <div class="drift-status-card">
+                    <div class="drift-status-icon ${hasDrift ? 'has-baseline' : 'has-baseline'}">
+                        ${hasDrift ? '⚠' : '✓'}
+                    </div>
+                    <div class="drift-status-content">
+                        <div class="drift-status-title">
+                            ${hasDrift ? 'Configuration Drift Detected' : 'No Drift Detected'}
+                        </div>
+                        <div class="drift-status-desc">
+                            Baseline ID: ${data.baseline_id || 'Unknown'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drift-summary">
+                    <div class="drift-stat-card">
+                        <div class="drift-stat-value ${totalDrift > 0 ? 'has-drift' : 'no-drift'}">${data.assets_checked || 0}</div>
+                        <div class="drift-stat-label">Assets Checked</div>
+                    </div>
+                    <div class="drift-stat-card">
+                        <div class="drift-stat-value ${totalDrift > 0 ? 'has-drift' : 'no-drift'}">${totalDrift}</div>
+                        <div class="drift-stat-label">Assets With Drift</div>
+                    </div>
+                    <div class="drift-stat-card">
+                        <div class="drift-stat-value ${data.security_drift_count > 0 ? 'has-drift' : 'no-drift'}">${data.security_drift_count || 0}</div>
+                        <div class="drift-stat-label">Security-Related Changes</div>
+                    </div>
+                </div>
+
+                <div class="drift-severity-section">
+                    <div class="drift-severity-title">Drift by Severity</div>
+                    <div class="drift-severity-bars">
+                        ${renderDriftSeverityRow('Critical', driftBySeverity.critical || 0, maxDrift, 'critical')}
+                        ${renderDriftSeverityRow('High', driftBySeverity.high || 0, maxDrift, 'high')}
+                        ${renderDriftSeverityRow('Medium', driftBySeverity.medium || 0, maxDrift, 'medium')}
+                        ${renderDriftSeverityRow('Low', driftBySeverity.low || 0, maxDrift, 'low')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDriftSeverityRow(label, count, max, className) {
+            const percentage = max > 0 ? (count / max) * 100 : 0;
+            return `
+                <div class="drift-severity-row">
+                    <span class="drift-severity-label">${label}</span>
+                    <div class="drift-severity-bar">
+                        <div class="drift-severity-fill ${className}" style="width: ${percentage}%"></div>
+                    </div>
+                    <span class="drift-severity-count">${count}</span>
+                </div>
+            `;
+        }
+
+        // Attack Paths view
+        async function loadAttackPaths() {
+            const summaryContainer = document.getElementById('attack-paths-summary');
+            const listContainer = document.getElementById('attack-paths-list');
+
+            summaryContainer.innerHTML = '<div class="loading">Loading attack paths...</div>';
+            listContainer.innerHTML = '<div class="loading">Loading attack paths...</div>';
+
+            // Get filter values
+            const typeFilter = document.getElementById('attack-path-type-filter')?.value || '';
+            const severityFilter = document.getElementById('attack-path-severity-filter')?.value || '';
+
+            const params = {};
+            if (typeFilter) params.type = typeFilter;
+            if (severityFilter) params.severity = severityFilter;
+
+            const data = await fetchAPI('/api/attack-paths', params);
+
+            if (data.error && !data.paths) {
+                summaryContainer.innerHTML = `<div class="card"><div class="card-value">Error</div><div class="card-label">${data.error}</div></div>`;
+                listContainer.innerHTML = '';
+                return;
+            }
+
+            renderAttackPathsSummary(data.summary || {});
+            renderAttackPathsList(data.paths || []);
+            announceToScreenReader(`Loaded ${data.paths?.length || 0} attack paths`);
+        }
+
+        function renderAttackPathsSummary(summary) {
+            const container = document.getElementById('attack-paths-summary');
+
+            const totalPaths = summary.total_paths || 0;
+            const bySeverity = summary.by_severity || {};
+            const byType = summary.by_type || {};
+
+            const criticalCount = bySeverity.critical || 0;
+            const highCount = bySeverity.high || 0;
+            const mediumCount = bySeverity.medium || 0;
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-label">Total Paths</div>
+                    <div class="card-value">${totalPaths}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Critical</div>
+                    <div class="card-value critical">${criticalCount}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">High</div>
+                    <div class="card-value high">${highCount}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Medium</div>
+                    <div class="card-value medium">${mediumCount}</div>
+                </div>
+            `;
+        }
+
+        function renderAttackPathsList(paths) {
+            const container = document.getElementById('attack-paths-list');
+
+            if (!paths || paths.length === 0) {
+                container.innerHTML = `
+                    <div class="attack-path-empty">
+                        <div class="attack-path-empty-icon">~</div>
+                        <p>No attack paths detected</p>
+                        <p style="font-size: 0.75rem;">Attack paths are identified based on asset relationships and security findings.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = paths.map(path => renderAttackPathCard(path)).join('');
+        }
+
+        function renderAttackPathCard(path) {
+            const severityClass = path.severity || 'medium';
+            const pathType = formatPathType(path.path_type || 'unknown');
+            const stepsHtml = renderAttackPathSteps(path.steps || []);
+
+            return `
+                <div class="attack-path-card" onclick="showAttackPathDetail('${path.id}')" tabindex="0" role="button" aria-label="View attack path details">
+                    <div class="attack-path-header">
+                        <span class="attack-path-type">${pathType}</span>
+                        <span class="severity ${severityClass}">${severityClass}</span>
+                    </div>
+                    <div class="attack-path-title">${escapeHtml(path.description || 'Attack path')}</div>
+                    <div class="attack-path-steps">${stepsHtml}</div>
+                </div>
+            `;
+        }
+
+        function renderAttackPathSteps(steps) {
+            if (!steps || steps.length === 0) return '';
+
+            return steps.map((step, index) => {
+                const icon = getStepIcon(step.resource_type);
+                const arrow = index < steps.length - 1 ? '<span class="attack-path-arrow">→</span>' : '';
+                return `
+                    <span class="attack-path-step">
+                        <span class="attack-path-step-icon">${icon}</span>
+                        <span>${escapeHtml(step.asset_name || step.asset_id || 'Unknown')}</span>
+                    </span>
+                    ${arrow}
+                `;
+            }).join('');
+        }
+
+        function getStepIcon(resourceType) {
+            const type = (resourceType || '').toLowerCase();
+            if (type.includes('iam') || type.includes('identity') || type.includes('role')) return 'U';
+            if (type.includes('s3') || type.includes('storage') || type.includes('bucket')) return 'S';
+            if (type.includes('ec2') || type.includes('compute') || type.includes('vm')) return 'C';
+            if (type.includes('rds') || type.includes('sql') || type.includes('database')) return 'D';
+            if (type.includes('lambda') || type.includes('function')) return 'F';
+            if (type.includes('secret') || type.includes('kms') || type.includes('key')) return 'K';
+            if (type.includes('api') || type.includes('gateway')) return 'A';
+            return '?';
+        }
+
+        function formatPathType(type) {
+            const types = {
+                'internet_to_internal': 'Internet → Internal',
+                'privilege_escalation': 'Privilege Escalation',
+                'lateral_movement': 'Lateral Movement',
+                'data_exfiltration': 'Data Exfiltration',
+                'credential_exposure': 'Credential Exposure',
+                'data_theft': 'Data Theft',
+                'ransomware_spread': 'Ransomware Spread',
+                'crypto_mining': 'Crypto Mining',
+                'identity_theft': 'Identity Theft',
+                'credential_access': 'Credential Access',
+            };
+            return types[type] || type.replace(/_/g, ' ');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function showAttackPathDetail(pathId) {
+            const data = await fetchAPI(`/api/attack-paths/${encodeURIComponent(pathId)}`);
+
+            if (!data.found || !data.path) {
+                alert('Attack path not found');
+                return;
+            }
+
+            const path = data.path;
+            const modalHtml = `
+                <div class="modal-overlay" id="attack-path-modal" onclick="closeAttackPathModal(event)">
+                    <div class="modal" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h3>${formatPathType(path.path_type)}</h3>
+                            <button class="modal-close" onclick="closeAttackPathModal()" aria-label="Close">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="attack-path-detail-section">
+                                <div class="attack-path-detail-title">Description</div>
+                                <p>${escapeHtml(path.description || 'No description available')}</p>
+                            </div>
+                            <div class="attack-path-detail-section">
+                                <div class="attack-path-detail-title">Severity</div>
+                                <span class="severity ${path.severity}">${path.severity}</span>
+                            </div>
+                            <div class="attack-path-detail-section">
+                                <div class="attack-path-detail-title">Attack Steps (${path.steps?.length || 0})</div>
+                                ${renderDetailedSteps(path.steps || [])}
+                            </div>
+                            ${path.mitigation ? `
+                                <div class="attack-path-detail-section">
+                                    <div class="attack-path-detail-title">Mitigation</div>
+                                    <p>${escapeHtml(path.mitigation)}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('attack-path-modal');
+            if (existingModal) existingModal.remove();
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function renderDetailedSteps(steps) {
+            if (!steps || steps.length === 0) return '<p>No steps available</p>';
+
+            return steps.map((step, index) => `
+                <div class="attack-path-step-detail">
+                    <div class="attack-path-step-number">${index + 1}</div>
+                    <div class="attack-path-step-content">
+                        <div class="attack-path-step-name">${escapeHtml(step.asset_name || step.asset_id)}</div>
+                        <div class="attack-path-step-type">${escapeHtml(step.resource_type || 'Unknown')}</div>
+                        <div class="attack-path-step-action">${escapeHtml(step.action || 'No action specified')}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function closeAttackPathModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('attack-path-modal');
+            if (modal) modal.remove();
+        }
+
+        // Settings view - Notification configuration
+        let notificationConfig = {
+            enabled: false,
+            notify_on_critical: true,
+            notify_on_high: false,
+            notify_on_new_findings: true,
+            min_severity: 'high'
+        };
+
+        async function loadSettings() {
+            // Load notification config
+            const configData = await fetchAPI('/api/notifications/config');
+            if (configData.config) {
+                notificationConfig = configData.config;
+            }
+            updateSettingsToggles();
+
+            // Load destinations
+            await loadDestinations();
+
+            // Load history
+            await loadNotificationHistory();
+        }
+
+        function updateSettingsToggles() {
+            // Update master toggle
+            const enabledToggle = document.getElementById('notifications-enabled-toggle');
+            if (enabledToggle) {
+                enabledToggle.classList.toggle('active', notificationConfig.enabled);
+                enabledToggle.setAttribute('aria-checked', notificationConfig.enabled ? 'true' : 'false');
+            }
+
+            // Update other toggles
+            const criticalToggle = document.getElementById('notify-critical-toggle');
+            if (criticalToggle) {
+                criticalToggle.classList.toggle('active', notificationConfig.notify_on_critical);
+                criticalToggle.setAttribute('aria-checked', notificationConfig.notify_on_critical ? 'true' : 'false');
+            }
+
+            const highToggle = document.getElementById('notify-high-toggle');
+            if (highToggle) {
+                highToggle.classList.toggle('active', notificationConfig.notify_on_high);
+                highToggle.setAttribute('aria-checked', notificationConfig.notify_on_high ? 'true' : 'false');
+            }
+
+            const newToggle = document.getElementById('notify-new-toggle');
+            if (newToggle) {
+                newToggle.classList.toggle('active', notificationConfig.notify_on_new_findings);
+                newToggle.setAttribute('aria-checked', notificationConfig.notify_on_new_findings ? 'true' : 'false');
+            }
+
+            // Update severity select
+            const severitySelect = document.getElementById('min-severity-select');
+            if (severitySelect) {
+                severitySelect.value = notificationConfig.min_severity || 'high';
+            }
+        }
+
+        async function toggleNotificationsEnabled() {
+            notificationConfig.enabled = !notificationConfig.enabled;
+            await saveNotificationConfig();
+            updateSettingsToggles();
+            announceToScreenReader(notificationConfig.enabled ? 'Notifications enabled' : 'Notifications disabled');
+        }
+
+        async function toggleNotifySetting(setting) {
+            notificationConfig[setting] = !notificationConfig[setting];
+            await saveNotificationConfig();
+            updateSettingsToggles();
+        }
+
+        async function updateMinSeverity() {
+            const select = document.getElementById('min-severity-select');
+            notificationConfig.min_severity = select.value;
+            await saveNotificationConfig();
+        }
+
+        async function saveNotificationConfig() {
+            await fetch('/api/notifications/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(notificationConfig)
+            });
+        }
+
+        async function loadDestinations() {
+            const container = document.getElementById('destinations-list');
+            container.innerHTML = '<div class="loading">Loading destinations...</div>';
+
+            const data = await fetchAPI('/api/notifications/destinations');
+
+            if (!data.destinations || data.destinations.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 1rem;">No destinations configured. Add a destination to start receiving notifications.</p>';
+                return;
+            }
+
+            container.innerHTML = data.destinations.map(dest => renderDestinationCard(dest)).join('');
+        }
+
+        function renderDestinationCard(dest) {
+            const iconMap = {
+                slack: '#',
+                pagerduty: '!',
+                email: '@',
+                teams: 'T',
+                jira: 'J',
+                webhook: '→'
+            };
+            const icon = iconMap[dest.type] || '?';
+            const statusClass = dest.configured ? 'configured' : 'not-configured';
+            const statusText = dest.configured ? 'Configured' : 'Not configured';
+
+            return `
+                <div class="destination-card">
+                    <div class="destination-info">
+                        <div class="destination-icon">${icon}</div>
+                        <div class="destination-details">
+                            <h4>${dest.name}</h4>
+                            <span class="destination-type">${dest.type}</span>
+                        </div>
+                    </div>
+                    <div class="destination-status">
+                        <span class="destination-status-dot ${statusClass}"></span>
+                        <span>${statusText}</span>
+                    </div>
+                    <div class="destination-actions">
+                        <button onclick="testDestination('${dest.name}')">Test</button>
+                        <button onclick="deleteDestination('${dest.name}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadNotificationHistory() {
+            const container = document.getElementById('notification-history');
+            container.innerHTML = '<div class="loading">Loading history...</div>';
+
+            const data = await fetchAPI('/api/notifications/history');
+
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 1rem;">No notification history yet.</p>';
+                return;
+            }
+
+            container.innerHTML = data.items.map(item => renderHistoryItem(item)).join('');
+        }
+
+        function renderHistoryItem(item) {
+            const date = new Date(item.timestamp);
+            const timeString = date.toLocaleString();
+            const statusClass = item.success ? 'success' : 'failed';
+            const statusText = item.success ? 'Sent' : 'Failed';
+
+            return `
+                <div class="notification-history-item">
+                    <div class="notification-history-info">
+                        <span class="notification-history-destination">${item.destination}</span>
+                        <span class="notification-history-time">${timeString}</span>
+                    </div>
+                    <span class="notification-history-status ${statusClass}">${statusText}</span>
+                </div>
+            `;
+        }
+
+        function openAddDestinationModal() {
+            document.getElementById('destination-modal').classList.remove('hidden');
+            document.getElementById('destination-form').reset();
+            document.getElementById('dest-type-fields').innerHTML = '';
+        }
+
+        function closeDestinationModal() {
+            document.getElementById('destination-modal').classList.add('hidden');
+        }
+
+        function updateDestinationFields() {
+            const type = document.getElementById('dest-type').value;
+            const container = document.getElementById('dest-type-fields');
+
+            const fields = {
+                slack: `
+                    <div class="form-group">
+                        <label for="dest-webhook-url">Webhook URL</label>
+                        <input type="url" id="dest-webhook-url" required placeholder="https://hooks.slack.com/services/...">
+                        <span class="hint">Get this from Slack App settings > Incoming Webhooks</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-channel">Channel (optional)</label>
+                        <input type="text" id="dest-channel" placeholder="#security-alerts">
+                    </div>
+                `,
+                pagerduty: `
+                    <div class="form-group">
+                        <label for="dest-routing-key">Routing Key</label>
+                        <input type="text" id="dest-routing-key" required placeholder="Events API v2 integration key">
+                    </div>
+                `,
+                email: `
+                    <div class="form-group">
+                        <label for="dest-smtp-host">SMTP Host</label>
+                        <input type="text" id="dest-smtp-host" required placeholder="smtp.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-smtp-port">SMTP Port</label>
+                        <input type="number" id="dest-smtp-port" value="587" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-smtp-user">Username</label>
+                        <input type="text" id="dest-smtp-user" placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-smtp-password">Password</label>
+                        <input type="password" id="dest-smtp-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-from">From Address</label>
+                        <input type="email" id="dest-from" required placeholder="alerts@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-recipients">Recipients (comma separated)</label>
+                        <input type="text" id="dest-recipients" required placeholder="team@example.com, admin@example.com">
+                    </div>
+                `,
+                teams: `
+                    <div class="form-group">
+                        <label for="dest-webhook-url">Webhook URL</label>
+                        <input type="url" id="dest-webhook-url" required placeholder="https://outlook.office.com/webhook/...">
+                        <span class="hint">Get this from Teams channel connectors</span>
+                    </div>
+                `,
+                jira: `
+                    <div class="form-group">
+                        <label for="dest-jira-url">Jira URL</label>
+                        <input type="url" id="dest-jira-url" required placeholder="https://your-org.atlassian.net">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-jira-user">Username/Email</label>
+                        <input type="text" id="dest-jira-user" required placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-jira-token">API Token</label>
+                        <input type="password" id="dest-jira-token" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-jira-project">Project Key</label>
+                        <input type="text" id="dest-jira-project" required placeholder="SEC">
+                    </div>
+                `,
+                webhook: `
+                    <div class="form-group">
+                        <label for="dest-webhook-url">Webhook URL</label>
+                        <input type="url" id="dest-webhook-url" required placeholder="https://api.example.com/webhook">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-webhook-method">HTTP Method</label>
+                        <select id="dest-webhook-method">
+                            <option value="POST" selected>POST</option>
+                            <option value="PUT">PUT</option>
+                        </select>
+                    </div>
+                `
+            };
+
+            container.innerHTML = fields[type] || '';
+        }
+
+        async function saveDestination(event) {
+            event.preventDefault();
+
+            const type = document.getElementById('dest-type').value;
+            const name = document.getElementById('dest-name').value;
+
+            const payload = { name, type, enabled: true };
+
+            // Add type-specific fields
+            if (type === 'slack' || type === 'teams') {
+                payload.webhook_url = document.getElementById('dest-webhook-url')?.value || '';
+                if (type === 'slack') {
+                    payload.channel = document.getElementById('dest-channel')?.value || '';
+                }
+            } else if (type === 'pagerduty') {
+                payload.routing_key = document.getElementById('dest-routing-key')?.value || '';
+            } else if (type === 'email') {
+                payload.smtp_host = document.getElementById('dest-smtp-host')?.value || '';
+                payload.smtp_port = parseInt(document.getElementById('dest-smtp-port')?.value || '587');
+                payload.smtp_user = document.getElementById('dest-smtp-user')?.value || '';
+                payload.smtp_password = document.getElementById('dest-smtp-password')?.value || '';
+                payload.from_address = document.getElementById('dest-from')?.value || '';
+                const recipients = document.getElementById('dest-recipients')?.value || '';
+                payload.recipients = recipients.split(',').map(r => r.trim()).filter(r => r);
+            } else if (type === 'jira') {
+                payload.url = document.getElementById('dest-jira-url')?.value || '';
+                payload.username = document.getElementById('dest-jira-user')?.value || '';
+                payload.api_token = document.getElementById('dest-jira-token')?.value || '';
+                payload.project_key = document.getElementById('dest-jira-project')?.value || '';
+            } else if (type === 'webhook') {
+                payload.url = document.getElementById('dest-webhook-url')?.value || '';
+                payload.method = document.getElementById('dest-webhook-method')?.value || 'POST';
+            }
+
+            const response = await fetch('/api/notifications/destinations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                closeDestinationModal();
+                await loadDestinations();
+                announceToScreenReader('Destination saved successfully');
+            } else {
+                alert(result.error || 'Failed to save destination');
+            }
+        }
+
+        async function testDestination(name) {
+            const response = await fetch('/api/notifications/destinations/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                announceToScreenReader('Test notification sent successfully');
+                alert('Test notification sent successfully!');
+            } else {
+                announceToScreenReader('Test notification failed');
+                alert('Test failed: ' + (result.error || 'Unknown error'));
+            }
+
+            // Refresh history
+            await loadNotificationHistory();
+        }
+
+        async function deleteDestination(name) {
+            if (!confirm(`Delete destination "${name}"?`)) return;
+
+            const response = await fetch(`/api/notifications/destinations/${encodeURIComponent(name)}/delete`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                await loadDestinations();
+                announceToScreenReader('Destination deleted');
+            } else {
+                alert(result.error || 'Failed to delete destination');
+            }
+        }
+
+        // Trends view
+        async function loadTrends() {
+            const days = document.getElementById('trends-period').value;
+            const data = await fetchAPI('/api/trends', { days });
+
+            const summary = document.getElementById('trends-summary');
+
+            if (data.error) {
+                summary.innerHTML = `<div class="empty">${escapeHtml(data.error)}</div>`;
+                document.getElementById('findings-chart').innerHTML = '<div class="chart-no-data">Error loading trend data</div>';
+                document.getElementById('severity-chart').innerHTML = '<div class="chart-no-data">Error loading trend data</div>';
+                return;
+            }
+
+            const points = data.data_points || [];
+            const latest = points[0] || {};
+            const oldest = points[points.length - 1] || {};
+
+            // Calculate changes
+            const assetChange = (latest.asset_count || 0) - (oldest.asset_count || 0);
+            const findingChange = (latest.finding_count || 0) - (oldest.finding_count || 0);
+
+            summary.innerHTML = `
+                <div class="card">
+                    <div class="card-label">Snapshots</div>
+                    <div class="card-value">${data.snapshot_count || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Current Assets</div>
+                    <div class="card-value">${latest.asset_count || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Asset Change</div>
+                    <div class="card-value ${assetChange > 0 ? 'medium' : ''}">${assetChange >= 0 ? '+' : ''}${assetChange}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Current Findings</div>
+                    <div class="card-value">${latest.finding_count || 0}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Finding Change</div>
+                    <div class="card-value ${findingChange > 0 ? 'high' : findingChange < 0 ? 'good' : ''}">${findingChange >= 0 ? '+' : ''}${findingChange}</div>
+                </div>
+            `;
+
+            const tbody = document.querySelector('#trends-table tbody');
+
+            if (points.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">No historical data available. Run more scans to see trends.</td></tr>';
+                document.getElementById('findings-chart').innerHTML = '<div class="chart-no-data">No historical data available. Run more scans to see trends.</div>';
+                document.getElementById('severity-chart').innerHTML = '<div class="chart-no-data">No historical data available. Run more scans to see trends.</div>';
+                return;
+            }
+
+            tbody.innerHTML = points.map(p => {
+                const sev = p.findings_by_severity || {};
+                return `
+                    <tr>
+                        <td>${escapeHtml(p.snapshot_id)}</td>
+                        <td>${p.asset_count}</td>
+                        <td>${p.finding_count}</td>
+                        <td class="critical">${sev.critical || 0}</td>
+                        <td class="high">${sev.high || 0}</td>
+                        <td class="medium">${sev.medium || 0}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Render trend charts
+            renderFindingsChart(points);
+            renderSeverityChart(points);
+        }
+
+        // Pagination
+        function updatePagination(type, total, offset, limit) {
+            const container = document.getElementById(type + '-pagination');
+            const start = offset + 1;
+            const end = Math.min(offset + limit, total);
+            const hasPrev = offset > 0;
+            const hasNext = offset + limit < total;
+
+            container.innerHTML = `
+                <span>${total > 0 ? `Showing ${start}-${end} of ${total}` : 'No results'}</span>
+                <div>
+                    <button ${hasPrev ? '' : 'disabled'} onclick="paginate('${type}', -1)">Previous</button>
+                    <button ${hasNext ? '' : 'disabled'} onclick="paginate('${type}', 1)">Next</button>
+                </div>
+            `;
+        }
+
+        function paginate(type, direction) {
+            state[type].offset += direction * state[type].limit;
+            if (state[type].offset < 0) state[type].offset = 0;
+            if (type === 'findings') loadFindings();
+            else if (type === 'assets') loadAssets();
+        }
+
+        // Utility
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        document.querySelectorAll('nav button').forEach(button => {
+            button.addEventListener('click', () => showView(button.dataset.view));
+        });
+
+        document.getElementById('findings-severity').addEventListener('change', () => {
+            state.findings.offset = 0;
+            loadFindings();
+        });
+
+        document.getElementById('findings-status').addEventListener('change', () => {
+            state.findings.offset = 0;
+            loadFindings();
+        });
+
+        document.getElementById('assets-type').addEventListener('change', () => {
+            state.assets.offset = 0;
+            loadAssets();
+        });
+
+        document.getElementById('assets-exposure').addEventListener('change', () => {
+            state.assets.offset = 0;
+            loadAssets();
+        });
+
+        document.getElementById('trends-period').addEventListener('change', () => {
+            loadTrends();
+        });
+
+        document.getElementById('export-format').addEventListener('change', (e) => {
+            const format = e.target.value;
+            if (format) {
+                const url = `/api/export?format=${format}&type=full_report`;
+                window.location.href = url;
+                // Reset dropdown after download
+                setTimeout(() => { e.target.value = ''; }, 100);
+            }
+        });
+
+        // =========================================================================
+        // Theme Toggle Functions
+        // =========================================================================
+
+        const THEME_STORAGE_KEY = 'stance-theme-preference';
+
+        /**
+         * Get the current theme preference
+         * @returns {string} 'light', 'dark', or 'auto'
+         */
+        function getThemePreference() {
+            return localStorage.getItem(THEME_STORAGE_KEY) || 'auto';
+        }
+
+        /**
+         * Set the theme preference
+         * @param {string} theme - 'light', 'dark', or 'auto'
+         */
+        function setThemePreference(theme) {
+            localStorage.setItem(THEME_STORAGE_KEY, theme);
+        }
+
+        /**
+         * Apply the theme to the document
+         * @param {string} theme - 'light', 'dark', or 'auto'
+         */
+        function applyTheme(theme) {
+            const root = document.documentElement;
+            const button = document.getElementById('theme-toggle-btn');
+
+            // Remove existing theme classes
+            root.classList.remove('light-mode', 'dark-mode');
+
+            // Apply the appropriate class
+            if (theme === 'light') {
+                root.classList.add('light-mode');
+            } else if (theme === 'dark') {
+                root.classList.add('dark-mode');
+            }
+            // 'auto' doesn't add any class - relies on @media query
+
+            // Update button state
+            if (button) {
+                button.dataset.theme = theme;
+                button.title = `Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)} (Click to cycle)`;
+            }
+        }
+
+        /**
+         * Toggle through theme options: auto -> light -> dark -> auto
+         */
+        function cycleTheme() {
+            const current = getThemePreference();
+            let next;
+
+            switch (current) {
+                case 'auto':
+                    next = 'light';
+                    break;
+                case 'light':
+                    next = 'dark';
+                    break;
+                case 'dark':
+                    next = 'auto';
+                    break;
+                default:
+                    next = 'auto';
+            }
+
+            setThemePreference(next);
+            applyTheme(next);
+        }
+
+        /**
+         * Initialize theme on page load
+         */
+        function initTheme() {
+            const preference = getThemePreference();
+            applyTheme(preference);
+        }
+
+        // Theme toggle button event listener
+        document.getElementById('theme-toggle-btn').addEventListener('click', cycleTheme);
+
+        // Initialize theme immediately
+        initTheme();
+
+        // Set up snapshot selector event listener
+        document.getElementById('snapshot-select').addEventListener('change', onSnapshotChange);
+
+        // Initial load
+        loadSnapshots();
+        loadPresets();
+        applyUrlFilters();
+        loadSummary();
+    </script>
+</body>
+</html>

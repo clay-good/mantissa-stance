@@ -1,0 +1,43 @@
+id: container-015
+name: Container images should not contain high-risk licenses
+description: |
+  Software licenses in container images can create legal and compliance
+  risks. Certain licenses (GPL, AGPL) may require source disclosure.
+  Images should be audited for license compatibility.
+
+enabled: true
+severity: low
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.has_high_risk_licenses == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SA-4"
+  - framework: iso-27001
+    version: "2022"
+    control: "A.5.32"
+
+remediation:
+  guidance: |
+    1. Generate SBOM with license information
+    2. Review licenses for compatibility
+    3. Identify copyleft or restrictive licenses
+    4. Consult legal for compliance requirements
+    5. Replace components with incompatible licenses
+    6. Document license obligations
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - license
+  - compliance
+  - legal
+
+references:
+  - https://spdx.org/licenses/

@@ -1,0 +1,51 @@
+id: azure-compute-009
+name: NSG attached to all subnets
+description: |
+  Ensure all subnets have a Network Security Group attached.
+  NSGs provide network-level access control and should be
+  configured for all subnets to enforce security policies.
+
+enabled: true
+severity: medium
+
+resource_type: azure_subnet
+
+check:
+  type: expression
+  expression: "resource.network_security_group_id exists"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.6"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Virtual Networks in Azure Portal
+    2. Select the VNet containing the subnet
+    3. Go to Subnets
+    4. Select the subnet without an NSG
+    5. Click "Network security group"
+    6. Select an existing NSG or create a new one
+    7. Save changes
+
+    Note: Some special-purpose subnets (like GatewaySubnet)
+    may not support NSGs. Verify subnet type before remediation.
+  automation_supported: false
+
+tags:
+  - compute
+  - subnet
+  - nsg
+  - network-security
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/virtual-network/network-security-group-how-it-works
+  - https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-vnet-plan-design-arm

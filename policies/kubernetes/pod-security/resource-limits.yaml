@@ -1,0 +1,43 @@
+id: k8s-pod-010
+name: Containers should have resource limits defined
+description: |
+  Resource limits prevent containers from consuming excessive
+  CPU and memory, protecting against denial of service attacks
+  and ensuring fair resource allocation.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_resource_limits == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.4.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-6"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. For each container, add resources.limits
+    3. Set appropriate CPU and memory limits
+    4. Consider setting requests equal to limits
+    5. Test under load to validate limits
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - resource-limits
+  - availability
+  - dos-prevention
+
+references:
+  - https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/

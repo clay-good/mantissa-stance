@@ -1,0 +1,50 @@
+id: gcp-network-004
+name: Cloud NAT logging enabled
+description: |
+  Ensure Cloud NAT gateways have logging enabled. NAT logs capture
+  connection information for security analysis, troubleshooting,
+  and compliance auditing.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_router_nat
+
+check:
+  type: expression
+  expression: "resource.log_config_enabled == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "3.7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Services > Cloud NAT
+    2. Select the NAT gateway
+    3. Click Edit
+    4. Under Logging:
+       - Enable logging
+       - Select filter: All (recommended) or Errors only
+    5. Save configuration
+
+    Logs are sent to Cloud Logging and can be exported
+    to BigQuery or Cloud Storage.
+  automation_supported: false
+
+tags:
+  - network
+  - nat
+  - logging
+  - monitoring
+  - connectivity
+
+references:
+  - https://cloud.google.com/nat/docs/monitoring

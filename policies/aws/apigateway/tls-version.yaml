@@ -1,0 +1,47 @@
+id: aws-apigateway-012
+name: API Gateway uses TLS 1.2 or higher
+description: |
+  Ensure API Gateway uses TLS 1.2 or higher for encryption. Older TLS
+  versions have known vulnerabilities and should be disabled.
+
+enabled: true
+severity: high
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.endpoint_types contains 'EDGE' or resource.endpoint_types contains 'REGIONAL'"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(e)(2)(ii)"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Go to Settings
+    3. Create a custom domain name
+    4. Select a security policy with TLS 1.2 minimum
+    5. Available policies:
+       - TLS_1_2 (recommended)
+       - TLS_1_0 (deprecated, avoid)
+    6. Associate the custom domain with your API
+  automation_supported: false
+
+tags:
+  - apigateway
+  - tls
+  - encryption
+  - ssl
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-custom-domain-tls-version.html

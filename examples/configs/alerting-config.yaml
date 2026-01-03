@@ -1,0 +1,187 @@
+# Mantissa Stance Alerting Configuration
+# This file configures notification destinations and routing rules.
+#
+# Usage:
+#   stance notify load-config ./alerting-config.yaml
+
+# Notification destinations
+destinations:
+  # Slack for critical alerts
+  - name: slack-critical
+    type: slack
+    enabled: true
+    webhook_url: ${SLACK_WEBHOOK_CRITICAL}  # Use environment variable
+    channel: "#security-critical"
+    username: "Stance Security"
+    icon_emoji: ":shield:"
+
+  # Slack for all security alerts
+  - name: slack-security
+    type: slack
+    enabled: true
+    webhook_url: ${SLACK_WEBHOOK_SECURITY}
+    channel: "#security-alerts"
+
+  # PagerDuty for on-call escalation
+  - name: pagerduty-oncall
+    type: pagerduty
+    enabled: true
+    routing_key: ${PAGERDUTY_ROUTING_KEY}
+    severity_map:
+      critical: critical
+      high: error
+      medium: warning
+      low: info
+
+  # Email for daily digest
+  - name: email-digest
+    type: email
+    enabled: true
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    smtp_user: ${SMTP_USER}
+    smtp_password: ${SMTP_PASSWORD}
+    from_address: security-alerts@example.com
+    recipients:
+      - security-team@example.com
+      - compliance@example.com
+    use_tls: true
+
+  # Microsoft Teams
+  - name: teams-security
+    type: teams
+    enabled: false
+    webhook_url: ${TEAMS_WEBHOOK_URL}
+
+  # Jira for issue tracking
+  - name: jira-security
+    type: jira
+    enabled: false
+    url: https://yourorg.atlassian.net
+    username: ${JIRA_USERNAME}
+    api_token: ${JIRA_API_TOKEN}
+    project_key: SEC
+    issue_type: Bug
+    labels:
+      - security
+      - automated
+
+  # Generic webhook for custom integrations
+  - name: custom-siem
+    type: webhook
+    enabled: false
+    url: https://siem.example.com/api/events
+    method: POST
+    headers:
+      Authorization: "Bearer ${SIEM_API_TOKEN}"
+      Content-Type: application/json
+    # Custom payload template (optional)
+    # template: |
+    #   {
+    #     "event_type": "security_finding",
+    #     "severity": "{{ severity }}",
+    #     "rule_id": "{{ rule_id }}"
+    #   }
+
+# Routing rules - determine which destinations receive which alerts
+routing:
+  # Critical findings - immediate escalation
+  - severity: critical
+    destinations:
+      - pagerduty-oncall
+      - slack-critical
+    immediate: true  # Send immediately, don't batch
+
+  # High severity - security channel
+  - severity: high
+    destinations:
+      - slack-critical
+      - slack-security
+    immediate: true
+
+  # Medium severity - security channel only
+  - severity: medium
+    destinations:
+      - slack-security
+    immediate: false  # Can be batched
+
+  # Low and info - email digest only
+  - severity:
+      - low
+      - info
+    destinations:
+      - email-digest
+    immediate: false
+
+  # Specific rule routing
+  - rule_id: aws-iam-001  # Root account MFA
+    destinations:
+      - pagerduty-oncall
+      - slack-critical
+    immediate: true
+
+  # Resource type routing
+  - resource_type: aws_s3_bucket
+    severity: high
+    destinations:
+      - slack-security
+
+# Global settings
+settings:
+  # Enable/disable all notifications
+  enabled: true
+
+  # Deduplication window (don't re-alert for same finding within this time)
+  deduplication_window_minutes: 60
+
+  # Rate limiting per destination
+  rate_limit:
+    per_hour: 100
+    per_minute: 10
+
+  # Batching for non-immediate alerts
+  batch:
+    enabled: true
+    interval_minutes: 15
+    max_batch_size: 50
+
+  # Include remediation guidance in alerts
+  include_remediation: true
+
+  # Include asset details in alerts
+  include_asset_details: true
+
+  # Notify on scan events
+  notify_on_scan_complete: true
+  notify_on_scan_failure: true
+
+  # Notify on finding lifecycle
+  notify_on_new_findings: true
+  notify_on_resolved_findings: false
+
+  # Quiet hours (no alerts except critical)
+  quiet_hours:
+    enabled: false
+    start: "22:00"
+    end: "07:00"
+    timezone: "America/New_York"
+    except_severity:
+      - critical
+
+# Suppression rules - temporarily suppress specific alerts
+suppressions:
+  - name: planned-maintenance
+    enabled: false
+    reason: "Planned maintenance window"
+    expires: "2024-12-31T23:59:59Z"
+    match:
+      resource_type: aws_ec2_instance
+      tags:
+        maintenance: "true"
+
+  - name: known-false-positive
+    enabled: true
+    reason: "Known false positive for legacy system"
+    match:
+      rule_id: aws-s3-legacy-001
+      asset_id: "arn:aws:s3:::legacy-bucket"

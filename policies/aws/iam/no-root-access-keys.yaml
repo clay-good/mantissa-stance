@@ -1,0 +1,53 @@
+id: aws-iam-005
+name: No access keys for root account
+description: |
+  Ensure no access keys exist for the root account. The root account has
+  unrestricted access to all resources in the AWS account. Using access
+  keys for programmatic access with root credentials is extremely risky
+  and should never be done.
+
+enabled: true
+severity: critical
+
+resource_type: aws_iam_account_summary
+
+check:
+  type: expression
+  expression: "resource.account_access_keys_present == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(11)"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "IAM.4"
+
+remediation:
+  guidance: |
+    1. Sign in to the AWS Console using root credentials
+    2. Navigate to Security Credentials (top-right dropdown > Security credentials)
+    3. In the Access keys section, identify any active access keys
+    4. For each access key:
+       a. First, ensure no applications are using it
+       b. Deactivate the key
+       c. After confirming nothing breaks, delete the key
+    5. Use IAM users or roles for programmatic access instead
+    6. Consider using AWS Organizations SCPs to prevent root key creation
+  automation_supported: false
+
+tags:
+  - iam
+  - root-account
+  - access-keys
+  - critical-security
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#lock-away-credentials
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html

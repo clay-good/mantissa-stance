@@ -1,0 +1,46 @@
+id: gcp-compute-010
+name: Default network deleted
+description: |
+  Ensure the default VPC network is deleted. The default network
+  has overly permissive firewall rules and should not be used for
+  production workloads. Create custom VPC networks instead.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_network
+
+check:
+  type: expression
+  expression: "resource.name != 'default'"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Create custom VPC networks for your workloads
+    2. Migrate any resources from the default network
+    3. Navigate to VPC Network > VPC networks in GCP Console
+    4. Select the "default" network
+    5. Delete all firewall rules in the default network first
+    6. Delete the default network
+    7. Optionally, disable default network creation in
+       Organization Policy (constraints/compute.skipDefaultNetworkCreation)
+  automation_supported: false
+
+tags:
+  - compute
+  - vpc
+  - network
+  - default-network
+  - gcp
+
+references:
+  - https://cloud.google.com/vpc/docs/vpc#default-network
+  - https://cloud.google.com/resource-manager/docs/organization-policy/restricting-resources

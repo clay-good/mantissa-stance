@@ -1,0 +1,59 @@
+id: k8s-net-007
+name: Namespaces should have limit ranges defined
+description: |
+  Limit ranges set default resource requests and limits for pods that
+  don't specify them. This prevents pods from running without resource
+  constraints and ensures fair resource distribution.
+
+enabled: true
+severity: low
+
+resource_type: k8s_namespace
+
+check:
+  type: expression
+  expression: "resource.has_limit_range == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Create a LimitRange for the namespace:
+       apiVersion: v1
+       kind: LimitRange
+       metadata:
+         name: default-limits
+       spec:
+         limits:
+         - default:
+             cpu: "500m"
+             memory: "512Mi"
+           defaultRequest:
+             cpu: "100m"
+             memory: "128Mi"
+           max:
+             cpu: "2"
+             memory: "4Gi"
+           min:
+             cpu: "50m"
+             memory: "64Mi"
+           type: Container
+    2. Apply the LimitRange to the namespace
+    3. Existing pods won't be affected; only new pods will get defaults
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - limit-range
+  - availability
+  - resource-management
+  - defaults
+
+references:
+  - https://kubernetes.io/docs/concepts/policy/limit-range/

@@ -1,0 +1,50 @@
+id: aws-s3-005
+name: S3 bucket MFA delete enabled
+description: |
+  Ensure S3 buckets with versioning have MFA delete enabled. MFA delete
+  requires additional authentication to permanently delete object versions,
+  protecting against unauthorized or accidental deletions.
+
+enabled: true
+severity: high
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: "resource.mfa_delete_enabled == true or resource.versioning_status != 'Enabled'"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.1.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.4.5"
+
+remediation:
+  guidance: |
+    MFA delete must be enabled using the root account via CLI:
+
+    1. Configure root account MFA
+    2. Using AWS CLI with root credentials:
+       aws s3api put-bucket-versioning \
+         --bucket BUCKET_NAME \
+         --versioning-configuration Status=Enabled,MFADelete=Enabled \
+         --mfa "arn:aws:iam::ACCOUNT:mfa/root-mfa-device MFA_CODE"
+
+    Note: Cannot be enabled via console. Requires root account.
+  automation_supported: false
+
+tags:
+  - s3
+  - mfa
+  - versioning
+  - storage
+  - deletion-protection
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiFactorAuthenticationDelete.html

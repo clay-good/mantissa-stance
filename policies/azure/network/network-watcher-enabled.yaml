@@ -1,0 +1,53 @@
+id: azure-network-010
+name: Network Watcher enabled in all regions
+description: |
+  Ensure Network Watcher is enabled in all regions with deployed resources.
+  Network Watcher provides network monitoring, diagnostics, and logging
+  capabilities essential for security and troubleshooting.
+
+enabled: true
+severity: medium
+
+resource_type: azure_network_watcher
+
+check:
+  type: expression
+  expression: "resource.provisioning_state == 'Succeeded'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Watcher in Azure Portal
+    2. Check enabled regions
+    3. For each region with resources:
+       - If not enabled, click to enable
+       - Network Watcher is auto-created in NetworkWatcherRG
+    4. Configure monitoring features:
+       - NSG Flow Logs
+       - Connection Monitor
+       - Traffic Analytics
+    5. Verify all regions are covered
+
+    Note: Network Watcher is required for NSG flow logs
+    and packet capture functionality.
+  automation_supported: false
+
+tags:
+  - network
+  - network-watcher
+  - monitoring
+  - diagnostics
+  - logging
+
+references:
+  - https://docs.microsoft.com/en-us/azure/network-watcher/network-watcher-monitoring-overview

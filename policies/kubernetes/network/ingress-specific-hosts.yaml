@@ -1,0 +1,54 @@
+id: k8s-net-010
+name: Ingress resources should specify hosts
+description: |
+  Ingress resources should define specific hosts rather than accepting
+  traffic for any host. Wildcard or missing host specifications can
+  lead to unintended exposure of services.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_ingress
+
+check:
+  type: expression
+  expression: "resource.has_hosts == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-3"
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.4.1"
+
+remediation:
+  guidance: |
+    1. Review the Ingress configuration
+    2. Add specific hosts to each rule:
+       spec:
+         rules:
+         - host: api.example.com
+           http:
+             paths:
+             - path: /
+               pathType: Prefix
+               backend:
+                 service:
+                   name: api-service
+                   port:
+                     number: 80
+    3. Ensure TLS configuration also references the same hosts
+    4. Avoid using wildcard hosts when possible
+    5. Update DNS records to point to the ingress controller
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - ingress
+  - hosts
+  - access-control
+  - exposure
+
+references:
+  - https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards

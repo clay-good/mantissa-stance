@@ -1,0 +1,48 @@
+id: gcp-storage-003
+name: Bucket logging enabled
+description: |
+  Ensure Cloud Storage bucket logging is enabled. Access logs provide
+  visibility into who is accessing the bucket and what operations are
+  being performed, which is essential for security monitoring and auditing.
+
+enabled: true
+severity: low
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.logging_enabled == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "5.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Create a separate bucket for storing access logs
+    2. Navigate to Cloud Storage in GCP Console
+    3. Select the source bucket
+    4. Click Edit bucket details
+    5. Under "Access & storage logs", configure logging
+    6. Specify the log bucket and optional prefix
+    7. Save the changes
+  automation_supported: false
+
+tags:
+  - storage
+  - logging
+  - audit
+  - monitoring
+  - gcp
+
+references:
+  - https://cloud.google.com/storage/docs/access-logs
+  - https://cloud.google.com/storage/docs/bucket-logging

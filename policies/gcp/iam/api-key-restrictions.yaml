@@ -1,0 +1,51 @@
+id: gcp-iam-008
+name: API keys have restrictions
+description: |
+  Ensure API keys have application and API restrictions configured.
+  Unrestricted API keys can be used from any source and access any
+  enabled API, increasing the risk of abuse if leaked.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_api_key
+
+check:
+  type: expression
+  expression: |
+    resource.has_api_restrictions == true and
+    resource.has_application_restrictions == true
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.12"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+
+remediation:
+  guidance: |
+    1. Navigate to APIs & Services > Credentials in GCP Console
+    2. Select the API key to restrict
+    3. Under "Application restrictions":
+       - Choose HTTP referrers for web apps
+       - Choose IP addresses for servers
+       - Choose Android/iOS apps for mobile
+    4. Under "API restrictions":
+       - Select "Restrict key"
+       - Choose only the APIs this key needs
+    5. Consider using service accounts instead of API keys
+    6. Rotate API keys regularly
+  automation_supported: false
+
+tags:
+  - iam
+  - api-keys
+  - restrictions
+  - security
+  - gcp
+
+references:
+  - https://cloud.google.com/docs/authentication/api-keys
+  - https://cloud.google.com/docs/authentication/api-keys#securing_an_api_key

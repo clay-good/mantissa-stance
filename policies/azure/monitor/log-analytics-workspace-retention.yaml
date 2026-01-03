@@ -1,0 +1,48 @@
+id: azure-monitor-010
+name: Log Analytics workspace retention at least 90 days
+description: |
+  Ensure Log Analytics workspace data retention is set to at least 90 days.
+  Log Analytics stores security and operational data. Adequate retention
+  ensures data availability for investigations and compliance audits.
+
+enabled: true
+severity: medium
+
+resource_type: azure_log_analytics_workspace
+
+check:
+  type: expression
+  expression: "resource.retention_in_days >= 90"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.1.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+
+remediation:
+  guidance: |
+    1. Navigate to Log Analytics workspace in Azure Portal
+    2. Under Settings, select Usage and estimated costs
+    3. Click Data Retention
+    4. Set retention period to at least 90 days
+       - Consider 365 days for compliance requirements
+       - Free tier allows 30 days, paid required for longer
+    5. Review cost implications
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - monitor
+  - log-analytics
+  - retention
+  - audit
+  - compliance
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-monitor/logs/data-retention-archive

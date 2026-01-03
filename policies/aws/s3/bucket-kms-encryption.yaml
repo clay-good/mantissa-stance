@@ -1,0 +1,53 @@
+id: aws-s3-003
+name: S3 bucket uses KMS encryption
+description: |
+  Ensure S3 buckets use server-side encryption with AWS KMS
+  (SSE-KMS) instead of S3-managed keys (SSE-S3). KMS provides
+  additional security controls, audit trails, and key rotation.
+
+enabled: true
+severity: medium
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: |
+    resource.encryption.enabled == true and
+    resource.encryption.type == "aws:kms"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.1.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+
+remediation:
+  guidance: |
+    1. Open the Amazon S3 console
+    2. Select the bucket
+    3. Choose the Properties tab
+    4. Under Default encryption, choose Edit
+    5. Select "Server-side encryption with AWS KMS keys (SSE-KMS)"
+    6. Choose a KMS key:
+       - AWS managed key (aws/s3)
+       - Customer managed key (recommended)
+    7. Consider enabling Bucket Key to reduce KMS costs
+    8. Save changes
+  automation_supported: false
+
+tags:
+  - s3
+  - encryption
+  - kms
+  - storage
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-key.html

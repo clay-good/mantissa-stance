@@ -1,0 +1,50 @@
+id: gcp-network-007
+name: Cloud VPN uses IKE v2
+description: |
+  Ensure Cloud VPN tunnels use IKE version 2. IKE v2 provides improved
+  security, faster reconnection, and better NAT traversal compared to
+  IKE v1.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_vpn_tunnel
+
+check:
+  type: expression
+  expression: "resource.ike_version == 2"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Hybrid Connectivity > VPN
+    2. Note: IKE version cannot be changed on existing tunnels
+    3. Create new VPN tunnel:
+       - Select VPN gateway
+       - Configure peer gateway
+       - Set IKE version to IKEv2
+       - Configure routing and traffic selectors
+    4. Update peer VPN to match IKE v2
+    5. Migrate traffic to new tunnel
+    6. Delete old IKE v1 tunnel
+  automation_supported: false
+
+tags:
+  - network
+  - vpn
+  - ike
+  - encryption
+  - hybrid
+
+references:
+  - https://cloud.google.com/network-connectivity/docs/vpn/concepts/ike

@@ -1,0 +1,47 @@
+id: k8s-pod-019
+name: Containers should have memory requests defined
+description: |
+  Memory requests help the scheduler make better placement decisions
+  and ensure pods have the resources they need. Without requests,
+  pods may be scheduled on nodes without sufficient memory.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_memory_requests == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.4.1"
+
+remediation:
+  guidance: |
+    1. Review container memory requirements
+    2. Add memory requests to each container:
+       containers:
+       - name: app
+         resources:
+           requests:
+             memory: "128Mi"
+    3. Set requests based on typical usage
+    4. Consider setting limits as well
+    5. Monitor actual usage and adjust requests
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - pod-security
+  - resources
+  - memory
+  - scheduling
+
+references:
+  - https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/

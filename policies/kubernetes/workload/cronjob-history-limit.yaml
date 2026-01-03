@@ -1,0 +1,42 @@
+id: k8s-wl-006
+name: CronJobs should have history limits configured
+description: |
+  CronJobs without history limits can accumulate many completed jobs,
+  consuming cluster resources. Setting successfulJobsHistoryLimit and
+  failedJobsHistoryLimit controls how many completed jobs are retained.
+
+enabled: true
+severity: low
+
+resource_type: k8s_cronjob
+
+check:
+  type: expression
+  expression: "resource.has_history_limits == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-7"
+
+remediation:
+  guidance: |
+    1. Review the CronJob specification
+    2. Add history limits:
+       spec:
+         successfulJobsHistoryLimit: 3
+         failedJobsHistoryLimit: 1
+    3. Balance between debugging needs and resource usage
+    4. Consider external log aggregation for job history
+    5. Monitor CronJob execution patterns
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - cronjob
+  - history-limit
+  - cleanup
+  - resource-management
+
+references:
+  - https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/

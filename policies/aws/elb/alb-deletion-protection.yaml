@@ -1,0 +1,45 @@
+id: aws-elb-004
+name: ALB deletion protection enabled
+description: |
+  Ensure Application Load Balancers have deletion protection enabled.
+  Deletion protection prevents accidental or unauthorized deletion of
+  production load balancers.
+
+enabled: true
+severity: medium
+
+resource_type: aws_alb
+
+check:
+  type: expression
+  expression: "resource.deletion_protection_enabled == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "ELB.6"
+
+remediation:
+  guidance: |
+    1. Navigate to EC2 > Load Balancers
+    2. Select the Application Load Balancer
+    3. Go to Attributes tab
+    4. Click Edit attributes
+    5. Enable "Deletion protection"
+    6. Save changes
+
+    To delete a protected ALB, first disable deletion protection.
+  automation_supported: false
+
+tags:
+  - elb
+  - alb
+  - deletion-protection
+  - load-balancer
+  - safety
+
+references:
+  - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html

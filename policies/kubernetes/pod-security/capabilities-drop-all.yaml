@@ -1,0 +1,47 @@
+id: k8s-pod-008
+name: Container capabilities should be dropped
+description: |
+  Linux capabilities give containers fine-grained privileges.
+  All capabilities should be dropped by default, and only
+  required capabilities should be explicitly added.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_capabilities_dropped == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.7"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.1"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. For each container, add securityContext.capabilities
+    3. Set drop: ["ALL"] to drop all capabilities
+    4. Add only required capabilities back with 'add'
+    5. Test the application with reduced capabilities
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - capabilities
+  - least-privilege
+  - security-context
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/
+  - https://man7.org/linux/man-pages/man7/capabilities.7.html

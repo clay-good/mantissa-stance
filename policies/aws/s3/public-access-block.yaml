@@ -1,0 +1,45 @@
+id: aws-s3-002
+name: S3 bucket public access blocked
+description: |
+  Ensure S3 bucket has public access block settings enabled.
+  Public access block settings prevent accidental public exposure
+  of S3 bucket contents.
+
+enabled: true
+severity: critical
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: |
+    resource.public_access_block.block_public_acls == true and
+    resource.public_access_block.block_public_policy == true and
+    resource.public_access_block.ignore_public_acls == true and
+    resource.public_access_block.restrict_public_buckets == true
+
+benchmark:
+  - cis-aws: "2.1.5"
+
+remediation:
+  guidance: |
+    1. Open the Amazon S3 console
+    2. Select the bucket
+    3. Choose the Permissions tab
+    4. Under Block public access, choose Edit
+    5. Enable all four block public access settings:
+       - Block public access to buckets and objects granted through new ACLs
+       - Block public access to buckets and objects granted through any ACLs
+       - Block public access to buckets and objects granted through new public bucket policies
+       - Block public and cross-account access to buckets that have public policies
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - s3
+  - public-access
+  - storage
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html

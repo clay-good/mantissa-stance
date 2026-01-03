@@ -1,0 +1,55 @@
+id: azure-compute-011
+name: VM disk encryption enabled
+description: |
+  Ensure Azure VM disks are encrypted using Azure Disk Encryption
+  or server-side encryption with customer-managed keys. Disk
+  encryption protects data at rest from unauthorized access.
+
+enabled: true
+severity: high
+
+resource_type: azure_vm
+
+check:
+  type: expression
+  expression: "resource.disk_encryption_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "7.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+
+remediation:
+  guidance: |
+    Option 1: Azure Disk Encryption (ADE)
+    1. Create a Key Vault with appropriate permissions
+    2. Navigate to the VM > Disks
+    3. Select "Encryption"
+    4. Enable Azure Disk Encryption
+    5. Select the Key Vault and key
+
+    Option 2: Server-side encryption with CMK
+    1. Create a disk encryption set
+    2. Associate with Key Vault key
+    3. Apply to VM disks
+
+    Note: Azure encrypts all managed disks by default with
+    platform-managed keys. Consider CMK for enhanced control.
+  automation_supported: false
+
+tags:
+  - compute
+  - vm
+  - disk
+  - encryption
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/virtual-machines/disk-encryption-overview
+  - https://docs.microsoft.com/en-us/azure/virtual-machines/disk-encryption

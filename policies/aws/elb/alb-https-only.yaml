@@ -1,0 +1,53 @@
+id: aws-elb-002
+name: ALB uses HTTPS listeners only
+description: |
+  Ensure Application Load Balancers use HTTPS listeners for secure
+  communication. HTTP listeners transmit data unencrypted and should
+  only redirect to HTTPS.
+
+enabled: true
+severity: high
+
+resource_type: aws_alb_listener
+
+check:
+  type: expression
+  expression: "resource.protocol == 'HTTPS' or resource.redirects_to_https == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "ELB.1"
+
+remediation:
+  guidance: |
+    1. Navigate to EC2 > Load Balancers
+    2. Select the Application Load Balancer
+    3. Go to Listeners tab
+    4. For HTTP listeners:
+       - Edit listener
+       - Change default action to redirect to HTTPS
+    5. For HTTPS listeners:
+       - Ensure valid SSL certificate is configured
+       - Set security policy to TLS 1.2 minimum
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - elb
+  - alb
+  - https
+  - encryption
+  - load-balancer
+
+references:
+  - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html

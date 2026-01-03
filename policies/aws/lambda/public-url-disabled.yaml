@@ -1,0 +1,50 @@
+id: aws-lambda-008
+name: Lambda function URL restricted
+description: |
+  Ensure Lambda functions with public URLs have authentication configured.
+  Function URLs with auth type NONE are publicly accessible without
+  authentication, which may expose sensitive functionality.
+
+enabled: true
+severity: high
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: "resource.function_url_auth_type != 'NONE' or resource.has_function_url == false"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "Lambda.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Lambda in AWS Console
+    2. Select the function
+    3. Go to Configuration > Function URL
+    4. If URL exists and auth is NONE:
+       - Click Edit
+       - Change auth type to AWS_IAM
+       - Save changes
+    5. Or delete the function URL if not needed
+
+    Use API Gateway for more advanced authentication options.
+  automation_supported: false
+
+tags:
+  - lambda
+  - function-url
+  - authentication
+  - serverless
+  - public-access
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html

@@ -1,0 +1,50 @@
+id: azure-storage-009
+name: Azure Storage lifecycle management configured
+description: |
+  Ensure Azure Storage accounts have lifecycle management policies.
+  Lifecycle policies automate blob transitions to cooler tiers and
+  deletion, optimizing storage costs.
+
+enabled: true
+severity: low
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.lifecycle_management_enabled == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage Account in Azure Portal
+    2. Under Data management, select Lifecycle management
+    3. Add a rule:
+       - Name the rule
+       - Select scope (all or filtered by prefix/tags)
+       - Add conditions:
+         - Move to Cool tier after X days
+         - Move to Archive tier after Y days
+         - Delete after Z days
+    4. Save rule
+
+    Example: Move to Cool after 30 days, Archive after
+    90 days, delete after 365 days.
+  automation_supported: false
+
+tags:
+  - storage
+  - lifecycle
+  - blob
+  - cost-optimization
+  - retention
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview

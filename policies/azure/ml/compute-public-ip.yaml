@@ -1,0 +1,58 @@
+id: azure-ml-005
+name: Azure ML compute instance has no public IP
+description: |
+  Ensure Azure Machine Learning compute instances do not have
+  public IP addresses. Public IPs expose compute resources
+  to the internet and increase attack surface.
+
+enabled: true
+severity: high
+
+resource_type: azure_ml_compute_instance
+
+check:
+  type: expression
+  expression: "resource.enable_node_public_ip == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.4"
+
+remediation:
+  guidance: |
+    To disable public IP for Azure ML compute:
+    1. Create compute instance without public IP:
+       - az ml compute create --name my-compute \
+           --type ComputeInstance \
+           --resource-group my-rg \
+           --workspace-name my-ws \
+           --enable-node-public-ip false \
+           --vnet-name my-vnet \
+           --subnet my-subnet
+    2. Ensure VNet configuration:
+       - Subnet must have service endpoints or private links
+       - NAT gateway for outbound internet if needed
+    3. For existing compute:
+       - Note: Cannot change after creation
+       - Create new compute without public IP
+       - Migrate workloads and delete old compute
+    4. Use Azure Bastion for SSH/RDP access
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - network
+  - public-ip
+  - compute
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-secure-training-vnet
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-create-compute-instance

@@ -1,0 +1,51 @@
+id: azure-storage-007
+name: Azure Storage soft delete enabled
+description: |
+  Ensure Azure Storage accounts have soft delete enabled for blobs and
+  containers. Soft delete retains deleted data for a specified period,
+  enabling recovery from accidental deletions.
+
+enabled: true
+severity: high
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.blob_soft_delete_enabled == true and resource.container_soft_delete_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.10"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-9"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage Account in Azure Portal
+    2. Under Data management, select Data protection
+    3. Under Recovery:
+       - Enable "Enable soft delete for blobs"
+       - Set retention period (7-365 days)
+       - Enable "Enable soft delete for containers"
+       - Set retention period (1-365 days)
+    4. Save changes
+
+    Recommended retention: At least 7 days for blobs,
+    7 days for containers.
+  automation_supported: false
+
+tags:
+  - storage
+  - soft-delete
+  - blob
+  - data-protection
+  - recovery
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/blobs/soft-delete-blob-overview

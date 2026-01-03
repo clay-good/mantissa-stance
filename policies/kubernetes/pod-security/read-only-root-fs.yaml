@@ -1,0 +1,43 @@
+id: k8s-pod-006
+name: Container root filesystem should be read-only
+description: |
+  A read-only root filesystem prevents attackers from modifying
+  the container's filesystem, reducing the attack surface.
+  Write operations should use mounted volumes instead.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_read_only_root_fs == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.8"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-7"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. For each container, add securityContext
+    3. Set readOnlyRootFilesystem: true
+    4. Mount writable volumes for required write paths
+    5. Test the application with read-only filesystem
+    6. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - read-only-filesystem
+  - immutability
+  - security-context
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/

@@ -1,0 +1,54 @@
+id: aws-sagemaker-002
+name: SageMaker notebook instance in VPC
+description: |
+  Ensure SageMaker notebook instances are deployed within a VPC.
+  VPC deployment provides network isolation and allows control over
+  network traffic through security groups and NACLs.
+
+enabled: true
+severity: high
+
+resource_type: aws_sagemaker_notebook
+
+check:
+  type: expression
+  expression: "resource.subnet_id != null and resource.subnet_id != ''"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "SageMaker.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3"
+
+remediation:
+  guidance: |
+    To deploy SageMaker notebook instances in a VPC:
+    1. Note: You cannot add VPC config to existing instances
+    2. Create a new notebook instance with VPC configuration:
+       - In the SageMaker console, choose Notebook instances
+       - Choose Create notebook instance
+       - Under Network, select your VPC and subnet
+       - Select appropriate security group(s)
+    3. Migrate your notebooks to the new VPC-enabled instance
+    4. Delete the old instance without VPC configuration
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - vpc
+  - network
+  - isolation
+  - ai-ml
+  - notebook
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/appendix-notebook-and-internet-access.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/notebook-interface.html

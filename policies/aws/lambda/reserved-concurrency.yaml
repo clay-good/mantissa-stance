@@ -1,0 +1,45 @@
+id: aws-lambda-003
+name: Lambda function has reserved concurrency
+description: |
+  Ensure Lambda functions have reserved or provisioned concurrency configured.
+  Reserved concurrency prevents a single function from consuming all available
+  concurrency and ensures predictable performance.
+
+enabled: true
+severity: low
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: "resource.reserved_concurrent_executions exists or resource.is_non_critical == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Navigate to Lambda in AWS Console
+    2. Select the function
+    3. Go to Configuration > Concurrency
+    4. Click Edit
+    5. Choose "Reserve concurrency"
+    6. Set the reserved concurrent executions
+    7. Save changes
+
+    Consider setting:
+    - Reserved concurrency for steady workloads
+    - Provisioned concurrency for latency-sensitive functions
+  automation_supported: false
+
+tags:
+  - lambda
+  - concurrency
+  - performance
+  - serverless
+  - availability
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html

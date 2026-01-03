@@ -1,0 +1,44 @@
+id: k8s-wl-008
+name: DaemonSets should use RollingUpdate strategy
+description: |
+  The RollingUpdate strategy for DaemonSets ensures pods are updated
+  one node at a time, minimizing impact. OnDelete strategy requires
+  manual pod deletion for updates, which is error-prone.
+
+enabled: true
+severity: low
+
+resource_type: k8s_daemonset
+
+check:
+  type: expression
+  expression: "resource.update_strategy_type == 'RollingUpdate'"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-3"
+
+remediation:
+  guidance: |
+    1. Review the DaemonSet specification
+    2. Set the update strategy to RollingUpdate:
+       spec:
+         updateStrategy:
+           type: RollingUpdate
+           rollingUpdate:
+             maxUnavailable: 1
+    3. Configure maxUnavailable based on cluster size
+    4. Ensure readiness probes are configured
+    5. Test rollouts in non-production first
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - daemonset
+  - rolling-update
+  - update-strategy
+  - operations
+
+references:
+  - https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/

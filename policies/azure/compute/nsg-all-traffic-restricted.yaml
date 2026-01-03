@@ -1,0 +1,53 @@
+id: azure-compute-006
+name: NSG does not allow all traffic from internet
+description: |
+  Ensure no Network Security Group rule allows all traffic from
+  the internet. Overly permissive rules that allow all protocols
+  and ports from Any source create severe security vulnerabilities.
+
+enabled: true
+severity: critical
+
+resource_type: azure_network_security_group
+
+check:
+  type: expression
+  expression: "resource.allows_all_from_internet == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Security Groups in Azure Portal
+    2. Select the NSG with overly permissive rules
+    3. Go to Inbound security rules
+    4. Identify rules with:
+       - Source: Any or Internet
+       - Protocol: Any (*)
+       - Destination port ranges: Any (*) or 0-65535
+    5. Delete or modify these rules to:
+       - Specify required ports only
+       - Restrict source IP ranges
+       - Use Application Security Groups
+    6. Verify application functionality after changes
+  automation_supported: false
+
+tags:
+  - compute
+  - nsg
+  - network-security
+  - critical-security
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+  - https://docs.microsoft.com/en-us/azure/virtual-network/tutorial-filter-network-traffic

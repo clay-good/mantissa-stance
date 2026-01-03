@@ -1,0 +1,57 @@
+id: azure-compute-010
+name: Management ports restricted from internet
+description: |
+  Ensure management ports (SSH 22, RDP 3389, WinRM 5985/5986) are
+  not exposed to the internet. Use Azure Bastion, VPN, or jump
+  boxes for secure remote management access.
+
+enabled: true
+severity: high
+
+resource_type: azure_network_security_group
+
+check:
+  type: expression
+  expression: |
+    resource.allows_ssh_from_internet == false and
+    resource.allows_rdp_from_internet == false and
+    resource.allows_winrm_from_internet == false
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to Network Security Groups in Azure Portal
+    2. Select the NSG with exposed management ports
+    3. Go to Inbound security rules
+    4. Remove or modify rules allowing from Internet:
+       - Port 22 (SSH)
+       - Port 3389 (RDP)
+       - Port 5985/5986 (WinRM)
+    5. Implement secure alternatives:
+       - Azure Bastion for browser-based access
+       - VPN Gateway for site-to-site access
+       - Jump box in a secured subnet
+       - Just-in-time VM access
+  automation_supported: false
+
+tags:
+  - compute
+  - nsg
+  - ssh
+  - rdp
+  - management
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/bastion/bastion-overview
+  - https://docs.microsoft.com/en-us/azure/defender-for-cloud/just-in-time-access-usage

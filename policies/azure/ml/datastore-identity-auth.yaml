@@ -1,0 +1,59 @@
+id: azure-ml-007
+name: Azure ML datastore uses identity-based authentication
+description: |
+  Ensure Azure Machine Learning datastores use identity-based
+  authentication instead of credential-based. Identity-based
+  auth eliminates stored secrets and enables better access control.
+
+enabled: true
+severity: medium
+
+resource_type: azure_ml_datastore
+
+check:
+  type: expression
+  expression: "resource.credentials == null or resource.credentials.credential_type == 'None'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "8.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To configure identity-based authentication for datastores:
+    1. Ensure storage account supports identity-based access:
+       - Enable Azure AD authentication on storage
+       - Assign appropriate roles to workspace identity
+    2. Create datastore with identity auth:
+       - az ml datastore create --name my-store \
+           --type azureblob \
+           --account-name mystorageacct \
+           --container-name mycontainer \
+           --resource-group my-rg \
+           --workspace-name my-ws \
+           --skip-validation
+    3. Grant workspace identity access:
+       - Storage Blob Data Reader for read access
+       - Storage Blob Data Contributor for read/write
+    4. For existing datastores:
+       - Delete and recreate with identity auth
+       - Or update credentials to use identity
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - datastore
+  - identity
+  - authentication
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-identity-based-service-authentication
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-access-data

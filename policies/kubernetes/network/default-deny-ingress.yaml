@@ -1,0 +1,49 @@
+id: k8s-net-001
+name: Namespaces should have default deny ingress network policy
+description: |
+  A default deny ingress network policy ensures that all pods in a namespace
+  are isolated by default, only allowing explicitly permitted traffic.
+  Without this, pods can receive traffic from any source.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_namespace
+
+check:
+  type: expression
+  expression: "resource.has_default_deny_ingress_policy == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.3.2"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Create a default deny ingress NetworkPolicy for the namespace:
+       apiVersion: networking.k8s.io/v1
+       kind: NetworkPolicy
+       metadata:
+         name: default-deny-ingress
+       spec:
+         podSelector: {}
+         policyTypes:
+         - Ingress
+    2. Apply the policy to the namespace
+    3. Create explicit allow policies for required traffic
+    4. Test connectivity to ensure applications work correctly
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - network-policy
+  - ingress
+  - network-segmentation
+  - zero-trust
+
+references:
+  - https://kubernetes.io/docs/concepts/services-networking/network-policies/

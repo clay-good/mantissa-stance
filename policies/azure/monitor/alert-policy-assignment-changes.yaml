@@ -1,0 +1,51 @@
+id: azure-monitor-005
+name: Alert for policy assignment changes
+description: |
+  Ensure an alert exists for Azure Policy assignment creation or deletion.
+  Policy changes can weaken security posture if not properly reviewed.
+  Alerting enables rapid detection of unauthorized policy modifications.
+
+enabled: true
+severity: high
+
+resource_type: azure_monitor_alert_rule
+
+check:
+  type: expression
+  expression: "resource.alert_for_policy_assignment_changes_exists == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.2.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.6"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Monitor > Alerts
+    2. Click Create > Alert rule
+    3. Select subscription as target
+    4. Configure condition:
+       - Signal type: Activity Log
+       - Category: Administrative
+       - Operation: Create policy assignment
+       - Also add: Delete policy assignment
+    5. Configure action group for notifications
+    6. Set alert rule name and severity
+    7. Create alert rule
+  automation_supported: false
+
+tags:
+  - monitor
+  - alerting
+  - policy
+  - governance
+  - change-detection
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-activity-log

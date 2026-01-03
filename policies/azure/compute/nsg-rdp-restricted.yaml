@@ -1,0 +1,48 @@
+id: azure-compute-002
+name: RDP access restricted from internet
+description: |
+  Ensure Network Security Groups do not allow RDP (port 3389) access from
+  the internet (*/Internet). Unrestricted RDP access exposes Windows VMs
+  to brute force attacks and should be limited to specific trusted IPs.
+
+enabled: true
+severity: high
+
+resource_type: azure_network_security_group
+
+check:
+  type: expression
+  expression: "resource.allows_rdp_from_internet == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to Network security groups in Azure Portal
+    2. Select the NSG with RDP allowed from internet
+    3. Go to Inbound security rules
+    4. Edit or delete the rule allowing RDP from Any/*
+    5. Create a rule allowing RDP only from specific IP ranges
+    6. Consider using Azure Bastion for secure RDP access
+    7. Or use Just-In-Time VM access through Defender for Cloud
+  automation_supported: false
+
+tags:
+  - compute
+  - nsg
+  - rdp
+  - network-security
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+  - https://docs.microsoft.com/en-us/azure/bastion/bastion-overview

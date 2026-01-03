@@ -1,0 +1,49 @@
+id: gcp-network-010
+name: Cloud Interconnect uses MACsec encryption
+description: |
+  Ensure Dedicated Interconnect connections use MACsec encryption.
+  MACsec provides link-layer encryption for data in transit between
+  on-premises and Google Cloud.
+
+enabled: true
+severity: high
+
+resource_type: gcp_compute_interconnect
+
+check:
+  type: expression
+  expression: "resource.macsec_enabled == true"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Hybrid Connectivity > Interconnect
+    2. Select the Dedicated Interconnect
+    3. Enable MACsec:
+       - Configure MACsec at both ends
+       - Google supports MACsec on 100 Gbps links
+    4. Configure pre-shared keys:
+       - Generate CAK/CKN pairs
+       - Configure on both devices
+    5. Verify encryption is active
+
+    Note: MACsec is available for Dedicated Interconnect only.
+    For Partner Interconnect, use Cloud VPN for encryption.
+  automation_supported: false
+
+tags:
+  - network
+  - interconnect
+  - macsec
+  - encryption
+  - hybrid
+
+references:
+  - https://cloud.google.com/network-connectivity/docs/interconnect/concepts/macsec

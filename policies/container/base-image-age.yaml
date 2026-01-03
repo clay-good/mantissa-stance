@@ -1,0 +1,43 @@
+id: container-005
+name: Container images should use recent base images
+description: |
+  Base images older than 90 days may contain unpatched vulnerabilities.
+  Regular base image updates ensure security patches are applied and
+  reduce the attack surface from accumulated CVEs.
+
+enabled: true
+severity: medium
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.base_image_age_days <= 90"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SI-2"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.2"
+
+remediation:
+  guidance: |
+    1. Check for newer versions of base image
+    2. Review base image changelog for security fixes
+    3. Update FROM instruction in Dockerfile
+    4. Test application compatibility
+    5. Rebuild and deploy updated image
+    6. Consider automated base image update pipelines
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - base-image
+  - age
+  - maintenance
+
+references:
+  - https://docs.docker.com/develop/develop-images/dockerfile_best-practices/

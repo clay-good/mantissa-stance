@@ -1,0 +1,54 @@
+id: aws-s3-006
+name: S3 bucket access logging enabled
+description: |
+  Ensure S3 buckets have server access logging enabled. Access logs capture
+  detailed records of requests made to the bucket for security analysis,
+  auditing, and troubleshooting.
+
+enabled: true
+severity: medium
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: "resource.logging_enabled == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "S3.9"
+
+remediation:
+  guidance: |
+    1. Create a target bucket for logs (if not exists)
+    2. Open the Amazon S3 console
+    3. Select the source bucket
+    4. Choose the Properties tab
+    5. Under Server access logging, click Edit
+    6. Enable logging
+    7. Select target bucket and prefix
+    8. Save changes
+
+    Note: Target bucket should be in same region.
+    Consider lifecycle policies for log retention.
+  automation_supported: false
+
+tags:
+  - s3
+  - logging
+  - storage
+  - audit
+  - monitoring
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html

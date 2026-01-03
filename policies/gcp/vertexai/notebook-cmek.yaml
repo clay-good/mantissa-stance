@@ -1,0 +1,56 @@
+id: gcp-vertexai-003
+name: Vertex AI notebook uses CMEK encryption
+description: |
+  Ensure Vertex AI Workbench notebooks use Customer-Managed
+  Encryption Keys (CMEK) for data at rest protection.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_notebook
+
+check:
+  type: expression
+  expression: "resource.kms_key != null and resource.kms_key != ''"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+
+remediation:
+  guidance: |
+    To enable CMEK for Vertex AI notebooks:
+    1. Create Cloud KMS key if not exists:
+       - gcloud kms keys create notebook-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --purpose=encryption
+    2. Grant Notebooks service account access:
+       - gcloud kms keys add-iam-policy-binding notebook-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --member=serviceAccount:service-PROJECT@gcp-sa-notebooks.iam.gserviceaccount.com \
+           --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
+    3. Create notebook with CMEK:
+       - gcloud workbench instances create my-notebook \
+           --location=us-central1-a \
+           --kms-key=projects/PROJECT/locations/LOCATION/keyRings/RING/cryptoKeys/KEY
+  automation_supported: false
+
+tags:
+  - vertexai
+  - notebook
+  - encryption
+  - cmek
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/workbench/managed/cmek
+  - https://cloud.google.com/vertex-ai/docs/workbench/user-managed/cmek

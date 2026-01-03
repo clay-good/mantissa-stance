@@ -1,0 +1,61 @@
+id: aws-s3-007
+name: S3 bucket requires SSL/TLS
+description: |
+  Ensure S3 bucket policies require SSL/TLS for all requests. This prevents
+  unencrypted data transmission and protects against man-in-the-middle
+  attacks.
+
+enabled: true
+severity: high
+
+resource_type: aws_s3_bucket
+
+check:
+  type: expression
+  expression: "resource.requires_ssl == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.1.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "S3.5"
+
+remediation:
+  guidance: |
+    Add a bucket policy that denies non-SSL requests:
+
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Sid": "RequireSSL",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": "s3:*",
+        "Resource": [
+          "arn:aws:s3:::BUCKET_NAME",
+          "arn:aws:s3:::BUCKET_NAME/*"
+        ],
+        "Condition": {
+          "Bool": {"aws:SecureTransport": "false"}
+        }
+      }]
+    }
+  automation_supported: false
+
+tags:
+  - s3
+  - ssl
+  - tls
+  - encryption
+  - transport
+
+references:
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html

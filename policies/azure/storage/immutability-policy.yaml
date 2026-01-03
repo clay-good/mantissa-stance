@@ -1,0 +1,47 @@
+id: azure-storage-008
+name: Azure Storage immutability policy for compliance
+description: |
+  Ensure Azure Storage containers storing compliance data have immutability
+  policies configured. Immutable storage provides WORM protection, preventing
+  modification or deletion of blobs.
+
+enabled: true
+severity: medium
+
+resource_type: azure_storage_container
+
+check:
+  type: expression
+  expression: "resource.immutability_policy exists or resource.requires_worm == false"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-9"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage Account in Azure Portal
+    2. Go to Containers
+    3. Select the container
+    4. Access policy > Add policy:
+       - Time-based retention: Set retention interval
+       - Legal hold: For indefinite retention
+    5. Lock the policy (irreversible for time-based)
+
+    Note: Locked policies cannot be deleted. Objects
+    cannot be modified or deleted during retention.
+  automation_supported: false
+
+tags:
+  - storage
+  - immutability
+  - worm
+  - compliance
+  - blob
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview

@@ -1,0 +1,48 @@
+id: gcp-functions-007
+name: Cloud Function CMEK encryption enabled
+description: |
+  Ensure Cloud Functions use Customer Managed Encryption Keys (CMEK)
+  for encryption. CMEK provides control over encryption keys and enables
+  compliance requirements around key management.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_cloud_function
+
+check:
+  type: expression
+  expression: "resource.kms_key_name exists"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+
+remediation:
+  guidance: |
+    1. Create a KMS key:
+       - gcloud kms keys create KEY_NAME \
+         --location=REGION --keyring=KEYRING --purpose=encryption
+    2. Grant Cloud Functions service agent access:
+       - gcloud kms keys add-iam-policy-binding KEY_NAME \
+         --location=REGION --keyring=KEYRING \
+         --member="serviceAccount:service-PROJECT_NUMBER@gcf-admin-robot.iam.gserviceaccount.com" \
+         --role="roles/cloudkms.cryptoKeyEncrypterDecrypter"
+    3. Deploy function with CMEK:
+       - gcloud functions deploy FUNCTION_NAME \
+         --kms-key=projects/PROJECT/locations/REGION/keyRings/KEYRING/cryptoKeys/KEY_NAME
+  automation_supported: false
+
+tags:
+  - functions
+  - cmek
+  - kms
+  - serverless
+  - encryption
+
+references:
+  - https://cloud.google.com/functions/docs/securing/cmek

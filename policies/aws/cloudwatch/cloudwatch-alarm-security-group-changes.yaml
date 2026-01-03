@@ -1,0 +1,46 @@
+id: aws-cloudwatch-004
+name: CloudWatch alarm for security group changes
+description: |
+  Ensure a CloudWatch alarm exists for security group changes. Unauthorized
+  modifications to security groups can open network access to resources
+  and should be monitored and investigated promptly.
+
+enabled: true
+severity: medium
+
+resource_type: aws_cloudwatch_metric_alarm
+
+check:
+  type: expression
+  expression: "resource.alarm_for_security_group_changes_exists == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "4.10"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Create a CloudWatch Logs metric filter for security group changes:
+       Filter pattern: { ($.eventName = AuthorizeSecurityGroupIngress) || ($.eventName = AuthorizeSecurityGroupEgress) || ($.eventName = RevokeSecurityGroupIngress) || ($.eventName = RevokeSecurityGroupEgress) || ($.eventName = CreateSecurityGroup) || ($.eventName = DeleteSecurityGroup) }
+    2. Create a CloudWatch alarm based on the metric filter
+    3. Set threshold to >= 1
+    4. Configure notification via SNS topic
+    5. Subscribe network and security teams to SNS topic
+  automation_supported: false
+
+tags:
+  - cloudwatch
+  - monitoring
+  - alerting
+  - security-groups
+  - network-changes
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudwatch-alarms-for-cloudtrail.html

@@ -1,0 +1,47 @@
+id: aws-cloudwatch-005
+name: CloudWatch log groups have retention configured
+description: |
+  Ensure CloudWatch log groups have retention policies configured.
+  Without retention policies, logs are kept indefinitely which increases
+  storage costs. However, retention should meet compliance requirements
+  for log retention periods (typically 90 days to 1 year).
+
+enabled: true
+severity: low
+
+resource_type: aws_cloudwatch_log_group
+
+check:
+  type: expression
+  expression: "resource.retention_in_days exists and resource.retention_in_days >= 90"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+
+remediation:
+  guidance: |
+    1. Open the Amazon CloudWatch console
+    2. Navigate to Log groups
+    3. Select the log group
+    4. Choose Actions > Edit retention setting
+    5. Set retention period (90 days, 1 year, or as per compliance requirements)
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - cloudwatch
+  - logging
+  - retention
+  - cost-optimization
+  - compliance
+
+references:
+  - https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html

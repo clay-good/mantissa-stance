@@ -1,0 +1,52 @@
+id: azure-functions-002
+name: Azure Function managed identity enabled
+description: |
+  Ensure Azure Functions use managed identity for authentication to
+  Azure services. Managed identities eliminate the need for credentials
+  in code and provide automatic credential rotation.
+
+enabled: true
+severity: medium
+
+resource_type: azure_function_app
+
+check:
+  type: expression
+  expression: "resource.identity_type exists and resource.identity_type != 'None'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "9.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Function App in Azure Portal
+    2. Under Settings, select Identity
+    3. On System assigned tab:
+       - Set Status to On
+       - Save
+    4. Or use User assigned identity:
+       - Click Add under User assigned
+       - Select or create managed identity
+    5. Grant the identity access to required resources
+
+    Best practice: Use system-assigned for single-purpose
+    functions, user-assigned for shared identities.
+  automation_supported: false
+
+tags:
+  - functions
+  - identity
+  - managed-identity
+  - serverless
+  - authentication
+
+references:
+  - https://docs.microsoft.com/en-us/azure/app-service/overview-managed-identity

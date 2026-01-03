@@ -1,0 +1,47 @@
+id: azure-storage-002
+name: Minimum TLS version 1.2
+description: |
+  Ensure storage accounts enforce TLS 1.2 as the minimum version.
+  Older TLS versions (1.0, 1.1) have known vulnerabilities and should
+  not be allowed for secure communications.
+
+enabled: true
+severity: high
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.uses_tls_1_2 == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.12"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage accounts in Azure Portal
+    2. Select the storage account
+    3. Go to Configuration under Settings
+    4. Set "Minimum TLS version" to Version 1.2
+    5. Save the configuration
+    6. Test applications to ensure TLS 1.2 compatibility
+  automation_supported: false
+
+tags:
+  - storage
+  - tls
+  - encryption
+  - compliance
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/common/transport-layer-security-configure-minimum-version
+  - https://docs.microsoft.com/en-us/azure/storage/common/storage-security-guide

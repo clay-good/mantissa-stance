@@ -1,0 +1,47 @@
+id: azure-functions-001
+name: Azure Function HTTPS only enabled
+description: |
+  Ensure Azure Functions only accept HTTPS requests. HTTP traffic is
+  unencrypted and vulnerable to eavesdropping and man-in-the-middle
+  attacks. All function traffic should use TLS.
+
+enabled: true
+severity: high
+
+resource_type: azure_function_app
+
+check:
+  type: expression
+  expression: "resource.https_only == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "9.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Function App in Azure Portal
+    2. Under Settings, select Configuration
+    3. Go to General settings tab
+    4. Set "HTTPS Only" to On
+    5. Save changes
+
+    Note: Ensure all clients use HTTPS URLs after enabling.
+  automation_supported: false
+
+tags:
+  - functions
+  - https
+  - encryption
+  - serverless
+  - transport
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-functions/security-concepts

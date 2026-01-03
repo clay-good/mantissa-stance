@@ -1,0 +1,53 @@
+id: aws-ec2-007
+name: Security group does not allow all traffic from internet
+description: |
+  Ensure no security group allows all traffic from the internet
+  (0.0.0.0/0 with all ports). This is an extremely dangerous
+  configuration that exposes all services to potential attacks.
+
+enabled: true
+severity: critical
+
+resource_type: aws_security_group
+
+check:
+  type: expression
+  expression: "resource.allows_all_traffic_from_internet == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "EC2.18"
+
+remediation:
+  guidance: |
+    1. Open the Amazon EC2 console
+    2. Navigate to Security Groups
+    3. Select the security group with dangerous rules
+    4. Choose Inbound rules tab
+    5. Identify rules that allow all traffic (protocol -1) from 0.0.0.0/0
+    6. Delete these rules or modify to:
+       - Specify exact ports needed
+       - Restrict source IP ranges
+       - Use security group references instead
+    7. Apply principle of least privilege
+  automation_supported: false
+
+tags:
+  - ec2
+  - security-group
+  - network
+  - critical-security
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules.html

@@ -1,0 +1,52 @@
+id: azure-storage-005
+name: Storage account uses customer-managed keys
+description: |
+  Ensure Azure Storage accounts use customer-managed keys (CMK)
+  for encryption instead of Microsoft-managed keys. CMK provides
+  full control over encryption keys stored in Azure Key Vault.
+
+enabled: true
+severity: medium
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.encryption_key_source == 'Microsoft.Keyvault'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+
+remediation:
+  guidance: |
+    1. Create a key in Azure Key Vault:
+       a. Create or use an existing Key Vault
+       b. Enable soft delete and purge protection
+       c. Create an RSA 2048 key
+    2. Grant Storage Account access to Key Vault:
+       a. Enable managed identity for storage account
+       b. Assign Key Vault Crypto Service Encryption User role
+    3. Configure customer-managed keys:
+       a. Navigate to Storage account > Encryption
+       b. Select "Customer-managed keys"
+       c. Select the Key Vault and key
+       d. Save changes
+  automation_supported: false
+
+tags:
+  - storage
+  - encryption
+  - cmk
+  - key-vault
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/common/customer-managed-keys-overview

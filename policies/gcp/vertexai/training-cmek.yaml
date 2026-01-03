@@ -1,0 +1,52 @@
+id: gcp-vertexai-005
+name: Vertex AI training pipeline uses CMEK encryption
+description: |
+  Ensure Vertex AI training pipelines use Customer-Managed
+  Encryption Keys (CMEK) for training data and artifacts.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_training_pipeline
+
+check:
+  type: expression
+  expression: "resource.encryption_spec != null and resource.encryption_spec.kms_key_name != null"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+
+remediation:
+  guidance: |
+    To enable CMEK for Vertex AI training:
+    1. Create Cloud KMS key if not exists
+    2. Grant Vertex AI service account access:
+       - gcloud kms keys add-iam-policy-binding training-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --member=serviceAccount:service-PROJECT@gcp-sa-aiplatform.iam.gserviceaccount.com \
+           --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
+    3. Create training pipeline with CMEK:
+       - Use encryptionSpec.kmsKeyName in API call
+       - Or specify in Vertex AI SDK
+    4. Ensure training data in GCS also uses CMEK
+  automation_supported: false
+
+tags:
+  - vertexai
+  - training
+  - encryption
+  - cmek
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/general/cmek
+  - https://cloud.google.com/vertex-ai/docs/training/create-training-pipeline

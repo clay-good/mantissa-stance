@@ -1,0 +1,43 @@
+id: gcp-compute-005
+name: Shielded VM enabled
+description: |
+  Ensure Shielded VM is enabled on Compute Engine instances. Shielded
+  VMs provide verifiable integrity using Secure Boot, vTPM, and
+  Integrity Monitoring to protect against rootkits and bootkits.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_instance
+
+check:
+  type: expression
+  expression: "resource.shielded_vm_config.enable_secure_boot == true and resource.shielded_vm_config.enable_vtpm == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "4.8"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-7"
+
+remediation:
+  guidance: |
+    1. When creating a new instance, enable Shielded VM options
+    2. For existing instances, Shielded VM cannot be enabled
+    3. Create a new Shielded VM instance and migrate workloads
+    4. Enable Secure Boot, vTPM, and Integrity Monitoring
+    5. Consider using organization policy to enforce Shielded VMs
+  automation_supported: false
+
+tags:
+  - compute
+  - shielded-vm
+  - integrity
+  - security
+  - gcp
+
+references:
+  - https://cloud.google.com/compute/docs/shielded-vm
+  - https://cloud.google.com/compute/shielded-vm/docs/shielded-vm

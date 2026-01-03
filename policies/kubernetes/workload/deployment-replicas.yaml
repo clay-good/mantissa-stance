@@ -1,0 +1,44 @@
+id: k8s-wl-001
+name: Deployments should have multiple replicas for high availability
+description: |
+  Running a single replica provides no redundancy. Production deployments
+  should have at least 2 replicas to ensure high availability and
+  prevent downtime during updates or node failures.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_deployment
+
+check:
+  type: expression
+  expression: "resource.replicas >= 2"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CP-10"
+  - framework: soc2
+    version: "2017"
+    control: "A1.2"
+
+remediation:
+  guidance: |
+    1. Review the deployment specification
+    2. Increase the replica count to at least 2:
+       spec:
+         replicas: 2
+    3. Ensure pod anti-affinity is configured to spread pods
+    4. Consider using pod disruption budgets
+    5. Verify readiness probes are configured
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - deployment
+  - high-availability
+  - replicas
+  - availability
+
+references:
+  - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/

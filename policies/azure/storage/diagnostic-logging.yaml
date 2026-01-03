@@ -1,0 +1,51 @@
+id: azure-storage-010
+name: Azure Storage diagnostic logging enabled
+description: |
+  Ensure Azure Storage accounts have diagnostic logging enabled.
+  Storage Analytics logs capture detailed request information for
+  security analysis, auditing, and troubleshooting.
+
+enabled: true
+severity: medium
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.diagnostic_settings_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.12"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage Account in Azure Portal
+    2. Under Monitoring, select Diagnostic settings
+    3. Add diagnostic setting:
+       - Enable StorageRead, StorageWrite, StorageDelete
+       - Enable AllMetrics
+       - Select destination:
+         - Log Analytics workspace (recommended)
+         - Storage account (for long-term)
+         - Event Hub
+    4. Set retention period
+    5. Save changes
+  automation_supported: false
+
+tags:
+  - storage
+  - logging
+  - diagnostics
+  - monitoring
+  - audit
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/common/storage-analytics-logging

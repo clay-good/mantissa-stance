@@ -1,0 +1,52 @@
+id: aws-ec2-012
+name: Network ACL does not allow unrestricted inbound
+description: |
+  Ensure Network ACLs do not allow unrestricted inbound traffic from
+  0.0.0.0/0 on sensitive ports. Unrestricted access increases the
+  attack surface of resources in the subnet.
+
+enabled: true
+severity: high
+
+resource_type: aws_network_acl
+
+check:
+  type: expression
+  expression: "resource.allows_unrestricted_inbound_on_sensitive_ports == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC > Network ACLs
+    2. Select the Network ACL
+    3. Review Inbound Rules
+    4. For rules allowing 0.0.0.0/0:
+       - Restrict to specific CIDR ranges
+       - Remove unnecessary allow rules
+       - Use deny rules for sensitive ports
+    5. Sensitive ports include:
+       - 22 (SSH), 3389 (RDP)
+       - 3306 (MySQL), 5432 (PostgreSQL)
+       - 1433 (MSSQL), 27017 (MongoDB)
+    6. Save changes
+  automation_supported: false
+
+tags:
+  - ec2
+  - network-acl
+  - nacl
+  - network
+  - access-control
+
+references:
+  - https://docs.aws.amazon.com/vpc/latest/userguide/vpc-network-acls.html

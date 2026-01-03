@@ -1,0 +1,46 @@
+id: gcp-sql-006
+name: Cloud SQL high availability configured
+description: |
+  Ensure Cloud SQL production instances have high availability configured.
+  High availability provides automatic failover to a standby instance in
+  a different zone, ensuring business continuity.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_cloudsql_instance
+
+check:
+  type: expression
+  expression: "resource.availability_type == 'REGIONAL' or resource.environment != 'production'"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "CP-10"
+  - framework: pci-dss
+    version: "4.0"
+    control: "12.10.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud SQL in Google Cloud Console
+    2. Select the instance
+    3. Click Edit
+    4. Under Configuration options:
+       - Select "High availability (regional)"
+    5. Save changes
+
+    Note: High availability requires instance restart and
+    increases costs. Plan migration during maintenance window.
+  automation_supported: false
+
+tags:
+  - sql
+  - cloudsql
+  - high-availability
+  - database
+  - resilience
+
+references:
+  - https://cloud.google.com/sql/docs/mysql/high-availability

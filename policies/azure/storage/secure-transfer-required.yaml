@@ -1,0 +1,47 @@
+id: azure-storage-001
+name: Secure transfer required
+description: |
+  Ensure storage accounts require secure transfer (HTTPS). This setting
+  ensures all requests to the storage account are made over HTTPS,
+  protecting data in transit from eavesdropping and man-in-the-middle attacks.
+
+enabled: true
+severity: high
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.https_traffic_only == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage accounts in Azure Portal
+    2. Select the storage account
+    3. Go to Configuration under Settings
+    4. Set "Secure transfer required" to Enabled
+    5. Save the configuration
+    6. Update any applications using HTTP to use HTTPS
+  automation_supported: false
+
+tags:
+  - storage
+  - encryption
+  - https
+  - data-protection
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/common/storage-require-secure-transfer
+  - https://docs.microsoft.com/en-us/azure/storage/common/storage-security-guide

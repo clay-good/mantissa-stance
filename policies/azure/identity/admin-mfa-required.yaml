@@ -1,0 +1,56 @@
+id: azure-identity-007
+name: MFA required for admin roles
+description: |
+  Ensure multi-factor authentication is required for administrative
+  roles. Compromised admin accounts can lead to complete tenant
+  compromise, making MFA critical for privileged access.
+
+enabled: true
+severity: critical
+
+resource_type: azure_conditional_access_policy
+
+check:
+  type: expression
+  expression: |
+    resource.enforces_mfa_for_admins == true
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.1.2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Active Directory > Security > Conditional Access
+    2. Create a new policy named "Require MFA for admins"
+    3. Under "Assignments > Users":
+       - Include "Directory roles"
+       - Select all admin roles (Global admin, Security admin, etc.)
+    4. Under "Cloud apps or actions":
+       - Include "All cloud apps"
+    5. Under "Access controls > Grant":
+       - Select "Require multi-factor authentication"
+    6. Set "Enable policy" to "On"
+    7. Create emergency access accounts without MFA (break-glass)
+  automation_supported: false
+
+tags:
+  - identity
+  - mfa
+  - admin
+  - privileged-access
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa
+  - https://docs.microsoft.com/en-us/azure/active-directory/roles/security-emergency-access

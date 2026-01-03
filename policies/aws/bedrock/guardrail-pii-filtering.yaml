@@ -1,0 +1,58 @@
+id: aws-bedrock-002
+name: Bedrock guardrail has PII filtering enabled
+description: |
+  Ensure Bedrock guardrails have PII filtering configured.
+  PII filtering prevents sensitive personal information from
+  being exposed in model inputs or outputs.
+
+enabled: true
+severity: high
+
+resource_type: aws_bedrock_guardrail
+
+check:
+  type: expression
+  expression: "resource.sensitive_info_policy != null and resource.sensitive_info_policy.pii_entities != null"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-12"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.3"
+  - framework: hipaa
+    version: "2013"
+    control: "164.514(b)"
+  - framework: gdpr
+    version: "2016"
+    control: "Article 25"
+
+remediation:
+  guidance: |
+    To configure PII filtering in Bedrock guardrails:
+    1. Edit or create guardrail:
+       - Navigate to Guardrails in Bedrock console
+       - Choose sensitive information policies
+    2. Enable PII entity detection:
+       - EMAIL addresses
+       - PHONE numbers
+       - SSN/National IDs
+       - Credit card numbers
+       - Names and addresses
+    3. Configure action (BLOCK or ANONYMIZE)
+    4. Add custom regex patterns if needed
+    5. Test with sample inputs containing PII
+  automation_supported: false
+
+tags:
+  - bedrock
+  - guardrail
+  - pii
+  - privacy
+  - data-protection
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-sensitive-information-filters.html
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html

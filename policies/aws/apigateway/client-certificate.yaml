@@ -1,0 +1,44 @@
+id: aws-apigateway-009
+name: API Gateway uses client certificate
+description: |
+  Ensure API Gateway stage has client certificate configured for backend
+  authentication. Client certificates enable mutual TLS (mTLS) between
+  API Gateway and backend services.
+
+enabled: true
+severity: low
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.stages != null and any(resource.stages, stage.has_client_certificate == true)"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Go to Client Certificates
+    3. Generate a new client certificate
+    4. Go to Stages and select your stage
+    5. Configure the client certificate
+    6. Update backend to validate the certificate
+    7. Deploy API to apply changes
+  automation_supported: false
+
+tags:
+  - apigateway
+  - client-certificate
+  - mtls
+  - encryption
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/getting-started-client-side-ssl-authentication.html

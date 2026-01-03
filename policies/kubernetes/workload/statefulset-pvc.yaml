@@ -1,0 +1,48 @@
+id: k8s-wl-003
+name: StatefulSets should use PersistentVolumeClaims
+description: |
+  StatefulSets are designed for stateful applications that require
+  persistent storage. Using emptyDir or hostPath volumes loses data
+  when pods are rescheduled.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_statefulset
+
+check:
+  type: expression
+  expression: "resource.has_volume_claim_templates == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CP-9"
+
+remediation:
+  guidance: |
+    1. Review the StatefulSet specification
+    2. Add volumeClaimTemplates for persistent storage:
+       spec:
+         volumeClaimTemplates:
+         - metadata:
+             name: data
+           spec:
+             accessModes: ["ReadWriteOnce"]
+             storageClassName: "standard"
+             resources:
+               requests:
+                 storage: 10Gi
+    3. Mount the volume in the container
+    4. Verify backup procedures for the persistent data
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - statefulset
+  - persistent-storage
+  - pvc
+  - data-persistence
+
+references:
+  - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/

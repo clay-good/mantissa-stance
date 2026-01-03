@@ -1,0 +1,43 @@
+id: k8s-rbac-004
+name: Roles with pod exec access should be limited
+description: |
+  The ability to exec into pods allows running arbitrary
+  commands inside containers, potentially compromising
+  applications and accessing sensitive data.
+
+enabled: true
+severity: critical
+
+resource_type: k8s_cluster_role
+
+check:
+  type: expression
+  expression: "resource.risk_analysis.has_pod_exec_access == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.4"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the role definition
+    2. Identify rules granting pods/exec access
+    3. Remove pods/exec unless absolutely necessary
+    4. Limit to specific namespaces or pods
+    5. Implement audit logging for exec commands
+    6. Consider using debugging tools instead
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - pod-exec
+  - container-access
+  - privilege-escalation
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/rbac/

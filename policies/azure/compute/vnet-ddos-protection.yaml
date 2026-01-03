@@ -1,0 +1,51 @@
+id: azure-compute-008
+name: DDoS Protection enabled for VNet
+description: |
+  Ensure Azure DDoS Protection Standard is enabled for Virtual
+  Networks with public-facing resources. DDoS Protection provides
+  enhanced mitigation capabilities against volumetric attacks.
+
+enabled: true
+severity: medium
+
+resource_type: azure_virtual_network
+
+check:
+  type: expression
+  expression: "resource.ddos_protection_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.6"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Navigate to Virtual Networks in Azure Portal
+    2. Select the VNet to protect
+    3. Go to "DDoS protection"
+    4. Select "Standard" protection plan
+    5. Select or create a DDoS Protection Plan
+    6. Save changes
+
+    Note: DDoS Protection Standard has associated costs.
+    Consider enabling for VNets with internet-facing resources.
+    Basic DDoS protection is free but provides limited capabilities.
+  automation_supported: false
+
+tags:
+  - compute
+  - vnet
+  - ddos
+  - security
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/ddos-protection/ddos-protection-overview
+  - https://docs.microsoft.com/en-us/azure/ddos-protection/manage-ddos-protection

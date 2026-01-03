@@ -1,0 +1,134 @@
+# Mantissa Stance Storage Configuration
+# This file configures where scan data is stored.
+#
+# Usage:
+#   stance scan --storage-config ./storage-config.yaml
+
+# Storage backend: local, s3, gcs, azure
+backend: local
+
+# Local SQLite storage (default)
+local:
+  # Database file path
+  path: ~/.stance/stance.db
+
+  # Backup settings
+  backup:
+    enabled: true
+    interval_hours: 24
+    keep_last: 7
+    path: ~/.stance/backups/
+
+# AWS S3 storage
+s3:
+  # S3 bucket name
+  bucket: my-stance-bucket
+
+  # Prefix for all objects
+  prefix: stance/
+
+  # AWS region
+  region: us-east-1
+
+  # Storage class
+  storage_class: STANDARD_IA
+
+  # Server-side encryption
+  encryption:
+    enabled: true
+    type: aws:kms  # aws:kms or AES256
+    kms_key_id: alias/stance-key  # For KMS encryption
+
+  # Lifecycle rules
+  lifecycle:
+    # Move to Glacier after 90 days
+    transition_to_glacier_days: 90
+    # Delete after 365 days
+    expiration_days: 365
+
+# Google Cloud Storage
+gcs:
+  # GCS bucket name
+  bucket: my-stance-bucket
+
+  # Prefix for all objects
+  prefix: stance/
+
+  # Project ID
+  project_id: my-gcp-project
+
+  # Storage class
+  storage_class: STANDARD
+
+  # Encryption
+  encryption:
+    enabled: true
+    kms_key: projects/my-project/locations/global/keyRings/stance/cryptoKeys/main
+
+# Azure Blob Storage
+azure:
+  # Storage account name
+  storage_account: mystanceaccount
+
+  # Container name
+  container: stance-data
+
+  # Prefix for all blobs
+  prefix: scans/
+
+  # Connection string (or use environment variable)
+  connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
+
+  # Encryption
+  encryption:
+    enabled: true
+    key_vault: https://myvault.vault.azure.net/
+    key_name: stance-key
+
+# Retention settings (applies to all backends)
+retention:
+  # Keep scan snapshots for this many days
+  snapshots_days: 90
+
+  # Keep findings history for this many days
+  findings_days: 365
+
+  # Keep assets history for this many days
+  assets_days: 180
+
+  # Cleanup on startup
+  auto_cleanup: true
+
+# Cache settings
+cache:
+  enabled: true
+
+  # Cache TTL in seconds
+  ttl: 300
+
+  # Cache directory (for local caching)
+  directory: ~/.stance/cache/
+
+  # Maximum cache size in MB
+  max_size_mb: 500
+
+# Query engine settings (for analytics)
+query:
+  # Enable Athena for S3 storage
+  athena:
+    enabled: false
+    database: stance_db
+    workgroup: primary
+    output_location: s3://my-stance-bucket/athena-results/
+
+  # Enable BigQuery for GCS storage
+  bigquery:
+    enabled: false
+    dataset: stance_dataset
+    project_id: my-gcp-project
+
+  # Enable Synapse for Azure storage
+  synapse:
+    enabled: false
+    workspace: my-synapse-workspace
+    database: stance_db

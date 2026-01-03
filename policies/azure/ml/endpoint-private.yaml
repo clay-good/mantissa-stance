@@ -1,0 +1,57 @@
+id: azure-ml-006
+name: Azure ML online endpoint uses private networking
+description: |
+  Ensure Azure Machine Learning online endpoints are configured
+  with private networking. Public endpoints expose inference
+  services to the internet.
+
+enabled: true
+severity: high
+
+resource_type: azure_ml_online_endpoint
+
+check:
+  type: expression
+  expression: "resource.public_network_access == 'disabled' or resource.public_network_access == 'Disabled'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3"
+
+remediation:
+  guidance: |
+    To configure private networking for endpoints:
+    1. Ensure workspace has private endpoint
+    2. Create online endpoint with private access:
+       - az ml online-endpoint create --name my-endpoint \
+           --resource-group my-rg \
+           --workspace-name my-ws \
+           --public-network-access disabled
+    3. Configure private endpoint for endpoint:
+       - Create private endpoint in your VNet
+       - Link to the online endpoint
+    4. For existing endpoints:
+       - az ml online-endpoint update --name my-endpoint \
+           --resource-group my-rg \
+           --workspace-name my-ws \
+           --public-network-access disabled
+    5. Update client applications to use private URL
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - endpoint
+  - network
+  - private
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-secure-online-endpoint
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-configure-private-link

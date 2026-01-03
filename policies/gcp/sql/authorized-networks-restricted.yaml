@@ -1,0 +1,51 @@
+id: gcp-sql-007
+name: Cloud SQL authorized networks restricted
+description: |
+  Ensure Cloud SQL instances do not allow connections from any IP (0.0.0.0/0).
+  Unrestricted authorized networks expose the database to brute force attacks
+  and unauthorized access attempts from the internet.
+
+enabled: true
+severity: critical
+
+resource_type: gcp_cloudsql_instance
+
+check:
+  type: expression
+  expression: "resource.allows_all_ips == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "6.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud SQL in Google Cloud Console
+    2. Select the instance
+    3. Click Edit
+    4. Under Connectivity > Authorized networks:
+       - Remove any entries with 0.0.0.0/0
+       - Add specific IP ranges that need access
+       - Consider using Cloud SQL Proxy instead
+    5. Save changes
+
+    Best practice: Use private IP with VPC peering or Cloud SQL
+    Proxy instead of authorized networks.
+  automation_supported: false
+
+tags:
+  - sql
+  - cloudsql
+  - network
+  - database
+  - access-control
+
+references:
+  - https://cloud.google.com/sql/docs/mysql/configure-ip

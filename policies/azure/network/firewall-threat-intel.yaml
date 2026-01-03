@@ -1,0 +1,51 @@
+id: azure-network-008
+name: Azure Firewall threat intelligence enabled
+description: |
+  Ensure Azure Firewall has threat intelligence-based filtering enabled.
+  This feature blocks traffic to/from known malicious IP addresses and
+  domains based on Microsoft Threat Intelligence.
+
+enabled: true
+severity: high
+
+resource_type: azure_firewall
+
+check:
+  type: expression
+  expression: "resource.threat_intel_mode == 'Alert' or resource.threat_intel_mode == 'Deny'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "5.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-4"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Firewall in Azure Portal
+    2. Select Threat intelligence
+    3. Configure mode:
+       - Alert: Log only (for testing)
+       - Deny: Block traffic (recommended)
+    4. Configure allowlist if needed:
+       - Add trusted IPs/FQDNs
+    5. Save configuration
+
+    Monitor logs for threat intelligence hits in
+    Log Analytics or Azure Sentinel.
+  automation_supported: false
+
+tags:
+  - network
+  - firewall
+  - threat-intelligence
+  - security
+  - protection
+
+references:
+  - https://docs.microsoft.com/en-us/azure/firewall/threat-intel

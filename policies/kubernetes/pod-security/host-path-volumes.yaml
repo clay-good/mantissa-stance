@@ -1,0 +1,46 @@
+id: k8s-pod-009
+name: Pods should not mount host path volumes
+description: |
+  Mounting host paths allows containers to access the host
+  filesystem, potentially exposing sensitive data or enabling
+  container escape attacks.
+
+enabled: true
+severity: high
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_host_path_volume == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.9"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-28"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Identify volumes with hostPath type
+    3. Replace hostPath with alternative volume types:
+       - emptyDir for temporary storage
+       - persistentVolumeClaim for persistent data
+       - configMap or secret for configuration
+    4. If hostPath is required, use Pod Security Admission
+    5. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - host-path
+  - volumes
+  - filesystem-isolation
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/
+  - https://kubernetes.io/docs/concepts/storage/volumes/

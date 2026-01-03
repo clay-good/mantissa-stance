@@ -1,0 +1,52 @@
+id: azure-storage-011
+name: Azure Storage infrastructure encryption enabled
+description: |
+  Ensure Azure Storage accounts have infrastructure encryption (double
+  encryption) enabled. This provides an additional layer of encryption
+  using a different algorithm at the infrastructure level.
+
+enabled: true
+severity: medium
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.infrastructure_encryption_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+
+remediation:
+  guidance: |
+    Infrastructure encryption must be enabled at creation:
+
+    1. When creating a new storage account:
+       - Advanced tab
+       - Enable "Enable infrastructure encryption"
+    2. Using Azure CLI:
+       az storage account create \
+         --name ACCOUNT_NAME \
+         --require-infrastructure-encryption true
+
+    Note: Cannot be enabled on existing accounts.
+    Create new account and migrate data if required.
+  automation_supported: false
+
+tags:
+  - storage
+  - encryption
+  - double-encryption
+  - infrastructure
+  - data-protection
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/common/infrastructure-encryption-enable

@@ -1,0 +1,54 @@
+id: aws-lambda-001
+name: Lambda environment variables encrypted with KMS
+description: |
+  Ensure Lambda functions with environment variables use KMS
+  encryption. By default, Lambda uses AWS managed keys, but
+  customer managed keys provide better control and auditability.
+
+enabled: true
+severity: medium
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: |
+    resource.has_environment_variables == false or
+    resource.has_kms_encryption == true
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "Lambda.3"
+
+remediation:
+  guidance: |
+    1. Navigate to Lambda in AWS Console
+    2. Select the function
+    3. Go to Configuration > Environment variables
+    4. Click "Edit"
+    5. Expand "Encryption configuration"
+    6. Select "Use a customer master key"
+    7. Choose or create a KMS key
+    8. Save changes
+
+    Note: The Lambda execution role needs kms:Decrypt permission
+    for the selected KMS key.
+  automation_supported: false
+
+tags:
+  - lambda
+  - encryption
+  - kms
+  - environment-variables
+  - serverless
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html
+  - https://docs.aws.amazon.com/lambda/latest/dg/security-dataprotection.html

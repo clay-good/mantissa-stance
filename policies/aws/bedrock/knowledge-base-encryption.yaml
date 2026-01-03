@@ -1,0 +1,53 @@
+id: aws-bedrock-004
+name: Bedrock knowledge base uses KMS encryption
+description: |
+  Ensure Bedrock knowledge bases use KMS encryption for data.
+  Knowledge bases contain enterprise data and should be
+  encrypted with customer-managed keys.
+
+enabled: true
+severity: high
+
+resource_type: aws_bedrock_knowledge_base
+
+check:
+  type: expression
+  expression: "resource.storage_config.kms_key_arn != null or resource.kms_key_arn != null"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To encrypt Bedrock knowledge bases with KMS:
+    1. When creating knowledge base:
+       - Configure vector store with encryption
+       - Specify KMS key for data encryption
+    2. For OpenSearch Serverless:
+       - Create encrypted collection
+       - Use KMS CMK for encryption
+    3. For Pinecone/other stores:
+       - Configure encryption at data store level
+       - Ensure transit encryption enabled
+    4. Update KMS key policy for Bedrock access
+  automation_supported: false
+
+tags:
+  - bedrock
+  - encryption
+  - kms
+  - knowledge-base
+  - rag
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/encryption.html

@@ -1,0 +1,51 @@
+id: aws-cloudtrail-005
+name: CloudTrail integrated with CloudWatch Logs
+description: |
+  Ensure CloudTrail is configured to send logs to CloudWatch Logs. This
+  integration enables real-time monitoring of API activity, allows creating
+  alarms for specific events, and supports automated responses to security events.
+
+enabled: true
+severity: medium
+
+resource_type: aws_cloudtrail
+
+check:
+  type: expression
+  expression: "resource.cloud_watch_logs_log_group_arn exists and resource.cloud_watch_logs_log_group_arn != ''"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "CloudTrail.5"
+
+remediation:
+  guidance: |
+    1. Create a CloudWatch Logs log group for CloudTrail
+    2. Create an IAM role that allows CloudTrail to write to CloudWatch Logs
+    3. Open the AWS CloudTrail console
+    4. Select the trail
+    5. Choose Edit
+    6. Under CloudWatch Logs, enable CloudWatch Logs
+    7. Select the log group and IAM role
+    8. Save changes
+  automation_supported: false
+
+tags:
+  - cloudtrail
+  - cloudwatch
+  - logging
+  - monitoring
+  - alerting
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/send-cloudtrail-events-to-cloudwatch-logs.html

@@ -1,0 +1,54 @@
+id: azure-monitor-003
+name: Activity Log exports all categories
+description: |
+  Ensure the Activity Log profile is configured to export all categories of
+  events including Administrative, Security, ServiceHealth, Alert, Recommendation,
+  Policy, Autoscale, and ResourceHealth.
+
+enabled: true
+severity: medium
+
+resource_type: azure_monitor_log_profile
+
+check:
+  type: expression
+  expression: "resource.exports_administrative == true and resource.exports_security == true and resource.exports_alert == true and resource.exports_policy == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.1.4"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-12"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Monitor in Azure Portal
+    2. Select Activity log > Export Activity Logs
+    3. Create or edit diagnostic setting
+    4. Enable all log categories:
+       - Administrative
+       - Security
+       - ServiceHealth
+       - Alert
+       - Recommendation
+       - Policy
+       - Autoscale
+       - ResourceHealth
+    5. Configure destination workspace or storage
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - monitor
+  - activity-log
+  - categories
+  - audit
+  - logging
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log-schema

@@ -1,0 +1,39 @@
+id: gcp-storage-001
+name: Uniform bucket-level access enabled
+description: |
+  Ensure uniform bucket-level access is enabled for Cloud Storage buckets.
+  This prevents legacy ACLs from being used and ensures all access is
+  controlled through IAM, providing consistent access control.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.uniform_bucket_level_access == true"
+
+benchmark:
+  - cis-gcp: "5.2"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in GCP Console
+    2. Select the bucket
+    3. Go to the Permissions tab
+    4. Click "Switch to uniform access"
+    5. Confirm the switch
+    Note: This action is irreversible after 90 days
+  automation_supported: false
+
+tags:
+  - storage
+  - access-control
+  - iam
+  - bucket
+  - gcp
+
+references:
+  - https://cloud.google.com/storage/docs/uniform-bucket-level-access
+  - https://cloud.google.com/storage/docs/access-control

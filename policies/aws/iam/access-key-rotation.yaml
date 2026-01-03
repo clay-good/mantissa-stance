@@ -1,0 +1,52 @@
+id: aws-iam-003
+name: IAM access keys rotated within 90 days
+description: |
+  Ensure IAM user access keys are rotated at least every 90 days. Long-lived
+  access keys increase the risk of unauthorized access if compromised.
+  Regular rotation limits the window of exposure from a compromised key.
+
+enabled: true
+severity: medium
+
+resource_type: aws_iam_user
+
+check:
+  type: expression
+  expression: |
+    resource.access_keys_count == 0 or
+    (resource.access_keys exists and
+     resource.access_keys[0].age_days <= 90)
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.14"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.3.9"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-5(1)"
+
+remediation:
+  guidance: |
+    1. Sign in to the AWS Console
+    2. Navigate to IAM > Users
+    3. Select the user with old access keys
+    4. Go to Security credentials tab
+    5. Create a new access key
+    6. Update applications to use the new key
+    7. Test that applications work with new key
+    8. Deactivate the old access key
+    9. After confirming new key works, delete the old key
+  automation_supported: false
+
+tags:
+  - iam
+  - access-keys
+  - credential-management
+  - rotation
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#rotate-credentials

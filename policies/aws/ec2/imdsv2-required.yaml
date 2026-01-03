@@ -1,0 +1,40 @@
+id: aws-ec2-003
+name: EC2 instances require IMDSv2
+description: |
+  Ensure EC2 instances are configured to require IMDSv2.
+  IMDSv2 adds defense in depth against SSRF attacks that
+  attempt to access the instance metadata service.
+
+enabled: true
+severity: medium
+
+resource_type: aws_ec2_instance
+
+check:
+  type: expression
+  expression: "resource.metadata_options.http_tokens == 'required'"
+
+benchmark:
+  # No direct CIS mapping - security best practice
+
+remediation:
+  guidance: |
+    1. Open the Amazon EC2 console
+    2. Select the instance
+    3. Choose Actions > Instance settings > Modify instance metadata options
+    4. Set IMDSv2 to Required
+    5. Save changes
+
+    For new instances, configure the launch template to require IMDSv2:
+    - MetadataOptions.HttpTokens = required
+  automation_supported: false
+
+tags:
+  - ec2
+  - instance-metadata
+  - imdsv2
+  - ssrf-protection
+
+references:
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html

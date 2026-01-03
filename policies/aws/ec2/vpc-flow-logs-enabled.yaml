@@ -1,0 +1,52 @@
+id: aws-ec2-005
+name: VPC flow logs enabled
+description: |
+  Ensure VPC flow logs are enabled for all VPCs. Flow logs capture
+  information about IP traffic going to and from network interfaces
+  in VPCs, which is essential for security monitoring and forensics.
+
+enabled: true
+severity: medium
+
+resource_type: aws_vpc
+
+check:
+  type: expression
+  expression: "resource.flow_logs_enabled == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-12"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "EC2.6"
+
+remediation:
+  guidance: |
+    1. Open the Amazon VPC console
+    2. Select the VPC
+    3. Choose Actions > Create flow log
+    4. Configure flow log settings:
+       - Filter: All (or Accept/Reject as needed)
+       - Destination: CloudWatch Logs or S3
+       - Log format: AWS default or custom
+    5. Create IAM role if sending to CloudWatch Logs
+    6. Click Create flow log
+  automation_supported: false
+
+tags:
+  - ec2
+  - vpc
+  - flow-logs
+  - network-monitoring
+  - logging
+
+references:
+  - https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html

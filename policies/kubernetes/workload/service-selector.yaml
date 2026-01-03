@@ -1,0 +1,43 @@
+id: k8s-wl-009
+name: Services should have pod selectors defined
+description: |
+  Services without selectors don't automatically route traffic to pods.
+  This is only valid for external services or when using Endpoints
+  directly. Most services should have selectors to match pods.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_service
+
+check:
+  type: expression
+  expression: "resource.has_selector == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-6"
+
+remediation:
+  guidance: |
+    1. Review the Service specification
+    2. Add a selector to match target pods:
+       spec:
+         selector:
+           app: my-app
+           tier: frontend
+    3. Ensure pods have matching labels
+    4. Verify connectivity after changes
+    5. If intentionally selector-less, document the reason
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - service
+  - selector
+  - networking
+  - configuration
+
+references:
+  - https://kubernetes.io/docs/concepts/services-networking/service/

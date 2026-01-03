@@ -1,0 +1,47 @@
+id: azure-identity-001
+name: Privileged role assignments reviewed
+description: |
+  Ensure privileged role assignments (Owner, Contributor, User Access
+  Administrator) are limited and regularly reviewed. Excessive privileged
+  access increases the risk of security breaches and insider threats.
+
+enabled: true
+severity: high
+
+resource_type: azure_role_assignment
+
+check:
+  type: expression
+  expression: "resource.is_privileged_role == false or resource.is_subscription_scope == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.23"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6(7)"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.2.2"
+
+remediation:
+  guidance: |
+    1. Navigate to Subscriptions > Access control (IAM) in Azure Portal
+    2. Review all Owner, Contributor, and User Access Administrator assignments
+    3. Remove unnecessary privileged role assignments
+    4. Use Azure Privileged Identity Management (PIM) for just-in-time access
+    5. Assign roles at the most restrictive scope possible
+    6. Enable access reviews for privileged roles
+  automation_supported: false
+
+tags:
+  - identity
+  - rbac
+  - privileged-access
+  - access-control
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/role-based-access-control/overview
+  - https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-configure

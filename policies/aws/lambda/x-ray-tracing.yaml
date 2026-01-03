@@ -1,0 +1,46 @@
+id: aws-lambda-006
+name: Lambda function X-Ray tracing enabled
+description: |
+  Ensure Lambda functions have AWS X-Ray tracing enabled. X-Ray provides
+  distributed tracing to understand function performance, identify bottlenecks,
+  and troubleshoot errors in serverless applications.
+
+enabled: true
+severity: low
+
+resource_type: aws_lambda_function
+
+check:
+  type: expression
+  expression: "resource.tracing_mode == 'Active'"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-12"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Lambda in AWS Console
+    2. Select the function
+    3. Go to Configuration > Monitoring and operations tools
+    4. Click Edit
+    5. Enable "Active tracing"
+    6. Save changes
+
+    Note: The Lambda execution role needs xray:PutTraceSegments
+    and xray:PutTelemetryRecords permissions.
+  automation_supported: false
+
+tags:
+  - lambda
+  - tracing
+  - monitoring
+  - serverless
+  - observability
+
+references:
+  - https://docs.aws.amazon.com/lambda/latest/dg/services-xray.html

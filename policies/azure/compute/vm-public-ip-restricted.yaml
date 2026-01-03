@@ -1,0 +1,48 @@
+id: azure-compute-004
+name: VMs do not have public IP addresses
+description: |
+  Ensure Virtual Machines do not have public IP addresses unless required.
+  Public IP addresses expose VMs directly to the internet, increasing
+  attack surface. Use Azure Bastion, VPN, or private endpoints instead.
+
+enabled: true
+severity: medium
+
+resource_type: azure_virtual_machine
+
+check:
+  type: expression
+  expression: "resource.has_public_ip == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.3"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Evaluate if the VM requires a public IP address
+    2. If not required, navigate to Virtual machines > Networking
+    3. Remove or dissociate the public IP address
+    4. Configure Azure Bastion for secure remote access
+    5. Or use VPN Gateway for site-to-site connectivity
+    6. Use private endpoints for accessing Azure services
+    7. Configure NSG rules for any remaining public-facing VMs
+  automation_supported: false
+
+tags:
+  - compute
+  - vm
+  - public-ip
+  - network-security
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/virtual-network/public-ip-addresses
+  - https://docs.microsoft.com/en-us/azure/bastion/bastion-overview

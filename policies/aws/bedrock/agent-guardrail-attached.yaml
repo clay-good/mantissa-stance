@@ -1,0 +1,56 @@
+id: aws-bedrock-006
+name: Bedrock agent has guardrail attached
+description: |
+  Ensure Bedrock agents have guardrails attached.
+  Agents with tool access should have guardrails to prevent
+  harmful actions and filter sensitive content.
+
+enabled: true
+severity: high
+
+resource_type: aws_bedrock_agent
+
+check:
+  type: expression
+  expression: "resource.guardrail_configuration != null and resource.guardrail_configuration.guardrail_id != null"
+
+compliance:
+  - framework: nist-ai-rmf
+    version: "1.0"
+    control: "GOVERN 1.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-10"
+  - framework: soc2
+    version: "2017"
+    control: "CC7.2"
+
+remediation:
+  guidance: |
+    To attach guardrails to Bedrock agents:
+    1. Create a guardrail if not exists:
+       - Configure content filters
+       - Add PII detection
+       - Define topic blocks
+    2. Update agent configuration:
+       - aws bedrock update-agent \
+           --agent-id AGENT_ID \
+           --guardrail-configuration \
+             guardrailIdentifier=GUARDRAIL_ID,\
+             guardrailVersion=DRAFT
+    3. Test agent with guardrail:
+       - Verify content filtering works
+       - Test PII detection
+    4. Deploy updated agent version
+  automation_supported: false
+
+tags:
+  - bedrock
+  - agent
+  - guardrail
+  - ai-safety
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html

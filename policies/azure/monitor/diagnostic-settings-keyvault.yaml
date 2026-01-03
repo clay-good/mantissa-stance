@@ -1,0 +1,50 @@
+id: azure-monitor-004
+name: Key Vault diagnostic settings enabled
+description: |
+  Ensure diagnostic settings are enabled for Azure Key Vault to capture audit
+  events. Key Vault stores sensitive secrets, keys, and certificates. Logging
+  all access is critical for security monitoring and compliance.
+
+enabled: true
+severity: high
+
+resource_type: azure_key_vault
+
+check:
+  type: expression
+  expression: "resource.diagnostic_settings_enabled == true and resource.audit_logs_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "5.1.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Navigate to the Key Vault in Azure Portal
+    2. Under Monitoring, select Diagnostic settings
+    3. Click Add diagnostic setting
+    4. Configure:
+       - Name: Descriptive name
+       - Logs: Enable AuditEvent category
+       - Metrics: Enable AllMetrics (optional)
+       - Destination: Log Analytics workspace (recommended)
+    5. Set retention to at least 90 days
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - monitor
+  - key-vault
+  - diagnostic-settings
+  - audit
+  - secrets
+
+references:
+  - https://docs.microsoft.com/en-us/azure/key-vault/general/logging

@@ -1,0 +1,48 @@
+id: gcp-storage-002
+name: Public access prevention enforced
+description: |
+  Ensure public access prevention is enforced on Cloud Storage buckets.
+  This setting prevents any accidental public exposure of data by
+  blocking all public access configurations.
+
+enabled: true
+severity: high
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.public_access_prevention == 'enforced'"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "5.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in GCP Console
+    2. Select the bucket
+    3. Go to the Permissions tab
+    4. Under "Public access prevention", click Edit
+    5. Select "Enforce public access prevention"
+    6. Save the changes
+    Alternatively, set at organization policy level for all buckets
+  automation_supported: false
+
+tags:
+  - storage
+  - public-access
+  - data-protection
+  - bucket
+  - gcp
+
+references:
+  - https://cloud.google.com/storage/docs/public-access-prevention
+  - https://cloud.google.com/storage/docs/org-policy-constraints

@@ -1,0 +1,50 @@
+id: aws-apigateway-002
+name: API Gateway WAF protection enabled
+description: |
+  Ensure API Gateway REST APIs have AWS WAF protection enabled.
+  WAF provides protection against common web exploits, SQL injection,
+  cross-site scripting, and DDoS attacks.
+
+enabled: true
+severity: high
+
+resource_type: aws_api_gateway_stage
+
+check:
+  type: expression
+  expression: "resource.waf_acl_arn exists"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "APIGateway.4"
+
+remediation:
+  guidance: |
+    1. Navigate to AWS WAF console
+    2. Create a Web ACL with appropriate rules:
+       - AWS Managed Rules (Core rule set, SQL injection, etc.)
+       - Custom rules as needed
+    3. Navigate to API Gateway
+    4. Select the REST API
+    5. Go to Stages > select stage
+    6. Under Web Application Firewall:
+       - Select the WAF Web ACL
+    7. Save changes
+  automation_supported: false
+
+tags:
+  - apigateway
+  - waf
+  - api
+  - security
+  - protection
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-aws-waf.html

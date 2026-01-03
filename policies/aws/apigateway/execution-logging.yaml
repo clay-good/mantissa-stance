@@ -1,0 +1,47 @@
+id: aws-apigateway-010
+name: API Gateway execution logging enabled
+description: |
+  Ensure API Gateway has execution logging enabled for debugging and
+  security monitoring. Execution logs contain detailed request/response
+  information useful for troubleshooting.
+
+enabled: true
+severity: low
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.stages != null and any(resource.stages, stage.tracing_enabled == true)"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(b)"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the API
+    3. Go to Stages
+    4. Select a stage
+    5. Enable CloudWatch Logs
+    6. Set Log Level to INFO or DEBUG
+    7. Enable X-Ray Tracing for distributed tracing
+  automation_supported: false
+
+tags:
+  - apigateway
+  - logging
+  - execution-logging
+  - monitoring
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-logging.html

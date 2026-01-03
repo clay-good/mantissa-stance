@@ -1,0 +1,58 @@
+id: azure-ml-003
+name: Azure ML workspace has HBI flag enabled
+description: |
+  Ensure Azure Machine Learning workspaces handling sensitive data
+  have the High Business Impact (HBI) flag enabled. HBI workspaces
+  have additional security controls for protected data.
+
+enabled: true
+severity: medium
+
+resource_type: azure_ml_workspace
+
+check:
+  type: expression
+  expression: "resource.hbi_workspace == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(e)(1)"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To enable HBI for Azure ML workspace:
+    1. Create workspace with HBI flag:
+       - az ml workspace create --name my-ws \
+           --resource-group my-rg \
+           --hbi-workspace true
+    2. Note: Cannot change HBI after creation
+       - HBI workspaces have reduced telemetry
+       - Diagnostic data is encrypted
+       - Additional security controls applied
+    3. For existing workspaces:
+       - Create new HBI workspace
+       - Migrate resources and data
+       - Delete old workspace
+    4. Consider for workspaces with:
+       - PHI (health information)
+       - PII (personal information)
+       - Financial data
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - security
+  - hbi
+  - data-protection
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/concept-data-encryption
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-enable-studio-virtual-network

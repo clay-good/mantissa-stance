@@ -1,0 +1,46 @@
+id: gcp-storage-008
+name: Cloud Storage bucket requester pays configured
+description: |
+  Ensure Cloud Storage buckets with external access have Requester Pays
+  enabled where appropriate. This prevents unexpected egress charges by
+  having requesters pay for data transfer costs.
+
+enabled: true
+severity: low
+
+resource_type: gcp_storage_bucket
+
+check:
+  type: expression
+  expression: "resource.requester_pays == true or resource.public_access == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SA-9"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud Storage in Console
+    2. Select the bucket
+    3. Go to Configuration tab
+    4. Under Requester Pays:
+       - Enable requester pays
+    5. Save changes
+
+    Using gsutil:
+    gsutil requesterpays set on gs://BUCKET_NAME
+
+    Note: Requesters must include billing project in
+    their requests. May break some integrations.
+  automation_supported: false
+
+tags:
+  - storage
+  - requester-pays
+  - gcs
+  - cost-management
+  - billing
+
+references:
+  - https://cloud.google.com/storage/docs/requester-pays

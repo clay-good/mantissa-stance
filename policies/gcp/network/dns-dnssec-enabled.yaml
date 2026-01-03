@@ -1,0 +1,50 @@
+id: gcp-network-005
+name: Cloud DNS DNSSEC enabled
+description: |
+  Ensure Cloud DNS managed zones have DNSSEC enabled. DNSSEC provides
+  authentication of DNS responses, protecting against DNS spoofing
+  and cache poisoning attacks.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_dns_managed_zone
+
+check:
+  type: expression
+  expression: "resource.dnssec_state == 'on'"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "3.3"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-20"
+
+remediation:
+  guidance: |
+    1. Navigate to Cloud DNS in Console
+    2. Select the managed zone
+    3. Click DNSSEC tab
+    4. Enable DNSSEC:
+       - Click Enable
+       - Note the DS records
+    5. Add DS records to parent zone:
+       - For domain registrar-managed zones
+       - Update registrar with DS records
+    6. Verify DNSSEC is working
+
+    Note: DNSSEC must be configured at registrar for
+    root domains to be fully protected.
+  automation_supported: false
+
+tags:
+  - network
+  - dns
+  - dnssec
+  - security
+  - authentication
+
+references:
+  - https://cloud.google.com/dns/docs/dnssec

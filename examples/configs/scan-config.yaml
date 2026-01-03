@@ -1,0 +1,105 @@
+# Mantissa Stance Scan Configuration
+# This file configures how security scans are performed.
+#
+# Usage:
+#   stance scan --config ./scan-config.yaml
+
+# General settings
+name: production-security-scan
+description: Full security scan for production environment
+
+# Cloud provider settings
+clouds:
+  aws:
+    enabled: true
+    regions:
+      - us-east-1
+      - us-west-2
+      - eu-west-1
+    # Specific accounts to scan (leave empty for current account)
+    accounts: []
+    # Collectors to run
+    collectors:
+      - iam
+      - s3
+      - ec2
+      - rds
+      - lambda
+      - security
+      - eks
+
+  gcp:
+    enabled: false
+    projects: []
+    collectors:
+      - gcp_iam
+      - gcp_storage
+      - gcp_compute
+      - gcp_gke
+
+  azure:
+    enabled: false
+    subscriptions: []
+    collectors:
+      - azure_identity
+      - azure_storage
+      - azure_compute
+      - azure_aks
+
+# Policy settings
+policies:
+  # Use default policies
+  use_defaults: true
+
+  # Additional policy directories
+  custom_dirs:
+    - ./custom-policies
+
+  # Severity threshold (findings below this are ignored)
+  min_severity: low
+
+  # Policies to skip (by ID)
+  skip:
+    - aws-s3-legacy-001  # Legacy policy, replaced by aws-s3-002
+
+# Secrets detection
+secrets:
+  enabled: true
+  min_entropy: 3.5
+  exclude_patterns:
+    - "*.lock"
+    - "node_modules/**"
+    - "vendor/**"
+
+# Storage settings
+storage:
+  backend: local
+  # For local storage
+  local:
+    path: ~/.stance/data
+
+  # For S3 storage (uncomment to use)
+  # backend: s3
+  # s3:
+  #   bucket: my-stance-bucket
+  #   prefix: scans/
+  #   region: us-east-1
+
+# Output settings
+output:
+  format: table  # table, json, quiet
+  verbose: false
+
+# Scheduling (for automated scans)
+schedule:
+  # Cron expression for scheduled scans
+  cron: "0 6 * * *"  # Daily at 6 AM
+
+  # Or use rate expression
+  # rate: "24 hours"
+
+# Tags for organizing scans
+tags:
+  environment: production
+  team: security
+  cost-center: sec-001

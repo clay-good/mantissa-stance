@@ -1,0 +1,54 @@
+id: gcp-compute-011
+name: Compute disks use CMEK encryption
+description: |
+  Ensure Compute Engine persistent disks use customer-managed
+  encryption keys (CMEK). While Google encrypts all data by default,
+  CMEK provides control over key management and rotation.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_disk
+
+check:
+  type: expression
+  expression: "resource.disk_encryption_key exists"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "4.7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+
+remediation:
+  guidance: |
+    For new disks:
+    1. Create a Cloud KMS key ring and key
+    2. Grant Compute Engine service account access to the key
+    3. During disk creation, select CMEK encryption
+    4. Choose the KMS key
+
+    For existing disks:
+    1. Create a snapshot of the disk
+    2. Create a new disk from snapshot with CMEK
+    3. Attach the new disk to the instance
+    4. Detach and delete the old disk
+
+    Note: Boot disks require recreating the instance.
+  automation_supported: false
+
+tags:
+  - compute
+  - disk
+  - encryption
+  - cmek
+  - gcp
+
+references:
+  - https://cloud.google.com/compute/docs/disks/customer-managed-encryption
+  - https://cloud.google.com/kms/docs/quickstart

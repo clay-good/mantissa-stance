@@ -1,0 +1,49 @@
+id: azure-sql-003
+name: Azure SQL auditing enabled
+description: |
+  Ensure Azure SQL Server auditing is enabled. Auditing tracks database
+  events and writes them to an audit log for security analysis, compliance
+  reporting, and forensic investigation.
+
+enabled: true
+severity: high
+
+resource_type: azure_sql_server
+
+check:
+  type: expression
+  expression: "resource.auditing_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "4.1.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Navigate to SQL Server in Azure Portal
+    2. Under Security, select Auditing
+    3. Enable auditing
+    4. Configure storage destination:
+       - Storage account (recommended)
+       - Log Analytics workspace
+       - Event Hub
+    5. Set retention period (at least 90 days)
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - sql
+  - azure-sql
+  - auditing
+  - database
+  - logging
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-sql/database/auditing-overview

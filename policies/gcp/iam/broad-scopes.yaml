@@ -1,0 +1,40 @@
+id: gcp-iam-004
+name: Service accounts do not have broad OAuth scopes
+description: |
+  Ensure service accounts do not use cloud-platform scope which grants
+  full access to all GCP APIs. Use specific scopes required by the
+  application to follow the principle of least privilege.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_instance
+
+check:
+  type: expression
+  expression: "resource.has_broad_scopes == false"
+
+benchmark:
+  - cis-gcp: "1.5"
+
+remediation:
+  guidance: |
+    1. Identify the minimal API scopes required by the application
+    2. Stop the VM instance
+    3. Edit the instance configuration
+    4. Under "Identity and API access", select "Set access for each API"
+    5. Enable only the required scopes
+    6. Consider using Workload Identity for GKE workloads
+    7. Restart the VM instance
+  automation_supported: false
+
+tags:
+  - iam
+  - service-account
+  - oauth-scopes
+  - least-privilege
+  - gcp
+
+references:
+  - https://cloud.google.com/compute/docs/access/service-accounts
+  - https://cloud.google.com/sdk/gcloud/reference/compute/instances/set-service-account

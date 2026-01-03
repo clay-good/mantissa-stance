@@ -1,0 +1,49 @@
+id: azure-identity-008
+name: Managed Identity used for Azure resources
+description: |
+  Ensure Azure resources use Managed Identity instead of service
+  principals with secrets. Managed Identity eliminates the need
+  for credential management and reduces the risk of credential
+  exposure.
+
+enabled: true
+severity: medium
+
+resource_type: azure_vm
+
+check:
+  type: expression
+  expression: |
+    resource.has_managed_identity == true
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.22"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-5(7)"
+
+remediation:
+  guidance: |
+    1. Navigate to the Azure resource (VM, App Service, etc.)
+    2. Go to "Identity" in the left menu
+    3. Enable System-assigned or User-assigned managed identity:
+       - System-assigned: Tied to resource lifecycle
+       - User-assigned: Can be shared across resources
+    4. Grant the managed identity necessary permissions
+    5. Update application code to use DefaultAzureCredential
+    6. Remove any stored service principal credentials
+    7. Delete unused service principal secrets
+  automation_supported: false
+
+tags:
+  - identity
+  - managed-identity
+  - vm
+  - credentials
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
+  - https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-manage-user-assigned-managed-identities

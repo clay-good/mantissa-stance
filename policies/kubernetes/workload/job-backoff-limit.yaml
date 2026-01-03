@@ -1,0 +1,41 @@
+id: k8s-wl-004
+name: Jobs should have a backoff limit defined
+description: |
+  Jobs without a backoff limit will retry indefinitely on failure,
+  potentially consuming resources and creating excessive pods.
+  A reasonable backoff limit ensures failed jobs eventually stop.
+
+enabled: true
+severity: low
+
+resource_type: k8s_job
+
+check:
+  type: expression
+  expression: "resource.backoff_limit != null"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-5"
+
+remediation:
+  guidance: |
+    1. Review the Job specification
+    2. Add a backoffLimit to control retries:
+       spec:
+         backoffLimit: 4
+    3. Consider the nature of the job when setting the limit
+    4. For critical jobs, consider alerting on failures
+    5. Review job history and adjust limit based on failure patterns
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - job
+  - backoff-limit
+  - retry
+  - resource-management
+
+references:
+  - https://kubernetes.io/docs/concepts/workloads/controllers/job/

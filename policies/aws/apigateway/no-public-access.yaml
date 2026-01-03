@@ -1,0 +1,48 @@
+id: aws-apigateway-011
+name: API Gateway restricts public access
+description: |
+  Ensure API Gateway does not allow unrestricted public access. APIs
+  should either be private or have resource policies restricting access
+  to authorized sources.
+
+enabled: true
+severity: high
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.is_private == true or resource.allows_public_access == false"
+
+compliance:
+  - framework: owasp-api-security
+    version: "2023"
+    control: "API1:2023"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-4"
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.14"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the REST API
+    3. Either:
+       a. Change endpoint type to PRIVATE, or
+       b. Add a resource policy restricting access
+    4. Configure VPC endpoints if making private
+    5. Deploy API to apply changes
+  automation_supported: false
+
+tags:
+  - apigateway
+  - public-access
+  - exposure
+  - access-control
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-policy-language-overview.html
+  - https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/

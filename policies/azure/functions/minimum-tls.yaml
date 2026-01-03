@@ -1,0 +1,48 @@
+id: azure-functions-006
+name: Azure Function minimum TLS version 1.2
+description: |
+  Ensure Azure Functions enforce TLS 1.2 as the minimum version.
+  TLS 1.0 and 1.1 have known vulnerabilities and should not be used
+  for function traffic.
+
+enabled: true
+severity: high
+
+resource_type: azure_function_app
+
+check:
+  type: expression
+  expression: "resource.min_tls_version == '1.2'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "9.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-8"
+
+remediation:
+  guidance: |
+    1. Navigate to Function App in Azure Portal
+    2. Under Settings, select Configuration
+    3. Go to General settings tab
+    4. Set "Minimum TLS Version" to 1.2
+    5. Save changes
+
+    Note: Verify that all clients support TLS 1.2 before
+    making this change.
+  automation_supported: false
+
+tags:
+  - functions
+  - tls
+  - encryption
+  - serverless
+  - transport
+
+references:
+  - https://docs.microsoft.com/en-us/azure/app-service/configure-ssl-bindings

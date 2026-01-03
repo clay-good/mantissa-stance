@@ -1,0 +1,53 @@
+id: gcp-vertexai-007
+name: Vertex AI Feature Store uses CMEK encryption
+description: |
+  Ensure Vertex AI Feature Store uses Customer-Managed
+  Encryption Keys (CMEK) for feature data protection.
+
+enabled: true
+severity: high
+
+resource_type: gcp_vertexai_featurestore
+
+check:
+  type: expression
+  expression: "resource.encryption_spec != null and resource.encryption_spec.kms_key_name != null"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+
+remediation:
+  guidance: |
+    To enable CMEK for Vertex AI Feature Store:
+    1. Create Cloud KMS key if not exists
+    2. Grant Feature Store access to the key:
+       - gcloud kms keys add-iam-policy-binding fs-key \
+           --keyring=my-ring \
+           --location=us-central1 \
+           --member=serviceAccount:service-PROJECT@gcp-sa-aiplatform.iam.gserviceaccount.com \
+           --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
+    3. Create Feature Store with CMEK:
+       - gcloud ai featurestores create my-fs \
+           --region=us-central1 \
+           --encryption-kms-key-name=projects/PROJECT/locations/LOCATION/keyRings/RING/cryptoKeys/KEY
+    4. Note: Cannot change encryption after creation
+  automation_supported: false
+
+tags:
+  - vertexai
+  - featurestore
+  - encryption
+  - cmek
+  - ai-ml
+
+references:
+  - https://cloud.google.com/vertex-ai/docs/featurestore/setup
+  - https://cloud.google.com/vertex-ai/docs/general/cmek

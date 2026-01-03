@@ -1,0 +1,51 @@
+id: azure-functions-003
+name: Azure Function VNet integration configured
+description: |
+  Ensure Azure Functions that access private resources have VNet
+  integration configured. VNet integration enables functions to access
+  resources in private networks without public exposure.
+
+enabled: true
+severity: medium
+
+resource_type: azure_function_app
+
+check:
+  type: expression
+  expression: "resource.vnet_integration_enabled == true or resource.requires_private_access == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "9.3"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Function App in Azure Portal
+    2. Under Settings, select Networking
+    3. Under Outbound traffic:
+       - Click VNet integration
+       - Add VNet integration
+       - Select VNet and subnet
+    4. Configure route all traffic through VNet if needed
+    5. Save changes
+
+    Note: VNet integration requires Premium or Elastic Premium
+    plan, or App Service Plan.
+  automation_supported: false
+
+tags:
+  - functions
+  - vnet
+  - network
+  - serverless
+  - private-access
+
+references:
+  - https://docs.microsoft.com/en-us/azure/app-service/web-sites-integrate-with-vnet

@@ -1,0 +1,48 @@
+id: aws-ec2-009
+name: Subnet auto-assign public IP disabled
+description: |
+  Ensure subnets do not automatically assign public IP addresses
+  to instances. Automatic public IP assignment can inadvertently
+  expose instances to the internet.
+
+enabled: true
+severity: medium
+
+resource_type: aws_subnet
+
+check:
+  type: expression
+  expression: "resource.map_public_ip_on_launch == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.6"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "EC2.15"
+
+remediation:
+  guidance: |
+    1. Open the Amazon VPC console
+    2. Navigate to Subnets
+    3. Select the subnet
+    4. Choose Actions > Modify auto-assign IP settings
+    5. Uncheck "Enable auto-assign public IPv4 address"
+    6. Save changes
+    7. For public-facing resources, explicitly assign Elastic IPs
+       or use a load balancer
+  automation_supported: false
+
+tags:
+  - ec2
+  - subnet
+  - network
+  - public-ip
+  - exposure
+
+references:
+  - https://docs.aws.amazon.com/vpc/latest/userguide/vpc-ip-addressing.html

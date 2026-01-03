@@ -1,0 +1,47 @@
+id: aws-iam-006
+name: No inline policies attached directly to users
+description: |
+  Ensure IAM users do not have inline policies attached. Inline policies
+  are harder to manage, audit, and track compared to managed policies.
+  Using managed policies allows for centralized policy management and
+  easier compliance auditing.
+
+enabled: true
+severity: low
+
+resource_type: aws_iam_user
+
+check:
+  type: expression
+  expression: "resource.has_inline_policies == false"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.16"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Sign in to the AWS Console
+    2. Navigate to IAM > Users
+    3. Select the user with inline policies
+    4. Go to Permissions tab
+    5. Expand the inline policy and review its contents
+    6. Create an equivalent managed policy if needed
+    7. Attach the managed policy to the user
+    8. Delete the inline policy
+    9. Consider using IAM groups instead of direct user policies
+  automation_supported: false
+
+tags:
+  - iam
+  - policies
+  - best-practices
+  - governance
+
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#use-groups-for-permissions

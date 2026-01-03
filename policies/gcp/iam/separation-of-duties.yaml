@@ -1,0 +1,53 @@
+id: gcp-iam-007
+name: Separation of duties for KMS
+description: |
+  Ensure separation of duties is enforced for Cloud KMS. Users should
+  not have both the ability to manage encryption keys and use them.
+  This prevents a single user from having complete control over
+  encrypted data.
+
+enabled: true
+severity: high
+
+resource_type: gcp_project_iam_policy
+
+check:
+  type: expression
+  expression: "resource.has_kms_separation_violation == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.11"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-5"
+
+remediation:
+  guidance: |
+    1. Navigate to IAM & Admin > IAM in GCP Console
+    2. Identify users with Cloud KMS Admin role
+    3. Verify these users don't also have:
+       - Cloud KMS CryptoKey Encrypter/Decrypter
+       - Cloud KMS Encrypter
+       - Cloud KMS Decrypter
+    4. Separate key management from key usage:
+       - Key admins manage keys but can't use them
+       - Key users can encrypt/decrypt but can't manage keys
+    5. Document and enforce this separation policy
+    6. Use IAM Conditions to further restrict access
+  automation_supported: false
+
+tags:
+  - iam
+  - kms
+  - separation-of-duties
+  - encryption
+  - gcp
+
+references:
+  - https://cloud.google.com/kms/docs/separation-of-duties
+  - https://cloud.google.com/kms/docs/iam

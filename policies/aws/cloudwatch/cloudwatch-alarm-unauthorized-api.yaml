@@ -1,0 +1,46 @@
+id: aws-cloudwatch-002
+name: CloudWatch alarm for unauthorized API calls
+description: |
+  Ensure a CloudWatch alarm exists for unauthorized API calls. Monitoring
+  unauthorized API calls helps detect potential reconnaissance, brute force
+  attacks, or compromised credentials attempting to access resources.
+
+enabled: true
+severity: medium
+
+resource_type: aws_cloudwatch_metric_alarm
+
+check:
+  type: expression
+  expression: "resource.alarm_for_unauthorized_api_exists == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "4.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Create a CloudWatch Logs metric filter for unauthorized API calls:
+       Filter pattern: { ($.errorCode = "*UnauthorizedAccess*") || ($.errorCode = "AccessDenied*") }
+    2. Create a CloudWatch alarm based on the metric filter
+    3. Set appropriate threshold (e.g., >= 5 in 5 minutes)
+    4. Configure notification via SNS topic
+    5. Subscribe security team to SNS topic
+  automation_supported: false
+
+tags:
+  - cloudwatch
+  - monitoring
+  - alerting
+  - security-operations
+  - unauthorized-access
+
+references:
+  - https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/MonitoringLogData.html

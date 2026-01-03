@@ -1,0 +1,56 @@
+id: aws-sagemaker-005
+name: SageMaker endpoint uses KMS encryption
+description: |
+  Ensure SageMaker endpoints use KMS encryption for data at rest.
+  Customer-managed KMS keys provide additional control over encryption
+  and meet compliance requirements for data protection.
+
+enabled: true
+severity: high
+
+resource_type: aws_sagemaker_endpoint_config
+
+check:
+  type: expression
+  expression: "resource.kms_key_id != null and resource.kms_key_id != ''"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.1.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(a)(2)(iv)"
+
+remediation:
+  guidance: |
+    To enable KMS encryption for SageMaker endpoints:
+    1. Create a new endpoint configuration with encryption:
+       - aws sagemaker create-endpoint-config \
+           --endpoint-config-name my-config \
+           --kms-key-id arn:aws:kms:region:account:key/key-id \
+           --production-variants ...
+    2. Update or create endpoint with new configuration:
+       - aws sagemaker update-endpoint \
+           --endpoint-name my-endpoint \
+           --endpoint-config-name my-config
+    3. Delete old unencrypted endpoint configuration
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - encryption
+  - kms
+  - endpoint
+  - ai-ml
+  - inference
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/encryption-at-rest.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/endpoint-create.html

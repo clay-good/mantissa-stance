@@ -1,0 +1,48 @@
+id: azure-storage-003
+name: Public blob access disabled
+description: |
+  Ensure public access to blobs is disabled on storage accounts.
+  Public blob access can lead to unintended data exposure. Access
+  should be controlled through authentication and authorization.
+
+enabled: true
+severity: critical
+
+resource_type: azure_storage_account
+
+check:
+  type: expression
+  expression: "resource.allow_blob_public_access == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "3.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+
+remediation:
+  guidance: |
+    1. Navigate to Storage accounts in Azure Portal
+    2. Select the storage account
+    3. Go to Configuration under Settings
+    4. Set "Allow Blob public access" to Disabled
+    5. Save the configuration
+    6. Review and update any applications that relied on public access
+    7. Use SAS tokens or Azure AD for authorized access
+  automation_supported: false
+
+tags:
+  - storage
+  - public-access
+  - data-protection
+  - blob
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-prevent
+  - https://docs.microsoft.com/en-us/azure/storage/common/storage-security-guide

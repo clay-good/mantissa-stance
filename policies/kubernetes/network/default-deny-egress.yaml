@@ -1,0 +1,49 @@
+id: k8s-net-002
+name: Namespaces should have default deny egress network policy
+description: |
+  A default deny egress network policy ensures that all pods in a namespace
+  cannot initiate outbound connections by default. This prevents data
+  exfiltration and limits the blast radius of compromised pods.
+
+enabled: true
+severity: medium
+
+resource_type: k8s_namespace
+
+check:
+  type: expression
+  expression: "resource.has_default_deny_egress_policy == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.3.2"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Create a default deny egress NetworkPolicy for the namespace:
+       apiVersion: networking.k8s.io/v1
+       kind: NetworkPolicy
+       metadata:
+         name: default-deny-egress
+       spec:
+         podSelector: {}
+         policyTypes:
+         - Egress
+    2. Apply the policy to the namespace
+    3. Create explicit allow policies for required outbound traffic
+    4. Ensure DNS access is allowed if pods need name resolution
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - network-policy
+  - egress
+  - data-exfiltration
+  - network-segmentation
+
+references:
+  - https://kubernetes.io/docs/concepts/services-networking/network-policies/

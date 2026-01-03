@@ -1,0 +1,50 @@
+id: aws-ec2-011
+name: Security group egress rules reviewed
+description: |
+  Ensure security group egress rules are not overly permissive.
+  While default egress allows all outbound traffic, restricting
+  egress can prevent data exfiltration and command-and-control
+  communications.
+
+enabled: true
+severity: low
+
+resource_type: aws_security_group
+
+check:
+  type: expression
+  expression: "resource.has_unrestricted_egress == false"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7(5)"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.4"
+
+remediation:
+  guidance: |
+    1. Open the Amazon EC2 console
+    2. Navigate to Security Groups
+    3. Select the security group
+    4. Choose Outbound rules tab
+    5. Remove the default allow-all egress rule
+    6. Add specific egress rules for:
+       - HTTPS (443) to required destinations
+       - DNS (53) to VPC DNS server
+       - Other required protocols/ports
+    7. Consider using VPC endpoints to reduce egress needs
+    8. Use AWS Network Firewall for advanced egress filtering
+  automation_supported: false
+
+tags:
+  - ec2
+  - security-group
+  - network
+  - egress
+  - data-exfiltration
+
+references:
+  - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules.html
+  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/what-is-aws-network-firewall.html

@@ -1,0 +1,43 @@
+id: k8s-rbac-002
+name: Roles should not use wildcard permissions
+description: |
+  Wildcard (*) permissions grant access to all resources or
+  all verbs, violating the principle of least privilege.
+  Roles should explicitly specify required permissions.
+
+enabled: true
+severity: high
+
+resource_type: k8s_cluster_role
+
+check:
+  type: expression
+  expression: "not (resource.risk_analysis.has_wildcard_resources and resource.risk_analysis.has_wildcard_verbs)"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.3"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the cluster role definition
+    2. Identify rules with "*" in resources or verbs
+    3. Replace wildcards with specific resources and verbs
+    4. Test with the reduced permissions
+    5. Update the role definition
+    6. Document the required permissions
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - wildcard
+  - least-privilege
+  - overly-permissive
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/rbac/

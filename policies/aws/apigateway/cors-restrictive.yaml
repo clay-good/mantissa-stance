@@ -1,0 +1,46 @@
+id: aws-apigateway-006
+name: API Gateway CORS configuration is restrictive
+description: |
+  Ensure API Gateway CORS configuration does not allow all origins (*).
+  Permissive CORS policies can enable cross-origin attacks and data theft.
+
+enabled: true
+severity: medium
+
+resource_type: aws_apigateway_http_api
+
+check:
+  type: expression
+  expression: "resource.has_cors == false or (resource.allows_all_origins == false)"
+
+compliance:
+  - framework: owasp-api-security
+    version: "2023"
+    control: "API7:2023"
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.11"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the HTTP API
+    3. Go to CORS settings
+    4. Replace wildcard (*) with specific allowed origins
+    5. Only allow origins that need cross-origin access
+    6. Review Access-Control-Allow-Credentials setting
+  automation_supported: false
+
+tags:
+  - apigateway
+  - cors
+  - cross-origin
+  - api-security
+  - http-api
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-cors.html
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS

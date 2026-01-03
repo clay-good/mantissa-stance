@@ -1,0 +1,46 @@
+id: container-008
+name: Container images should not use latest tag
+description: |
+  The 'latest' tag is mutable and can change unexpectedly.
+  Using specific version tags or digests ensures reproducibility
+  and prevents unexpected changes to running workloads.
+
+enabled: true
+severity: medium
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.tag != 'latest' && resource.has_digest == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "CM-2"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.7"
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.5.1"
+
+remediation:
+  guidance: |
+    1. Identify current image tag
+    2. Replace 'latest' with specific version tag
+    3. Better yet, use image digest (sha256:...)
+    4. Update Kubernetes manifests and Dockerfiles
+    5. Implement CI/CD rules to prevent latest tag usage
+    6. Use admission controllers to enforce this policy
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - tag
+  - reproducibility
+  - configuration
+
+references:
+  - https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy

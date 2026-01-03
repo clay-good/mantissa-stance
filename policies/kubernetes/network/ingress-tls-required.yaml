@@ -1,0 +1,52 @@
+id: k8s-net-003
+name: Ingress resources should have TLS enabled
+description: |
+  Ingress resources expose applications to external traffic. All ingress
+  resources should have TLS configured to encrypt traffic in transit and
+  prevent man-in-the-middle attacks.
+
+enabled: true
+severity: high
+
+resource_type: k8s_ingress
+
+check:
+  type: expression
+  expression: "resource.has_tls == true"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.4.1"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-8"
+  - framework: pci-dss
+    version: "4.0"
+    control: "4.2.1"
+
+remediation:
+  guidance: |
+    1. Generate or obtain a TLS certificate for the ingress hosts
+    2. Create a Kubernetes secret with the certificate:
+       kubectl create secret tls my-tls-secret \
+         --cert=path/to/cert.crt \
+         --key=path/to/cert.key
+    3. Add TLS configuration to the Ingress:
+       spec:
+         tls:
+         - hosts:
+           - example.com
+           secretName: my-tls-secret
+    4. Consider using cert-manager for automated certificate management
+  automation_supported: true
+
+tags:
+  - kubernetes
+  - ingress
+  - tls
+  - encryption
+  - transport-security
+
+references:
+  - https://kubernetes.io/docs/concepts/services-networking/ingress/#tls

@@ -1,0 +1,47 @@
+id: aws-elb-003
+name: ALB WAF protection enabled
+description: |
+  Ensure Application Load Balancers have AWS WAF protection enabled.
+  WAF protects web applications from common exploits and attacks
+  at the load balancer layer.
+
+enabled: true
+severity: high
+
+resource_type: aws_alb
+
+check:
+  type: expression
+  expression: "resource.waf_acl_arn exists"
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to AWS WAF console
+    2. Create a Web ACL:
+       - Add AWS Managed Rules (recommended)
+       - Add custom rules as needed
+       - Set default action (allow/block)
+    3. Associate Web ACL with ALB:
+       - Go to Associated AWS resources
+       - Add resources
+       - Select the ALB
+    4. Save configuration
+  automation_supported: false
+
+tags:
+  - elb
+  - alb
+  - waf
+  - security
+  - protection
+
+references:
+  - https://docs.aws.amazon.com/waf/latest/developerguide/web-acl-associating-aws-resource.html

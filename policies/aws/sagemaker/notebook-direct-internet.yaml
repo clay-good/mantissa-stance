@@ -1,0 +1,58 @@
+id: aws-sagemaker-003
+name: SageMaker notebook direct internet access disabled
+description: |
+  Ensure SageMaker notebook instances do not have direct internet access.
+  Direct internet access bypasses VPC security controls and may expose
+  sensitive data or allow unauthorized data exfiltration.
+
+enabled: true
+severity: medium
+
+resource_type: aws_sagemaker_notebook
+
+check:
+  type: expression
+  expression: "resource.direct_internet_access == 'Disabled'"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-4"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "SageMaker.3"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+
+remediation:
+  guidance: |
+    To disable direct internet access for SageMaker notebooks:
+    1. Note: You cannot change this setting on existing instances
+    2. Create a new notebook instance:
+       - In the SageMaker console, choose Notebook instances
+       - Choose Create notebook instance
+       - Under Network, configure VPC settings
+       - Set Direct internet access to Disabled
+    3. Set up VPC endpoints for accessing AWS services:
+       - SageMaker API and runtime endpoints
+       - S3 endpoint for data access
+       - Other required service endpoints
+    4. Migrate notebooks to the new instance
+    5. Delete the old instance with internet access
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - network
+  - internet
+  - data-protection
+  - ai-ml
+  - notebook
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/appendix-notebook-and-internet-access.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/interface-vpc-endpoint.html

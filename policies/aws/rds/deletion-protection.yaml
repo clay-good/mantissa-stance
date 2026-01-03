@@ -1,0 +1,50 @@
+id: aws-rds-008
+name: RDS deletion protection enabled
+description: |
+  Ensure RDS database instances have deletion protection enabled.
+  Deletion protection prevents accidental or unauthorized deletion
+  of production databases through the console, CLI, or API.
+
+enabled: true
+severity: high
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: "resource.deletion_protection == true"
+
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "RDS.8"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "9.4.5"
+
+remediation:
+  guidance: |
+    1. Open the Amazon RDS console
+    2. Select the database instance
+    3. Choose Modify
+    4. Under Additional configuration:
+       - Enable "Deletion protection"
+    5. Choose when to apply the modification
+    6. Click Modify DB Instance
+
+    To delete a protected database, you must first disable deletion
+    protection.
+  automation_supported: false
+
+tags:
+  - rds
+  - deletion-protection
+  - database
+  - data-protection
+  - safety
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteInstance.html

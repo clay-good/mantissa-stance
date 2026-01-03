@@ -1,0 +1,49 @@
+id: gcp-logging-008
+name: Log metric and alert for VPC network route changes
+description: |
+  Ensure a log-based metric and alert exist for VPC network route changes.
+  Unauthorized route changes can redirect traffic for interception or
+  disrupt network connectivity and should be monitored.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_logging_metric
+
+check:
+  type: expression
+  expression: "resource.metric_for_route_changes_exists == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "2.8"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-6"
+
+remediation:
+  guidance: |
+    1. Go to GCP Console > Logging > Log-based Metrics
+    2. Click Create Metric
+    3. Set filter:
+       resource.type="gce_route" AND
+       (protoPayload.methodName:"compute.routes.delete" OR
+        protoPayload.methodName:"compute.routes.insert")
+    4. Create the metric
+    5. Go to Monitoring > Alerting
+    6. Create alerting policy based on the metric
+  automation_supported: false
+
+tags:
+  - logging
+  - monitoring
+  - alerting
+  - network-routes
+  - network-security
+
+references:
+  - https://cloud.google.com/vpc/docs/routes

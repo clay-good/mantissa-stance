@@ -1,0 +1,39 @@
+id: gcp-iam-003
+name: No overly permissive IAM bindings
+description: |
+  Ensure IAM policies do not grant overly permissive access. Policies
+  granting roles like Owner, Editor, or primitive roles to allUsers or
+  allAuthenticatedUsers expose resources to unauthorized access.
+
+enabled: true
+severity: critical
+
+resource_type: gcp_project_iam_policy
+
+check:
+  type: expression
+  expression: "resource.has_public_bindings == false"
+
+benchmark:
+  - cis-gcp: "1.1"
+
+remediation:
+  guidance: |
+    1. Navigate to IAM & Admin > IAM in GCP Console
+    2. Review all bindings with allUsers or allAuthenticatedUsers
+    3. Remove public bindings unless explicitly required
+    4. Replace primitive roles (Owner, Editor, Viewer) with predefined roles
+    5. Apply the principle of least privilege
+    6. Consider using VPC Service Controls for additional protection
+  automation_supported: false
+
+tags:
+  - iam
+  - access-control
+  - public-access
+  - least-privilege
+  - gcp
+
+references:
+  - https://cloud.google.com/iam/docs/overview
+  - https://cloud.google.com/iam/docs/understanding-roles

@@ -1,0 +1,58 @@
+id: aws-sagemaker-010
+name: SageMaker Studio domain in VPC
+description: |
+  Ensure SageMaker Studio domains are deployed within a VPC.
+  VPC deployment provides network isolation for Studio
+  and enables private connectivity to resources.
+
+enabled: true
+severity: high
+
+resource_type: aws_sagemaker_domain
+
+check:
+  type: expression
+  expression: "resource.vpc_id != null and resource.vpc_id != ''"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+
+remediation:
+  guidance: |
+    To deploy SageMaker Studio in a VPC:
+    1. When creating domain, specify VPC:
+       - aws sagemaker create-domain \
+           --domain-name my-domain \
+           --vpc-id vpc-xxx \
+           --subnet-ids subnet-aaa subnet-bbb \
+           --app-network-access-type VpcOnly \
+           --auth-mode IAM
+    2. Configure VPC endpoints for required services:
+       - SageMaker API and runtime
+       - S3 for data access
+       - STS for authentication
+    3. Set up security groups for Studio access
+    4. Note: Cannot change VPC config after creation
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - studio
+  - vpc
+  - network
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/studio-notebooks-and-internet-access.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/onboard-vpc.html

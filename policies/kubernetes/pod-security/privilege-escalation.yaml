@@ -1,0 +1,42 @@
+id: k8s-pod-007
+name: Containers should not allow privilege escalation
+description: |
+  Privilege escalation allows a process to gain more privileges
+  than its parent. Disabling this prevents container escape
+  and lateral movement attacks.
+
+enabled: true
+severity: high
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.has_privilege_escalation == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.5"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. For each container, add securityContext
+    3. Set allowPrivilegeEscalation: false
+    4. Test the application functionality
+    5. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - privilege-escalation
+  - security-context
+  - least-privilege
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/

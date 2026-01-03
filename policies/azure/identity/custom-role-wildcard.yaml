@@ -1,0 +1,47 @@
+id: azure-identity-002
+name: Custom roles do not have wildcard permissions
+description: |
+  Ensure custom role definitions do not include wildcard (*) permissions.
+  Wildcard permissions grant overly broad access and violate the
+  principle of least privilege.
+
+enabled: true
+severity: high
+
+resource_type: azure_role_definition
+
+check:
+  type: expression
+  expression: "resource.has_wildcard_permissions == false"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.21"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.1.1"
+
+remediation:
+  guidance: |
+    1. Navigate to Subscriptions > Access control (IAM) > Roles
+    2. Filter by "Custom" role type
+    3. Review each custom role's permissions
+    4. Replace wildcard actions with specific required actions
+    5. Test the updated role to ensure functionality
+    6. Update role assignments if role definition changes
+  automation_supported: false
+
+tags:
+  - identity
+  - rbac
+  - custom-role
+  - least-privilege
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/role-based-access-control/custom-roles
+  - https://docs.microsoft.com/en-us/azure/role-based-access-control/resource-provider-operations

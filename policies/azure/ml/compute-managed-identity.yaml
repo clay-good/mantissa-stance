@@ -1,0 +1,58 @@
+id: azure-ml-004
+name: Azure ML compute uses managed identity
+description: |
+  Ensure Azure Machine Learning compute instances and clusters
+  use managed identity for authentication. Managed identities
+  eliminate the need for stored credentials.
+
+enabled: true
+severity: high
+
+resource_type: azure_ml_compute_instance
+
+check:
+  type: expression
+  expression: "resource.identity != null and resource.identity.type != null"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "8.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+
+remediation:
+  guidance: |
+    To enable managed identity for Azure ML compute:
+    1. Create compute instance with managed identity:
+       - az ml compute create --name my-compute \
+           --type ComputeInstance \
+           --resource-group my-rg \
+           --workspace-name my-ws \
+           --identity-type SystemAssigned
+    2. For user-assigned identity:
+       - Create managed identity first
+       - az ml compute create --name my-compute \
+           --type ComputeInstance \
+           --identity-type UserAssigned \
+           --user-assigned-identities /subscriptions/.../identities/my-id
+    3. Grant identity required permissions:
+       - Storage Blob Data Reader for data access
+       - Key Vault Secrets User for secrets
+    4. Update code to use managed identity authentication
+  automation_supported: false
+
+tags:
+  - azure-ml
+  - identity
+  - managed-identity
+  - compute
+  - ai-ml
+
+references:
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-identity-based-service-authentication
+  - https://learn.microsoft.com/en-us/azure/machine-learning/how-to-create-compute-instance

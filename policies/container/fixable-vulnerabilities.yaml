@@ -1,0 +1,44 @@
+id: container-004
+name: Container images should fix vulnerabilities with available patches
+description: |
+  When vulnerability fixes are available, they should be applied.
+  Running images with known fixable vulnerabilities indicates poor
+  patch management and increases exposure window unnecessarily.
+
+enabled: true
+severity: medium
+
+resource_type: container_image
+
+check:
+  type: expression
+  expression: "resource.fixable_critical_count == 0 && resource.fixable_high_count == 0"
+
+compliance:
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SI-2"
+  - framework: cis-docker
+    version: "1.6.0"
+    control: "4.1"
+
+remediation:
+  guidance: |
+    1. Review vulnerabilities with available fixes
+    2. Update package managers and dependencies
+    3. For OS packages: apt-get update && apt-get upgrade
+    4. For Python: pip install --upgrade package
+    5. For Node.js: npm update or npm audit fix
+    6. Rebuild and test container image
+    7. Deploy updated image to environments
+  automation_supported: true
+
+tags:
+  - container
+  - image-security
+  - vulnerability
+  - patching
+  - fixable
+
+references:
+  - https://nvd.nist.gov/

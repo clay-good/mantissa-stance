@@ -1,0 +1,54 @@
+id: gcp-sql-001
+name: Cloud SQL uses CMEK encryption
+description: |
+  Ensure Cloud SQL instances use customer-managed encryption keys
+  (CMEK) instead of Google-managed keys. CMEK provides full control
+  over key lifecycle, rotation, and access policies.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_sql_instance
+
+check:
+  type: expression
+  expression: "resource.disk_encryption_key_name exists"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "6.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+
+remediation:
+  guidance: |
+    Note: CMEK must be configured during instance creation.
+    To migrate an existing instance:
+    1. Create a Cloud KMS key ring and key
+    2. Grant Cloud SQL service account access to the key
+    3. Create a new instance with CMEK enabled
+    4. Export data from the old instance
+    5. Import data into the new encrypted instance
+    6. Update applications to use the new instance
+    7. Delete the old instance
+
+    For new instances:
+    1. Create Cloud KMS key with appropriate permissions
+    2. Select CMEK during instance creation
+  automation_supported: false
+
+tags:
+  - sql
+  - encryption
+  - cmek
+  - database
+  - gcp
+
+references:
+  - https://cloud.google.com/sql/docs/mysql/configure-cmek
+  - https://cloud.google.com/kms/docs/create-key

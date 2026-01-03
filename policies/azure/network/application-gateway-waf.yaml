@@ -1,0 +1,49 @@
+id: azure-network-001
+name: Application Gateway WAF enabled
+description: |
+  Ensure Azure Application Gateway has Web Application Firewall (WAF)
+  enabled. WAF protects web applications from common vulnerabilities
+  like SQL injection and cross-site scripting.
+
+enabled: true
+severity: high
+
+resource_type: azure_application_gateway
+
+check:
+  type: expression
+  expression: "resource.waf_enabled == true and resource.waf_mode == 'Prevention'"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "6.6"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+
+remediation:
+  guidance: |
+    1. Navigate to Application Gateway in Azure Portal
+    2. Select Web application firewall
+    3. Enable WAF:
+       - Tier: WAF_v2 (recommended)
+       - Mode: Prevention
+       - Ruleset: OWASP 3.2 or latest
+    4. Configure exclusions if needed
+    5. Enable bot protection (optional)
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - network
+  - application-gateway
+  - waf
+  - security
+  - protection
+
+references:
+  - https://docs.microsoft.com/en-us/azure/web-application-firewall/ag/ag-overview

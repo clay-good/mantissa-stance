@@ -1,0 +1,43 @@
+id: k8s-rbac-007
+name: Roles with certificate signing access should be limited
+description: |
+  Access to approve or sign certificate signing requests can be used
+  to issue certificates for arbitrary identities, potentially gaining
+  unauthorized access to the cluster.
+
+enabled: true
+severity: critical
+
+resource_type: k8s_cluster_role
+
+check:
+  type: expression
+  expression: "resource.risk_analysis.has_csr_approval_access == false"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.1.7"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Review the role definition
+    2. Identify rules granting CSR approval access
+    3. Remove CSR access unless absolutely necessary
+    4. Limit CSR signers to specific certificate types
+    5. Implement audit logging for CSR approvals
+    6. Use automated certificate management (cert-manager)
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - rbac
+  - certificates
+  - csr
+  - privilege-escalation
+
+references:
+  - https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/

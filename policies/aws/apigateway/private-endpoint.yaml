@@ -1,0 +1,47 @@
+id: aws-apigateway-007
+name: API Gateway uses private endpoint
+description: |
+  Ensure API Gateway REST APIs use private endpoints for internal APIs.
+  Private APIs are only accessible from within a VPC, reducing the attack
+  surface for internal services.
+
+enabled: true
+severity: medium
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.is_private == true or resource.has_resource_policy == true"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.12"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3.1"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the REST API
+    3. Go to Settings
+    4. Change endpoint type to PRIVATE
+    5. Configure VPC endpoints for access
+    6. Add resource policy to restrict access to VPC
+    7. Test connectivity from within VPC
+  automation_supported: false
+
+tags:
+  - apigateway
+  - private-api
+  - vpc
+  - network-security
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-private-apis.html

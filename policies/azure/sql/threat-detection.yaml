@@ -1,0 +1,48 @@
+id: azure-sql-004
+name: Azure SQL Advanced Threat Protection enabled
+description: |
+  Ensure Azure SQL Advanced Threat Protection is enabled. This provides
+  a layer of security intelligence that detects anomalous activities
+  indicating potential threats to the database.
+
+enabled: true
+severity: high
+
+resource_type: azure_sql_server
+
+check:
+  type: expression
+  expression: "resource.threat_detection_enabled == true"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "4.2.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "11.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SI-4"
+
+remediation:
+  guidance: |
+    1. Navigate to SQL Server in Azure Portal
+    2. Under Security, select Microsoft Defender for Cloud
+    3. Enable "Microsoft Defender for SQL"
+    4. Configure alert notifications:
+       - Email recipients
+       - Send alerts to admins and subscription owners
+    5. Configure Vulnerability Assessment settings
+    6. Save configuration
+  automation_supported: false
+
+tags:
+  - sql
+  - azure-sql
+  - threat-detection
+  - database
+  - security
+
+references:
+  - https://docs.microsoft.com/en-us/azure/azure-sql/database/threat-detection-configure

@@ -1,0 +1,41 @@
+id: k8s-pod-003
+name: Pods should not share host PID namespace
+description: |
+  Sharing the host PID namespace allows containers to see
+  all processes on the host, potentially exposing sensitive
+  information and enabling container escape attacks.
+
+enabled: true
+severity: high
+
+resource_type: k8s_pod
+
+check:
+  type: expression
+  expression: "resource.host_pid != True"
+
+compliance:
+  - framework: cis-kubernetes
+    version: "1.8.0"
+    control: "5.2.2"
+  - framework: nist-800-53
+    version: "5.0"
+    control: "SC-39"
+
+remediation:
+  guidance: |
+    1. Review the pod specification
+    2. Locate hostPID: true setting
+    3. Remove hostPID or set to false
+    4. If process visibility is needed, use sidecar containers
+    5. Apply the updated pod specification
+  automation_supported: false
+
+tags:
+  - kubernetes
+  - pod-security
+  - host-pid
+  - namespace-isolation
+
+references:
+  - https://kubernetes.io/docs/concepts/security/pod-security-standards/

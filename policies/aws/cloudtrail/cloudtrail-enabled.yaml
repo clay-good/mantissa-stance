@@ -1,0 +1,51 @@
+id: aws-cloudtrail-001
+name: CloudTrail enabled in all regions
+description: |
+  Ensure CloudTrail is enabled in all regions. CloudTrail provides event
+  history of AWS API calls made in your account, which is essential for
+  security auditing, compliance, and operational troubleshooting.
+
+enabled: true
+severity: critical
+
+resource_type: aws_cloudtrail
+
+check:
+  type: expression
+  expression: "resource.is_multi_region_trail == true and resource.is_logging == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "3.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "CloudTrail.1"
+
+remediation:
+  guidance: |
+    1. Open the AWS CloudTrail console
+    2. Choose Trails, then Create trail
+    3. Enter a trail name
+    4. Choose Create a new S3 bucket or specify existing bucket
+    5. Enable multi-region trail
+    6. Enable log file validation
+    7. Optionally configure CloudWatch Logs integration
+    8. Create the trail
+  automation_supported: false
+
+tags:
+  - cloudtrail
+  - logging
+  - audit
+  - compliance
+  - multi-region
+
+references:
+  - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-create-and-update-a-trail.html

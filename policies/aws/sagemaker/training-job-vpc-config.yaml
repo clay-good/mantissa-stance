@@ -1,0 +1,55 @@
+id: aws-sagemaker-008
+name: SageMaker training job in VPC
+description: |
+  Ensure SageMaker training jobs run within a VPC.
+  VPC deployment provides network isolation for training
+  containers and secures data access patterns.
+
+enabled: true
+severity: medium
+
+resource_type: aws_sagemaker_training_job
+
+check:
+  type: expression
+  expression: "resource.vpc_config != null and resource.vpc_config.subnets != null"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
+  - framework: pci-dss
+    version: "4.0"
+    control: "1.3"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.6"
+
+remediation:
+  guidance: |
+    To run training jobs in a VPC:
+    1. Create training job with VPC configuration:
+       - aws sagemaker create-training-job \
+           --vpc-config \
+             Subnets=subnet-xxx,subnet-yyy,\
+             SecurityGroupIds=sg-xxx \
+           --resource-config ...
+    2. Ensure security groups allow required traffic:
+       - Egress to S3 for data access
+       - Communication between training instances
+    3. Set up VPC endpoints for AWS services:
+       - S3 VPC endpoint (gateway or interface)
+       - SageMaker API endpoint
+    4. Configure NAT gateway if internet access needed
+  automation_supported: false
+
+tags:
+  - sagemaker
+  - vpc
+  - network
+  - training
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/train-vpc.html
+  - https://docs.aws.amazon.com/sagemaker/latest/dg/interface-vpc-endpoint.html

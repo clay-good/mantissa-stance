@@ -1,0 +1,48 @@
+id: aws-apigateway-005
+name: API Gateway rate limiting configured
+description: |
+  Ensure API Gateway has throttling (rate limiting) configured. APIs without
+  rate limiting are vulnerable to denial-of-service attacks and resource
+  exhaustion.
+
+enabled: true
+severity: high
+
+resource_type: aws_apigateway_rest_api
+
+check:
+  type: expression
+  expression: "resource.stages != null and any(resource.stages, stage.method_settings != null)"
+
+compliance:
+  - framework: owasp-api-security
+    version: "2023"
+    control: "API4:2023"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "6.4.2"
+
+remediation:
+  guidance: |
+    1. Navigate to API Gateway in AWS Console
+    2. Select the API
+    3. Go to Stages
+    4. Select a stage
+    5. Enable Throttling in Default Method Throttling
+    6. Set Rate (requests per second) and Burst limits
+    7. Consider setting method-level throttling for sensitive endpoints
+  automation_supported: false
+
+tags:
+  - apigateway
+  - rate-limiting
+  - throttling
+  - dos-protection
+  - api-security
+
+references:
+  - https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html
+  - https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/

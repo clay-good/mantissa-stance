@@ -1,0 +1,48 @@
+id: gcp-logging-001
+name: Cloud Audit Logs enabled for all services
+description: |
+  Ensure Cloud Audit Logs are enabled for all services. Audit logs record
+  administrative activities and accesses within GCP resources, providing
+  crucial visibility for security monitoring and compliance.
+
+enabled: true
+severity: critical
+
+resource_type: gcp_project
+
+check:
+  type: expression
+  expression: "resource.audit_logs_enabled == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "1.3.0"
+    control: "2.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-2"
+
+remediation:
+  guidance: |
+    1. Go to the GCP Console > IAM & Admin > Audit Logs
+    2. For each service, configure audit log types:
+       - Admin Activity (enabled by default)
+       - Data Access (may need to be enabled)
+       - System Event (enabled by default)
+       - Policy Denied
+    3. Consider enabling Data Access logs for sensitive services
+    4. Review and save the configuration
+  automation_supported: false
+
+tags:
+  - logging
+  - audit
+  - compliance
+  - security-monitoring
+  - gcp
+
+references:
+  - https://cloud.google.com/logging/docs/audit

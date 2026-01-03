@@ -1,0 +1,54 @@
+id: azure-identity-004
+name: Guest user access restricted
+description: |
+  Ensure guest user access is restricted and regularly reviewed.
+  Guest users from external organizations can access Azure AD
+  resources. Their access should be limited and monitored to
+  prevent unauthorized data exposure.
+
+enabled: true
+severity: medium
+
+resource_type: azure_directory_settings
+
+check:
+  type: expression
+  expression: |
+    resource.guest_user_role_id != "a0b1b346-4d3e-4e8b-98f8-753987be4970" and
+    resource.allow_invites_from == "adminsAndGuestInviters"
+
+compliance:
+  - framework: cis-azure-foundations
+    version: "2.0.0"
+    control: "1.13"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-2(7)"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.2.3"
+
+remediation:
+  guidance: |
+    1. Navigate to Azure Active Directory > External identities
+    2. Select "External collaboration settings"
+    3. Configure "Guest user access restrictions":
+       - Set to "Guest users have limited access" or more restrictive
+    4. Configure "Guest invite settings":
+       - Limit who can invite guests
+       - Consider "Only admins and users in the guest inviter role"
+    5. Enable "Enable guest self-service sign up" only if needed
+    6. Review and limit "Collaboration restrictions"
+    7. Implement regular access reviews for guest users
+  automation_supported: false
+
+tags:
+  - identity
+  - guest-access
+  - external-users
+  - access-control
+  - azure
+
+references:
+  - https://docs.microsoft.com/en-us/azure/active-directory/external-identities/what-is-b2b
+  - https://docs.microsoft.com/en-us/azure/active-directory/external-identities/delegate-invitations

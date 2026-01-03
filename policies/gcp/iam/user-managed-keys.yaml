@@ -1,0 +1,49 @@
+id: gcp-iam-005
+name: Service accounts without user-managed keys
+description: |
+  Ensure service accounts do not have user-managed keys when possible.
+  User-managed keys pose security risks as they can be leaked or
+  compromised. Prefer using Google-managed keys, Workload Identity,
+  or service account impersonation instead.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_service_account
+
+check:
+  type: expression
+  expression: "resource.has_user_managed_keys == false"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-5(2)"
+
+remediation:
+  guidance: |
+    1. Navigate to IAM & Admin > Service Accounts in GCP Console
+    2. Select the service account with user-managed keys
+    3. Go to the Keys tab
+    4. Evaluate if keys are necessary:
+       - For GKE workloads, use Workload Identity
+       - For Cloud Run/Functions, use built-in identity
+       - For cross-project access, use service account impersonation
+    5. Migrate applications away from using keys
+    6. Delete user-managed keys after migration
+    7. Monitor for key creation using Cloud Audit Logs
+  automation_supported: false
+
+tags:
+  - iam
+  - service-account
+  - keys
+  - security
+  - gcp
+
+references:
+  - https://cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys
+  - https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity

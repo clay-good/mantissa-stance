@@ -1,0 +1,56 @@
+id: aws-bedrock-003
+name: Bedrock custom model uses KMS encryption
+description: |
+  Ensure Bedrock custom models use customer-managed KMS encryption.
+  Custom models contain trained data and should be encrypted
+  with customer-controlled keys for data protection.
+
+enabled: true
+severity: high
+
+resource_type: aws_bedrock_custom_model
+
+check:
+  type: expression
+  expression: "resource.kms_key_arn != null and resource.kms_key_arn != ''"
+
+compliance:
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: soc2
+    version: "2017"
+    control: "CC6.1"
+  - framework: hipaa
+    version: "2013"
+    control: "164.312(a)(2)(iv)"
+
+remediation:
+  guidance: |
+    To encrypt Bedrock custom models with KMS:
+    1. When creating custom model (fine-tuning):
+       - Specify customer-managed KMS key
+       - Ensure key policy allows Bedrock access
+    2. For existing models:
+       - Note: Cannot change encryption after creation
+       - Create new model with encryption
+       - Update applications to use new model
+       - Delete old unencrypted model
+    3. KMS key policy should include:
+       - kms:Encrypt, kms:Decrypt permissions
+       - kms:GenerateDataKey for Bedrock service
+  automation_supported: false
+
+tags:
+  - bedrock
+  - encryption
+  - kms
+  - custom-model
+  - ai-ml
+
+references:
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html
+  - https://docs.aws.amazon.com/bedrock/latest/userguide/encryption.html

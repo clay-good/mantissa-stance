@@ -1,0 +1,51 @@
+id: aws-rds-002
+name: RDS uses customer managed KMS key
+description: |
+  Ensure RDS instances use customer managed KMS keys for encryption
+  instead of AWS managed keys. Customer managed keys provide more
+  control over key rotation, access policies, and audit capabilities.
+
+enabled: true
+severity: medium
+
+resource_type: aws_rds_instance
+
+check:
+  type: expression
+  expression: |
+    resource.storage_encrypted == false or
+    (resource.kms_key_id exists and
+     resource.kms_key_id contains "alias/" == false)
+
+compliance:
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.6.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-12"
+
+remediation:
+  guidance: |
+    1. Create a customer managed KMS key in AWS KMS:
+       a. Navigate to KMS in AWS Console
+       b. Create a symmetric key
+       c. Define key administrators and users
+       d. Set up key rotation policy
+    2. Create an encrypted snapshot of the existing RDS instance
+    3. Copy the snapshot using the customer managed KMS key
+    4. Restore a new instance from the copied snapshot
+    5. Update applications to use the new endpoint
+    6. Delete old resources after verification
+  automation_supported: false
+
+tags:
+  - rds
+  - encryption
+  - kms
+  - customer-managed-key
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html
+  - https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html

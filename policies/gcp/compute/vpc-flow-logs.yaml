@@ -1,0 +1,52 @@
+id: gcp-compute-008
+name: VPC flow logs enabled
+description: |
+  Ensure VPC flow logs are enabled for all subnets. Flow logs
+  capture network flow information for monitoring, forensics,
+  and real-time security analysis.
+
+enabled: true
+severity: medium
+
+resource_type: gcp_compute_subnetwork
+
+check:
+  type: expression
+  expression: "resource.flow_logs_enabled == true"
+
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "3.9"
+  - framework: pci-dss
+    version: "4.0"
+    control: "10.2.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-12"
+
+remediation:
+  guidance: |
+    1. Navigate to VPC Network > VPC networks in GCP Console
+    2. Select the VPC network
+    3. Click on the subnet name
+    4. Edit the subnet
+    5. Enable "Flow logs"
+    6. Configure:
+       - Aggregation interval (5 seconds recommended)
+       - Sample rate (50% or higher for security)
+       - Include metadata
+    7. Save changes
+    8. View logs in Cloud Logging
+  automation_supported: false
+
+tags:
+  - compute
+  - vpc
+  - flow-logs
+  - monitoring
+  - gcp
+
+references:
+  - https://cloud.google.com/vpc/docs/flow-logs
+  - https://cloud.google.com/vpc/docs/using-flow-logs

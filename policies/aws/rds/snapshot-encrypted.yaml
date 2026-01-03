@@ -1,0 +1,49 @@
+id: aws-rds-003
+name: RDS snapshots encrypted
+description: |
+  Ensure RDS database snapshots are encrypted. Unencrypted snapshots
+  can expose sensitive data if shared or accessed inappropriately.
+  Snapshots inherit encryption from source databases.
+
+enabled: true
+severity: high
+
+resource_type: aws_rds_snapshot
+
+check:
+  type: expression
+  expression: "resource.encrypted == true"
+
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.3.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
+
+remediation:
+  guidance: |
+    For existing unencrypted snapshots:
+    1. Copy the snapshot with encryption enabled
+    2. Select appropriate KMS key
+    3. Delete the unencrypted snapshot after verification
+
+    To prevent unencrypted snapshots:
+    1. Ensure source RDS instances are encrypted
+    2. Encrypted instances produce encrypted snapshots
+    3. Use AWS Config rules to detect unencrypted snapshots
+  automation_supported: false
+
+tags:
+  - rds
+  - snapshot
+  - encryption
+  - backup
+  - data-protection
+
+references:
+  - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CopySnapshot.html
