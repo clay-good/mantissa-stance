@@ -32,7 +32,7 @@ examples/
 
 2. **Run your first scan:**
    ```bash
-   stance scan --region us-east-1
+   stance scan --provider aws --region us-east-1
    ```
 
 3. **View findings:**

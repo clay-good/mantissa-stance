@@ -323,10 +323,10 @@ resource "aws_cloudwatch_event_target" "stance_lambda" {
 
 ```bash
 # Full scan (default)
-stance scan
+stance scan --provider aws --region us-east-1
 
 # Incremental scan
-stance scan --incremental
+stance scan --provider aws --region us-east-1 --incremental
 ```
 
 Incremental scans are faster but may miss some changes. Use full scans for compliance reporting.
@@ -360,11 +360,11 @@ Attach the read-only policy from above to this role.
 
 ```bash
 # Scan with assumed role
-stance scan --role-arn arn:aws:iam::TARGET_ACCOUNT:role/stance-scanner
+stance scan --provider aws --region us-east-1 --role-arn arn:aws:iam::TARGET_ACCOUNT:role/stance-scanner
 
 # Scan multiple accounts sequentially
 for account in 111111111111 222222222222 333333333333; do
-  stance scan --role-arn arn:aws:iam::$account:role/stance-scanner
+  stance scan --provider aws --region us-east-1 --role-arn arn:aws:iam::$account:role/stance-scanner
 done
 ```
 
@@ -461,7 +461,7 @@ docker build -t stance .
 
 # Run a scan
 docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
-  stance scan --region us-west-2
+  stance scan --provider aws --region us-west-2
 
 # Start dashboard
 docker run -p 8080:8080 -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
@@ -497,7 +497,7 @@ Enable verbose logging:
 
 ```bash
 export STANCE_LOG_LEVEL=DEBUG
-stance scan --verbose
+stance scan --provider aws --region us-east-1 --verbose
 ```
 
 ### Support

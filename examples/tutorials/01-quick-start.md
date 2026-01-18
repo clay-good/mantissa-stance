@@ -36,13 +36,16 @@ export AWS_DEFAULT_REGION=us-east-1
 
 ```bash
 # Basic scan of your AWS account
-stance scan
-
-# Scan specific region
-stance scan --region us-east-1
+stance scan --provider aws --region us-east-1
 
 # Scan with specific collectors
-stance scan --collectors iam,s3,ec2
+stance scan --provider aws --region us-east-1 --collectors aws_iam,aws_s3,aws_ec2
+
+# Scan GCP project
+stance scan --provider gcp --project-id my-project
+
+# Scan Azure subscription
+stance scan --provider azure --subscription-id my-subscription-id
 ```
 
 ## Step 3: View Findings
@@ -150,5 +153,5 @@ Solution: Ensure your IAM user/role has read permissions for the services being 
 ### No findings
 If a scan completes with no findings, your resources may already be compliant! Run with verbose output to see what was scanned:
 ```bash
-stance scan -v
+stance scan --provider aws --region us-east-1 -v
 ```

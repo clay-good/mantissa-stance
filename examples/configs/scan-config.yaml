@@ -2,7 +2,7 @@
 # This file configures how security scans are performed.
 #
 # Usage:
-#   stance scan --config ./scan-config.yaml
+#   stance scan --provider aws --region us-east-1 --config ./scan-config.yaml
 
 # General settings
 name: production-security-scan

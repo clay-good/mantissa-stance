@@ -427,7 +427,7 @@ Future Stance releases may add policies for:
 
 ```bash
 # Scan Azure subscription for CIS compliance
-stance scan --subscription-id YOUR_SUBSCRIPTION
+stance scan --provider azure --subscription-id YOUR_SUBSCRIPTION
 
 # Generate CIS compliance report
 stance report --framework cis-azure-foundations --format html

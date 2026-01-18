@@ -62,43 +62,42 @@ Create an IAM policy for Stance scanning:
 ### Basic Scan
 
 ```bash
-# Scan all regions with all collectors
-stance scan
+# Scan AWS account in specific region
+stance scan --provider aws --region us-east-1
 
-# Scan specific region
-stance scan --region us-east-1
-
-# Scan multiple regions (comma-separated)
-stance scan --region us-east-1,us-west-2,eu-west-1
+# Scan specific AWS account
+stance scan --provider aws --account-id 123456789012 --region us-east-1
 ```
 
 ### Targeted Scans
 
 ```bash
 # Scan only IAM
-stance scan --collectors iam
+stance scan --provider aws --region us-east-1 --collectors aws_iam
 
 # Scan storage services
-stance scan --collectors s3,rds,dynamodb
+stance scan --provider aws --region us-east-1 --collectors aws_s3,aws_rds,aws_dynamodb
 
 # Scan compute services
-stance scan --collectors ec2,lambda,eks
+stance scan --provider aws --region us-east-1 --collectors aws_ec2,aws_lambda,aws_eks
 ```
 
 ### Available Collectors
 
 | Collector | Description |
 |-----------|-------------|
-| `iam` | IAM users, roles, policies, access keys |
-| `s3` | S3 buckets, encryption, public access |
-| `ec2` | EC2 instances, security groups, EBS |
-| `security` | SecurityHub, GuardDuty findings |
-| `rds` | RDS instances, snapshots |
-| `lambda` | Lambda functions, permissions |
-| `dynamodb` | DynamoDB tables |
-| `apigateway` | API Gateway APIs |
-| `ecr` | ECR repositories, images |
-| `eks` | EKS clusters, node groups |
+| `aws_iam` | IAM users, roles, policies, access keys |
+| `aws_s3` | S3 buckets, encryption, public access |
+| `aws_ec2` | EC2 instances, security groups, EBS |
+| `aws_security` | SecurityHub, GuardDuty findings |
+| `aws_rds` | RDS instances, snapshots |
+| `aws_lambda` | Lambda functions, permissions |
+| `aws_dynamodb` | DynamoDB tables |
+| `aws_apigateway` | API Gateway APIs |
+| `aws_ecr` | ECR repositories, images |
+| `aws_eks` | EKS clusters, node groups |
+| `aws_sagemaker` | SageMaker endpoints, notebooks |
+| `aws_bedrock` | Bedrock models, guardrails, agents |
 
 ## Understanding Results
 
@@ -185,10 +184,10 @@ stance schedule run daily-scan
 
 ```bash
 # Use local SQLite storage (default)
-stance scan --storage local
+stance scan --provider aws --region us-east-1 --storage local
 
 # Use S3 for storage
-stance scan --storage s3 --s3-bucket my-stance-bucket
+stance scan --provider aws --region us-east-1 --storage s3 --s3-bucket my-stance-bucket
 
 # View stored snapshots
 stance history list

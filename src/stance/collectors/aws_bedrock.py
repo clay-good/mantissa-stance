@@ -8,6 +8,7 @@ guardrails, and agent configurations for AI/ML security posture assessment.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from stance.collectors.base import BaseCollector
@@ -159,14 +160,15 @@ class BedrockCollector(BaseCollector):
             }
 
             asset = Asset(
-                asset_id=model_arn or f"arn:aws:bedrock:{self.region}::foundation-model/{model_id}",
-                asset_type="aws_bedrock_model_access",
+                id=model_arn or f"arn:aws:bedrock:{self.region}::foundation-model/{model_id}",
+                cloud_provider="aws",
+                resource_type="aws_bedrock_model_access",
                 name=model_name,
                 region=self.region,
                 account_id=self.account_id,
                 tags={},
                 raw_config=raw_config,
-                collected_at=now,
+                last_seen=datetime.fromisoformat(now.replace("Z", "+00:00")) if now.endswith("Z") else datetime.fromisoformat(now),
                 network_exposure=NETWORK_EXPOSURE_INTERNAL,
             )
             assets.append(asset)
@@ -249,14 +251,15 @@ class BedrockCollector(BaseCollector):
             }
 
             asset = Asset(
-                asset_id=model_arn,
-                asset_type="aws_bedrock_custom_model",
+                id=model_arn,
+                cloud_provider="aws",
+                resource_type="aws_bedrock_custom_model",
                 name=model_name,
                 region=self.region,
                 account_id=self.account_id,
                 tags={},
                 raw_config=raw_config,
-                collected_at=now,
+                last_seen=datetime.fromisoformat(now.replace("Z", "+00:00")) if now.endswith("Z") else datetime.fromisoformat(now),
                 network_exposure=NETWORK_EXPOSURE_INTERNAL,
             )
             assets.append(asset)
@@ -310,14 +313,15 @@ class BedrockCollector(BaseCollector):
             }
 
             asset = Asset(
-                asset_id=throughput_arn,
-                asset_type="aws_bedrock_provisioned_throughput",
+                id=throughput_arn,
+                cloud_provider="aws",
+                resource_type="aws_bedrock_provisioned_throughput",
                 name=throughput_name,
                 region=self.region,
                 account_id=self.account_id,
                 tags={},
                 raw_config=raw_config,
-                collected_at=now,
+                last_seen=datetime.fromisoformat(now.replace("Z", "+00:00")) if now.endswith("Z") else datetime.fromisoformat(now),
                 network_exposure=NETWORK_EXPOSURE_INTERNAL,
             )
             assets.append(asset)
@@ -423,14 +427,15 @@ class BedrockCollector(BaseCollector):
             }
 
             asset = Asset(
-                asset_id=guardrail_arn,
-                asset_type="aws_bedrock_guardrail",
+                id=guardrail_arn,
+                cloud_provider="aws",
+                resource_type="aws_bedrock_guardrail",
                 name=guardrail_name,
                 region=self.region,
                 account_id=self.account_id,
                 tags={},
                 raw_config=raw_config,
-                collected_at=now,
+                last_seen=datetime.fromisoformat(now.replace("Z", "+00:00")) if now.endswith("Z") else datetime.fromisoformat(now),
                 network_exposure=NETWORK_EXPOSURE_INTERNAL,
             )
             assets.append(asset)
@@ -496,14 +501,15 @@ class BedrockCollector(BaseCollector):
             }
 
             asset = Asset(
-                asset_id=kb_details.get("knowledgeBaseArn", f"arn:aws:bedrock:{self.region}:{self.account_id}:knowledge-base/{kb_id}"),
-                asset_type="aws_bedrock_knowledge_base",
+                id=kb_details.get("knowledgeBaseArn", f"arn:aws:bedrock:{self.region}:{self.account_id}:knowledge-base/{kb_id}"),
+                cloud_provider="aws",
+                resource_type="aws_bedrock_knowledge_base",
                 name=kb_name,
                 region=self.region,
                 account_id=self.account_id,
                 tags={},
                 raw_config=raw_config,
-                collected_at=now,
+                last_seen=datetime.fromisoformat(now.replace("Z", "+00:00")) if now.endswith("Z") else datetime.fromisoformat(now),
                 network_exposure=NETWORK_EXPOSURE_INTERNAL,
             )
             assets.append(asset)
@@ -574,14 +580,15 @@ class BedrockCollector(BaseCollector):
             }
 
             asset = Asset(
-                asset_id=agent_details.get("agentArn", f"arn:aws:bedrock:{self.region}:{self.account_id}:agent/{agent_id}"),
-                asset_type="aws_bedrock_agent",
+                id=agent_details.get("agentArn", f"arn:aws:bedrock:{self.region}:{self.account_id}:agent/{agent_id}"),
+                cloud_provider="aws",
+                resource_type="aws_bedrock_agent",
                 name=agent_name,
                 region=self.region,
                 account_id=self.account_id,
                 tags={},
                 raw_config=raw_config,
-                collected_at=now,
+                last_seen=datetime.fromisoformat(now.replace("Z", "+00:00")) if now.endswith("Z") else datetime.fromisoformat(now),
                 network_exposure=NETWORK_EXPOSURE_INTERNAL,
             )
             assets.append(asset)

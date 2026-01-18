@@ -182,7 +182,11 @@ Stance primarily addresses **Security** and **Confidentiality** criteria.
 
 ```bash
 # Generate comprehensive SOC 2 evidence package
-stance scan --all-clouds
+# Scan each cloud provider
+stance scan --provider aws --region us-east-1
+stance scan --provider gcp --project-id YOUR_PROJECT
+stance scan --provider azure --subscription-id YOUR_SUBSCRIPTION
+
 stance report --framework soc2 --format html --output soc2-report.html
 stance findings --format csv --output soc2-findings.csv
 

@@ -2,7 +2,7 @@
 # This file configures where scan data is stored.
 #
 # Usage:
-#   stance scan --storage-config ./storage-config.yaml
+#   stance scan --provider aws --region us-east-1 --storage-config ./storage-config.yaml
 
 # Storage backend: local, s3, gcs, azure
 backend: local

@@ -81,7 +81,7 @@ Mantissa Stance is a Cloud Security Posture Management (CSPM) and Vulnerability 
 
 ### Scan Operation
 
-1. **User initiates scan**: `stance scan --account-id 123456789012`
+1. **User initiates scan**: `stance scan --provider aws --region us-east-1`
 2. **Collectors query AWS APIs**: Each collector makes read-only API calls to gather configuration data
 3. **Asset inventory created**: Discovered resources are normalized into Asset objects
 4. **Assets stored**: Asset collection is persisted to the storage layer with a snapshot ID
@@ -294,7 +294,7 @@ Required permission categories:
 
 ```bash
 pip install -e ".[dev]"
-stance scan
+stance scan --provider aws --region us-east-1
 ```
 
 ### Serverless (AWS Lambda)

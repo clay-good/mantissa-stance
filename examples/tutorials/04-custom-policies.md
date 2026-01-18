@@ -246,10 +246,10 @@ policies/
 
 ```bash
 # Load policies from default directory
-stance scan
+stance scan --provider aws --region us-east-1
 
 # Load from custom directory
-stance scan --policy-dir ./my-policies
+stance scan --provider aws --region us-east-1 --policy-dir ./my-policies
 
 # Load specific policy file
 stance policies load ./my-policy.yaml
@@ -303,7 +303,7 @@ stance policies test my-policy-test.yaml
 
 ```bash
 # Enable verbose policy evaluation
-stance scan -v --policy-debug
+stance scan --provider aws --region us-east-1 -v --policy-debug
 
 # Test expression syntax
 stance policies eval 'resource.name contains "prod"' --resource '{"name": "prod-bucket"}'

@@ -529,7 +529,7 @@ Future Stance releases may add policies for:
 
 ```bash
 # Scan AWS account for CIS compliance
-stance scan --account-id YOUR_ACCOUNT
+stance scan --provider aws --account-id YOUR_ACCOUNT --region us-east-1
 
 # Generate CIS compliance report
 stance report --framework cis-aws-foundations --format html

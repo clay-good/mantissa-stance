@@ -351,7 +351,7 @@ stance policies list --framework cis-aws-foundations
 Test policies against collected assets without storing findings:
 
 ```bash
-stance scan --dry-run
+stance scan --provider aws --region us-east-1 --dry-run
 ```
 
 This shows what findings would be generated without persisting them.

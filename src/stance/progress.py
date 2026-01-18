@@ -442,6 +442,7 @@ class ProgressTracker:
         completed: int | None = None,
         status: str | None = None,
         increment: int = 0,
+        total: int | None = None,
     ) -> None:
         """
         Update current step progress.
@@ -450,10 +451,13 @@ class ProgressTracker:
             completed: Absolute completed count
             status: New status message
             increment: Increment completed by this amount
+            total: Update the total count for the step
         """
         with self._lock:
             step = self._progress.current_step
             if step:
+                if total is not None:
+                    step.total = total
                 if completed is not None:
                     step.completed = completed
                 elif increment:

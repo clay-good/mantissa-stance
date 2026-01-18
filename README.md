@@ -98,11 +98,17 @@ make clean             # Remove build artifacts
 # Scan AWS account
 stance scan --provider aws --region us-east-1
 
+# Scan specific AWS account
+stance scan --provider aws --account-id 123456789012 --region us-west-2
+
 # Scan GCP project
 stance scan --provider gcp --project-id my-project
 
 # Scan Azure subscription
 stance scan --provider azure --subscription-id <subscription-id>
+
+# Scan with specific collectors
+stance scan --provider aws --region us-east-1 --collectors aws_iam,aws_s3,aws_ec2
 
 # View findings
 stance findings --severity critical
@@ -213,7 +219,7 @@ Discover and monitor external-facing assets using an outside-in approach:
 stance asm scan --domains example.com
 
 # Integrated CSPM + ASM scan
-stance scan --include-asm --asm-domains example.com
+stance scan --provider aws --region us-east-1 --include-asm --asm-domains example.com
 
 # View ASM inventory
 stance asm inventory --latest

@@ -151,8 +151,8 @@ PCI DSS applies to any organization that stores, processes, or transmits cardhol
 ## Running PCI Compliance Checks
 
 ```bash
-# Scan all clouds for PCI compliance
-stance scan --framework pci-dss
+# Scan for PCI compliance (AWS example)
+stance scan --provider aws --region us-east-1
 
 # Generate PCI compliance report
 stance report --framework pci-dss --format html

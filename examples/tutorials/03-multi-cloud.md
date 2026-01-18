@@ -45,13 +45,13 @@ az login
 
 ```bash
 # Scan AWS
-stance scan --cloud aws --region us-east-1
+stance scan --provider aws --region us-east-1
 
 # Scan GCP
-stance scan --cloud gcp --project my-gcp-project
+stance scan --provider gcp --project-id my-gcp-project
 
 # Scan Azure
-stance scan --cloud azure --subscription my-subscription
+stance scan --provider azure --subscription-id my-subscription
 ```
 
 ### Combined Report
@@ -63,13 +63,13 @@ All findings are stored in the same database, allowing unified reporting:
 stance findings
 
 # Filter by cloud provider
-stance findings --cloud aws
-stance findings --cloud gcp
-stance findings --cloud azure
+stance findings --provider aws
+stance findings --provider gcp
+stance findings --provider azure
 
 # View assets by cloud
-stance assets --cloud aws
-stance assets --cloud gcp
+stance assets --provider aws
+stance assets --provider gcp
 ```
 
 ## GCP Collectors
@@ -90,10 +90,10 @@ stance assets --cloud gcp
 
 ```bash
 # Full GCP scan
-stance scan --cloud gcp --project my-project
+stance scan --provider gcp --project-id my-project
 
 # Targeted GCP scan
-stance scan --cloud gcp --project my-project --collectors gcp_iam,gcp_storage,gcp_gke
+stance scan --provider gcp --project-id my-project --collectors gcp_iam,gcp_storage,gcp_gke
 ```
 
 ## Azure Collectors
@@ -114,10 +114,10 @@ stance scan --cloud gcp --project my-project --collectors gcp_iam,gcp_storage,gc
 
 ```bash
 # Full Azure scan
-stance scan --cloud azure --subscription my-sub-id
+stance scan --provider azure --subscription-id my-sub-id
 
 # Targeted Azure scan
-stance scan --cloud azure --collectors azure_identity,azure_storage,azure_aks
+stance scan --provider azure --subscription-id my-sub-id --collectors azure_identity,azure_storage,azure_aks
 ```
 
 ## Cross-Cloud Comparison
@@ -163,25 +163,30 @@ stance query "List all internet-exposed databases"
 
 ## Multi-Account/Project Scanning
 
+> **Note:** Multi-account/project scanning in a single command is a planned feature. Currently, run separate scans for each account/project.
+
 ### AWS Organizations
 
 ```bash
-# Scan multiple AWS accounts
-stance scan --cloud aws --accounts 111111111111,222222222222,333333333333
+# Scan multiple AWS accounts (run separately)
+stance scan --provider aws --account-id 111111111111 --region us-east-1
+stance scan --provider aws --account-id 222222222222 --region us-east-1
 ```
 
 ### GCP Projects
 
 ```bash
-# Scan multiple GCP projects
-stance scan --cloud gcp --projects project-a,project-b,project-c
+# Scan multiple GCP projects (run separately)
+stance scan --provider gcp --project-id project-a
+stance scan --provider gcp --project-id project-b
 ```
 
 ### Azure Subscriptions
 
 ```bash
-# Scan multiple Azure subscriptions
-stance scan --cloud azure --subscriptions sub-1,sub-2,sub-3
+# Scan multiple Azure subscriptions (run separately)
+stance scan --provider azure --subscription-id sub-1
+stance scan --provider azure --subscription-id sub-2
 ```
 
 ## Storage Configuration
@@ -190,13 +195,13 @@ For multi-cloud environments, use cloud storage:
 
 ```bash
 # AWS S3 storage
-stance scan --storage s3 --s3-bucket my-stance-bucket
+stance scan --provider aws --region us-east-1 --storage s3 --s3-bucket my-stance-bucket
 
 # GCP Cloud Storage
-stance scan --storage gcs --gcs-bucket my-stance-bucket
+stance scan --provider gcp --project-id my-project --storage gcs --gcs-bucket my-stance-bucket
 
 # Azure Blob Storage
-stance scan --storage azure --azure-container my-stance-container
+stance scan --provider azure --subscription-id my-sub --storage azure --azure-container my-stance-container
 ```
 
 ## Best Practices
@@ -220,15 +225,15 @@ export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
 
 # Scan AWS
 echo "Scanning AWS..."
-stance scan --cloud aws --region us-east-1,us-west-2
+stance scan --provider aws --region us-east-1
 
 # Scan GCP
 echo "Scanning GCP..."
-stance scan --cloud gcp --project my-project
+stance scan --provider gcp --project-id my-project
 
 # Scan Azure
 echo "Scanning Azure..."
-stance scan --cloud azure
+stance scan --provider azure --subscription-id my-subscription
 
 # Generate combined report
 echo "Generating report..."

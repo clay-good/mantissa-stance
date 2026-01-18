@@ -79,28 +79,55 @@ def cmd_scan(args: argparse.Namespace) -> int:
         # Initialize storage
         storage = get_storage(args.storage)
 
+        # Get provider from args (default to aws)
+        provider = getattr(args, "provider", "aws") or "aws"
+
+        # Validate provider-specific required arguments
+        if provider == "gcp":
+            project_id = getattr(args, "project_id", None)
+            if not project_id:
+                tracker.fail("--project-id is required for GCP provider")
+                print("Error: --project-id is required when using --provider gcp")
+                return 1
+        elif provider == "azure":
+            subscription_id = getattr(args, "subscription_id", None)
+            if not subscription_id:
+                tracker.fail("--subscription-id is required for Azure provider")
+                print("Error: --subscription-id is required when using --provider azure")
+                return 1
+
         # Parse collectors to run
         collectors_to_run = None
         if args.collectors:
             collectors_to_run = [c.strip() for c in args.collectors.split(",")]
-            # Validate collector names
-            valid_collectors = list_collector_names()
+            # Validate collector names for the specified provider
+            valid_collectors = list_collector_names(provider=provider)
             for c in collectors_to_run:
                 if c not in valid_collectors:
                     tracker.fail(f"Unknown collector '{c}'")
-                    print(f"Error: Unknown collector '{c}'")
+                    print(f"Error: Unknown collector '{c}' for provider '{provider}'")
                     print(f"Valid collectors: {', '.join(valid_collectors)}")
                     return 1
 
         # Step 1: Collection
         step_index = 0
         tracker.set_phase(ProgressPhase.COLLECTING)
-        tracker.start_step(step_index, status="Collecting assets from AWS")
+        provider_display = provider.upper()
+        tracker.start_step(step_index, status=f"Collecting assets from {provider_display}")
 
-        assets, security_findings, results = run_collection(
-            region=args.region,
-            collectors=collectors_to_run,
-        )
+        # Build collection kwargs based on provider
+        collection_kwargs: dict[str, Any] = {
+            "region": args.region,
+            "collectors": collectors_to_run,
+            "provider": provider,
+        }
+
+        if provider == "gcp":
+            collection_kwargs["project_id"] = getattr(args, "project_id", None)
+        elif provider == "azure":
+            collection_kwargs["subscription_id"] = getattr(args, "subscription_id", None)
+
+        assets, security_findings, results = run_collection(**collection_kwargs)
 
         tracker.update_step(status=f"Collected {len(assets)} assets")
 

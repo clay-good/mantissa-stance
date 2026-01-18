@@ -336,6 +336,8 @@ def get_default_collectors(
     session: Any | None = None,
     region: str = "us-east-1",
     provider: str = "aws",
+    project_id: str | None = None,
+    subscription_id: str | None = None,
 ) -> list[BaseCollector]:
     """
     Return list of all default collectors for a provider.
@@ -344,6 +346,8 @@ def get_default_collectors(
         session: Optional boto3 session to use
         region: Region to collect from
         provider: Cloud provider (default: "aws")
+        project_id: GCP project ID (required for GCP provider)
+        subscription_id: Azure subscription ID (required for Azure provider)
 
     Returns:
         List of initialized collectors
@@ -363,6 +367,14 @@ def get_default_collectors(
             SageMakerCollector(session=session, region=region),
             BedrockCollector(session=session, region=region),
         ]
+    elif provider == "gcp":
+        return get_collectors_for_provider(
+            provider, session=session, project_id=project_id, region=region
+        )
+    elif provider == "azure":
+        return get_collectors_for_provider(
+            provider, session=session, subscription_id=subscription_id
+        )
     else:
         return get_collectors_for_provider(provider, session=session, region=region)
 
@@ -372,6 +384,8 @@ def run_collection(
     region: str = "us-east-1",
     collectors: list[str] | None = None,
     provider: str = "aws",
+    project_id: str | None = None,
+    subscription_id: str | None = None,
 ) -> tuple[AssetCollection, FindingCollection, list[CollectorResult]]:
     """
     Run collection with specified or all collectors.
@@ -381,6 +395,8 @@ def run_collection(
         region: Region to collect from
         collectors: List of collector names to run, or None for all
         provider: Cloud provider to collect from
+        project_id: GCP project ID (required for GCP provider)
+        subscription_id: Azure subscription ID (required for Azure provider)
 
     Returns:
         Tuple of (assets, findings, results)
@@ -395,13 +411,24 @@ def run_collection(
         ... )
 
         >>> # Run for a specific provider
-        >>> assets, findings, results = run_collection(provider="gcp")
+        >>> assets, findings, results = run_collection(
+        ...     provider="gcp", project_id="my-project"
+        ... )
+
+        >>> # Run for Azure
+        >>> assets, findings, results = run_collection(
+        ...     provider="azure", subscription_id="my-subscription-id"
+        ... )
     """
     from stance.models import FindingCollection
 
     # Get all default collectors for the provider
     all_collectors = get_default_collectors(
-        session=session, region=region, provider=provider
+        session=session,
+        region=region,
+        provider=provider,
+        project_id=project_id,
+        subscription_id=subscription_id,
     )
 
     # Filter by name if specified

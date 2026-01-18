@@ -513,7 +513,7 @@ Future Stance releases may add policies for:
 
 ```bash
 # Scan GCP project for CIS compliance
-stance scan --project-id YOUR_PROJECT
+stance scan --provider gcp --project-id YOUR_PROJECT
 
 # Generate CIS compliance report
 stance report --framework cis-gcp-foundations --format html

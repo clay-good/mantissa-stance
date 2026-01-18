@@ -205,8 +205,8 @@ When using cloud services for ePHI:
 ## Running HIPAA Compliance Checks
 
 ```bash
-# Scan for HIPAA compliance
-stance scan --framework hipaa
+# Scan for HIPAA compliance (AWS example)
+stance scan --provider aws --region us-east-1
 
 # Generate HIPAA compliance report
 stance report --framework hipaa --format html --output hipaa-report.html

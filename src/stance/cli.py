@@ -104,13 +104,27 @@ def create_parser() -> argparse.ArgumentParser:
     # scan command
     scan_parser = subparsers.add_parser("scan", help="Run posture assessment")
     scan_parser.add_argument(
+        "--provider",
+        choices=["aws", "gcp", "azure"],
+        default="aws",
+        help="Cloud provider to scan (default: aws)",
+    )
+    scan_parser.add_argument(
         "--account-id",
         help="AWS account ID to scan (uses current if not specified)",
     )
     scan_parser.add_argument(
+        "--project-id",
+        help="GCP project ID to scan (required for GCP provider)",
+    )
+    scan_parser.add_argument(
+        "--subscription-id",
+        help="Azure subscription ID to scan (required for Azure provider)",
+    )
+    scan_parser.add_argument(
         "--region",
         default="us-east-1",
-        help="AWS region (default: us-east-1)",
+        help="Cloud region (default: us-east-1 for AWS)",
     )
     scan_parser.add_argument(
         "--collectors",
