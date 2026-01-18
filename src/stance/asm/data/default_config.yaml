@@ -1,0 +1,205 @@
+# =============================================================================
+# Mantissa Stance - ASM Default Configuration
+# =============================================================================
+#
+# This file contains the default configuration for Attack Surface Management.
+# Copy this file to your project directory and customize as needed.
+#
+# Configuration precedence (highest to lowest):
+#   1. CLI arguments (e.g., --domains, --mode)
+#   2. Environment variables (STANCE_ASM_*)
+#   3. Project config file (stance.yaml or stance.toml)
+#   4. This default configuration
+#
+# =============================================================================
+
+asm:
+  # ---------------------------------------------------------------------------
+  # Target Configuration
+  # ---------------------------------------------------------------------------
+
+  # Primary domains to scan. Specify your organization's root domains.
+  # Subdomains will be discovered automatically.
+  # Example: ["example.com", "example.org"]
+  target_domains: []
+
+  # Domains to exclude from scanning (supports wildcards)
+  # Example: ["internal.example.com", "*.test.example.com"]
+  excluded_domains: []
+
+  # IP addresses or ranges to exclude (CIDR notation supported)
+  # Example: ["10.0.0.0/8", "192.168.1.100"]
+  excluded_ips: []
+
+  # ---------------------------------------------------------------------------
+  # Scan Mode Configuration
+  # ---------------------------------------------------------------------------
+
+  # Scan mode determines which collectors are enabled:
+  #   - passive: Certificate transparency, DNS lookups, public data only
+  #   - active: Includes port scanning (requires ownership verification)
+  #   - full: All techniques including subdomain brute-forcing
+  scan_mode: passive
+
+  # Require domain ownership verification before active scanning
+  # STRONGLY RECOMMENDED: Keep this enabled for legal compliance
+  ownership_verification_required: true
+
+  # ---------------------------------------------------------------------------
+  # Collector Configuration - Passive Mode
+  # ---------------------------------------------------------------------------
+
+  # Certificate Transparency log monitoring
+  # Discovers subdomains from public CT logs (crt.sh)
+  enable_cert_transparency: true
+
+  # DNS enumeration (passive - no brute-forcing)
+  # Resolves common subdomain prefixes and DNS records
+  enable_dns_enumeration: true
+
+  # Cloud IP range detection
+  # Identifies which cloud provider hosts discovered assets
+  enable_cloud_ip_detection: true
+
+  # Technology fingerprinting
+  # Detects web technologies via HTTP headers and certificates
+  enable_technology_fingerprinting: true
+
+  # ---------------------------------------------------------------------------
+  # Collector Configuration - Active Mode (Opt-in)
+  # ---------------------------------------------------------------------------
+
+  # Port scanning - ONLY runs with verified domain ownership
+  # Discovers open ports and services
+  enable_port_scanning: false
+
+  # Subdomain brute-forcing - ONLY runs with verified domain ownership
+  # Discovers subdomains using wordlist enumeration
+  enable_subdomain_bruteforce: false
+
+  # Ports to scan when port scanning is enabled
+  # Default list covers common services
+  port_scan_ports:
+    - 21     # FTP
+    - 22     # SSH
+    - 23     # Telnet
+    - 25     # SMTP
+    - 53     # DNS
+    - 80     # HTTP
+    - 110    # POP3
+    - 143    # IMAP
+    - 443    # HTTPS
+    - 445    # SMB
+    - 993    # IMAPS
+    - 995    # POP3S
+    - 3306   # MySQL
+    - 3389   # RDP
+    - 5432   # PostgreSQL
+    - 6379   # Redis
+    - 8080   # HTTP Alternate
+    - 8443   # HTTPS Alternate
+    - 9200   # Elasticsearch
+    - 27017  # MongoDB
+
+  # ---------------------------------------------------------------------------
+  # Rate Limiting and Performance
+  # ---------------------------------------------------------------------------
+
+  # Maximum concurrent requests/connections
+  max_concurrent_requests: 10
+
+  # Request timeout in seconds
+  request_timeout_seconds: 10
+
+  # Delay between requests to same host (milliseconds)
+  request_delay_ms: 100
+
+  # Maximum DNS queries per second
+  max_dns_queries_per_second: 50
+
+  # Maximum port scan rate (ports per minute per target)
+  max_port_scan_rate: 100
+
+  # ---------------------------------------------------------------------------
+  # Continuous Monitoring
+  # ---------------------------------------------------------------------------
+
+  # Interval between automated scans (hours)
+  # Set to 0 to disable continuous monitoring
+  scan_interval_hours: 24
+
+  # Enable drift detection between scans
+  enable_drift_detection: true
+
+  # Alert on these drift types
+  drift_alert_types:
+    - new_asset
+    - new_port
+    - certificate_change
+    - removed_asset
+
+  # ---------------------------------------------------------------------------
+  # Wordlist Configuration
+  # ---------------------------------------------------------------------------
+
+  # Path to custom subdomain wordlist
+  # Leave empty to use built-in wordlist
+  subdomain_wordlist_path: ""
+
+  # Enable permutation generation (dev-api, api-dev, etc.)
+  enable_subdomain_permutations: true
+
+  # ---------------------------------------------------------------------------
+  # Output and Storage
+  # ---------------------------------------------------------------------------
+
+  # Store scan results to configured backend
+  store_results: true
+
+  # Number of historical scans to retain
+  max_scan_history: 100
+
+  # Cache TTL for cloud IP ranges (hours)
+  cloud_ip_cache_ttl_hours: 24
+
+  # Cache TTL for CT log results (hours)
+  ct_cache_ttl_hours: 1
+
+  # ---------------------------------------------------------------------------
+  # Risk Scoring Thresholds
+  # ---------------------------------------------------------------------------
+
+  # Minimum risk score to generate alerts
+  alert_risk_threshold: 6.0
+
+  # Risk score thresholds for severity classification
+  risk_thresholds:
+    critical: 8.0
+    high: 6.0
+    medium: 4.0
+    low: 2.0
+
+  # ---------------------------------------------------------------------------
+  # CSPM Correlation
+  # ---------------------------------------------------------------------------
+
+  # Automatically correlate with CSPM inventory after scan
+  enable_cspm_correlation: true
+
+  # Generate shadow IT findings for uncorrelated assets
+  detect_shadow_it: true
+
+# =============================================================================
+# Environment Variable Mapping
+# =============================================================================
+#
+# All settings can be overridden via environment variables:
+#
+#   STANCE_ASM_TARGET_DOMAINS       - Comma-separated list of domains
+#   STANCE_ASM_SCAN_MODE            - passive, active, or full
+#   STANCE_ASM_ENABLE_PORT_SCANNING - true or false
+#   STANCE_ASM_MAX_CONCURRENT       - Maximum concurrent requests
+#   STANCE_ASM_TIMEOUT              - Request timeout in seconds
+#   STANCE_ASM_SCAN_INTERVAL        - Scan interval in hours
+#
+# =============================================================================

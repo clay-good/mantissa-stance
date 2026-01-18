@@ -37,7 +37,7 @@ class TestScanningImageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = False
             mock_scanner_class.return_value = mock_scanner
@@ -56,7 +56,7 @@ class TestScanningImageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = True
             mock_scanner.get_version.return_value = "0.48.0"
@@ -108,8 +108,8 @@ class TestScanningImageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class, \
-             patch("stance.web.server.VulnerabilitySeverity") as mock_severity:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class, \
+             patch("stance.scanner.VulnerabilitySeverity") as mock_severity:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = True
             mock_scanner.get_version.return_value = "0.48.0"
@@ -143,7 +143,7 @@ class TestScanningImageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = True
             mock_scanner.get_version.return_value = "0.48.0"
@@ -175,7 +175,7 @@ class TestScanningImageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = True
             mock_scanner.get_version.return_value = "0.48.0"
@@ -212,7 +212,7 @@ class TestScanningIaCAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class:
+        with patch("pathlib.Path") as mock_path_class:
             mock_path = MagicMock()
             mock_path.is_file.return_value = False
             mock_path.is_dir.return_value = True
@@ -232,13 +232,13 @@ class TestScanningIaCAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class, \
-             patch("stance.web.server.IaCScanner") as mock_scanner_class, \
-             patch("stance.web.server.TerraformParser"), \
-             patch("stance.web.server.CloudFormationParser"), \
-             patch("stance.web.server.ARMTemplateParser"), \
-             patch("stance.web.server.IaCPolicyEvaluator"), \
-             patch("stance.web.server.get_default_iac_policies"):
+        with patch("pathlib.Path") as mock_path_class, \
+             patch("stance.iac.IaCScanner") as mock_scanner_class, \
+             patch("stance.iac.TerraformParser"), \
+             patch("stance.iac.CloudFormationParser"), \
+             patch("stance.iac.ARMTemplateParser"), \
+             patch("stance.iac.IaCPolicyEvaluator"), \
+             patch("stance.iac.get_default_iac_policies"):
 
             # Setup path mock
             mock_file = MagicMock()
@@ -282,13 +282,13 @@ class TestScanningIaCAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class, \
-             patch("stance.web.server.IaCScanner") as mock_scanner_class, \
-             patch("stance.web.server.TerraformParser"), \
-             patch("stance.web.server.CloudFormationParser"), \
-             patch("stance.web.server.ARMTemplateParser"), \
-             patch("stance.web.server.IaCPolicyEvaluator"), \
-             patch("stance.web.server.get_default_iac_policies"):
+        with patch("pathlib.Path") as mock_path_class, \
+             patch("stance.iac.IaCScanner") as mock_scanner_class, \
+             patch("stance.iac.TerraformParser"), \
+             patch("stance.iac.CloudFormationParser"), \
+             patch("stance.iac.ARMTemplateParser"), \
+             patch("stance.iac.IaCPolicyEvaluator"), \
+             patch("stance.iac.get_default_iac_policies"):
 
             mock_path = MagicMock()
             mock_path.is_file.return_value = True
@@ -340,7 +340,7 @@ class TestScanningSecretsAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class:
+        with patch("pathlib.Path") as mock_path_class:
             mock_path = MagicMock()
             mock_path.is_file.return_value = False
             mock_path.is_dir.return_value = True
@@ -360,8 +360,8 @@ class TestScanningSecretsAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class, \
-             patch("stance.web.server.SecretsDetector") as mock_detector_class:
+        with patch("pathlib.Path") as mock_path_class, \
+             patch("stance.detection.secrets.SecretsDetector") as mock_detector_class:
 
             # Setup path mock
             mock_file = MagicMock()
@@ -402,8 +402,8 @@ class TestScanningSecretsAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class, \
-             patch("stance.web.server.SecretsDetector") as mock_detector_class:
+        with patch("pathlib.Path") as mock_path_class, \
+             patch("stance.detection.secrets.SecretsDetector") as mock_detector_class:
 
             mock_path = MagicMock()
             mock_path.is_file.return_value = False
@@ -457,7 +457,7 @@ class TestScanningSummaryAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = True
             mock_scanner.get_version.return_value = "0.48.0"
@@ -480,7 +480,7 @@ class TestScanningSummaryAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = True
             mock_scanner.get_version.return_value = "0.48.0"
@@ -498,7 +498,7 @@ class TestScanningSummaryAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = False
             mock_scanner_class.return_value = mock_scanner
@@ -515,7 +515,7 @@ class TestScanningSummaryAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = False
             mock_scanner_class.return_value = mock_scanner
@@ -533,7 +533,7 @@ class TestScanningSummaryAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = False
             mock_scanner_class.return_value = mock_scanner
@@ -585,7 +585,7 @@ class TestScanningAPIIntegration:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.TrivyScanner") as mock_scanner_class:
+        with patch("stance.scanner.TrivyScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_scanner.is_available.return_value = False
             mock_scanner_class.return_value = mock_scanner
@@ -608,7 +608,7 @@ class TestScanningAPIIntegration:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class:
+        with patch("pathlib.Path") as mock_path_class:
             mock_path = MagicMock()
             mock_path.is_file.return_value = False
             mock_path.is_dir.return_value = True
@@ -630,7 +630,7 @@ class TestScanningAPIIntegration:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.Path") as mock_path_class:
+        with patch("pathlib.Path") as mock_path_class:
             mock_path = MagicMock()
             mock_path.is_file.return_value = False
             mock_path.is_dir.return_value = True

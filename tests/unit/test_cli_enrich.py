@@ -28,7 +28,7 @@ from stance.cli_enrich import (
     _cmd_enrich_status,
 )
 from stance.models.asset import Asset, AssetCollection
-from stance.models.finding import Finding, FindingType, Severity
+from stance.models.finding import Finding, FindingType, FindingStatus, Severity
 from stance.enrichment.base import (
     EnrichedFinding,
     EnrichedAsset,
@@ -77,6 +77,7 @@ class TestEnrichFindings:
             description="Test description",
             severity=Severity.HIGH,
             finding_type=FindingType.VULNERABILITY,
+            status=FindingStatus.OPEN,
             cve_id="CVE-2021-44228",
             asset_id="asset-001",
         )
@@ -98,8 +99,8 @@ class TestEnrichFindings:
             limit=50,
         )
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = None
             result = _cmd_enrich_findings(args)
 
         assert result == 1
@@ -129,10 +130,10 @@ class TestEnrichFindings:
             ],
         )
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
-            with patch("stance.cli_enrich.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_findings.return_value = [enriched_finding]
 
                 result = _cmd_enrich_findings(args)
@@ -164,10 +165,10 @@ class TestEnrichFindings:
             ],
         )
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
-            with patch("stance.cli_enrich.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_findings.return_value = [enriched_finding]
 
                 result = _cmd_enrich_findings(args)
@@ -190,12 +191,12 @@ class TestEnrichFindings:
 
         enriched_finding = EnrichedFinding(finding=mock_finding, enrichments=[])
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
-            with patch("stance.cli_enrich.CVEEnricher"):
-                with patch("stance.cli_enrich.KEVEnricher"):
-                    with patch("stance.cli_enrich.EnrichmentPipeline") as mock_pipeline:
+            with patch("stance.enrichment.CVEEnricher"):
+                with patch("stance.enrichment.KEVEnricher"):
+                    with patch("stance.enrichment.EnrichmentPipeline") as mock_pipeline:
                         mock_pipeline.return_value.enrich_findings.return_value = [enriched_finding]
 
                         result = _cmd_enrich_findings(args)
@@ -212,8 +213,8 @@ class TestEnrichFindings:
             limit=50,
         )
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
             result = _cmd_enrich_findings(args)
 
@@ -233,6 +234,7 @@ class TestEnrichAssets:
             name="test-bucket",
             resource_type="aws_s3_bucket",
             cloud_provider="aws",
+            account_id="123456789012",
             region="us-east-1",
             tags={"environment": "production"},
         )
@@ -255,8 +257,8 @@ class TestEnrichAssets:
             limit=50,
         )
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = None
             result = _cmd_enrich_assets(args)
 
         assert result == 1
@@ -286,10 +288,10 @@ class TestEnrichAssets:
             ],
         )
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets_data
 
-            with patch("stance.cli_enrich.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_assets.return_value = [enriched_asset]
 
                 result = _cmd_enrich_assets(args)
@@ -311,10 +313,10 @@ class TestEnrichAssets:
 
         enriched_asset = EnrichedAsset(asset=mock_asset, enrichments=[])
 
-        with patch("stance.cli_enrich.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets_data
 
-            with patch("stance.cli_enrich.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_assets.return_value = [enriched_asset]
 
                 result = _cmd_enrich_assets(args)
@@ -358,7 +360,7 @@ class TestEnrichIP:
             "geolocation": None,
         }
 
-        with patch("stance.cli_enrich.IPEnricher") as mock_enricher:
+        with patch("stance.enrichment.IPEnricher") as mock_enricher:
             mock_enricher.return_value.lookup_ip.return_value = mock_result
             result = _cmd_enrich_ip(args)
 
@@ -385,7 +387,7 @@ class TestEnrichIP:
             "geolocation": None,
         }
 
-        with patch("stance.cli_enrich.IPEnricher") as mock_enricher:
+        with patch("stance.enrichment.IPEnricher") as mock_enricher:
             mock_enricher.return_value.lookup_ip.return_value = mock_result
             result = _cmd_enrich_ip(args)
 
@@ -421,7 +423,7 @@ class TestEnrichCVE:
             format="table",
         )
 
-        with patch("stance.cli_enrich.CVEEnricher") as mock_enricher:
+        with patch("stance.enrichment.CVEEnricher") as mock_enricher:
             mock_enricher.return_value._lookup_cve.return_value = None
             result = _cmd_enrich_cve(args)
 
@@ -451,7 +453,7 @@ class TestEnrichCVE:
             "weaknesses": ["CWE-502"],
         }
 
-        with patch("stance.cli_enrich.CVEEnricher") as mock_enricher:
+        with patch("stance.enrichment.CVEEnricher") as mock_enricher:
             mock_enricher.return_value._lookup_cve.return_value = mock_result
             result = _cmd_enrich_cve(args)
 
@@ -473,7 +475,7 @@ class TestEnrichCVE:
             "description": "Apache Log4j2 vulnerability",
         }
 
-        with patch("stance.cli_enrich.CVEEnricher") as mock_enricher:
+        with patch("stance.enrichment.CVEEnricher") as mock_enricher:
             mock_enricher.return_value._lookup_cve.return_value = mock_result
             result = _cmd_enrich_cve(args)
 
@@ -495,7 +497,7 @@ class TestEnrichKEV:
             format="table",
         )
 
-        with patch("stance.cli_enrich.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {}
             result = _cmd_enrich_kev(args)
 
@@ -520,7 +522,7 @@ class TestEnrichKEV:
             },
         }
 
-        with patch("stance.cli_enrich.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = mock_kev_data
             result = _cmd_enrich_kev(args)
 
@@ -537,7 +539,7 @@ class TestEnrichKEV:
             format="table",
         )
 
-        with patch("stance.cli_enrich.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {}
             mock_enricher.return_value.is_known_exploited.return_value = False
             result = _cmd_enrich_kev(args)
@@ -565,7 +567,7 @@ class TestEnrichKEV:
             "requiredAction": "Apply updates per vendor instructions",
         }
 
-        with patch("stance.cli_enrich.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {"CVE-2021-44228": mock_kev_entry}
             mock_enricher.return_value.is_known_exploited.return_value = True
             result = _cmd_enrich_kev(args)
@@ -589,7 +591,7 @@ class TestEnrichKEV:
             "product": "Log4j",
         }
 
-        with patch("stance.cli_enrich.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {"CVE-2021-44228": mock_kev_entry}
             mock_enricher.return_value.is_known_exploited.return_value = True
             result = _cmd_enrich_kev(args)

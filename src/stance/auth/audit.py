@@ -151,16 +151,16 @@ class AuditLogger:
         safe_metadata = self._redact_sensitive(metadata or {})
 
         event = AuditEvent(
+            id="",  # Will be auto-generated
             event_type=event_type,
             user_id=user_id,
             ip_address=ip_address,
             user_agent=user_agent,
-            resource_type=resource_type,
-            resource_id=resource_id,
+            resource=f"{resource_type}:{resource_id}" if resource_id else resource_type,
             action=action,
-            status=status,
+            success=(status == "success"),
             error_message=error_message,
-            metadata=safe_metadata,
+            details=safe_metadata,
             request_id=request_id,
             tenant_id=tenant_id,
         )
@@ -210,10 +210,9 @@ class AuditLogger:
             "event_type": event.event_type.value,
             "user_id": event.user_id,
             "ip_address": event.ip_address,
-            "resource_type": event.resource_type,
-            "resource_id": event.resource_id,
+            "resource": event.resource,
             "action": event.action,
-            "status": event.status,
+            "success": event.success,
             "request_id": event.request_id,
             "tenant_id": event.tenant_id,
         }
@@ -223,7 +222,7 @@ class AuditLogger:
 
         message = json.dumps(log_data)
 
-        if event.status == "failure":
+        if not event.success:
             self._logger.warning(message)
         else:
             self._logger.info(message)

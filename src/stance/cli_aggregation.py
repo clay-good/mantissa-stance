@@ -30,7 +30,7 @@ from stance.aggregation import (
     MergeStrategy,
     BackendConfig,
 )
-from stance.models.finding import Finding, Severity
+from stance.models.finding import Finding, FindingType, FindingStatus, Severity
 
 
 def cmd_aggregation(args: argparse.Namespace) -> int:
@@ -609,6 +609,8 @@ def _get_sample_aggregation_data() -> tuple[list[CloudAccount], dict[str, list[F
                 title="S3 bucket without encryption",
                 description="S3 bucket does not have encryption enabled",
                 severity=Severity.HIGH,
+                finding_type=FindingType.MISCONFIGURATION,
+                status=FindingStatus.OPEN,
                 rule_id="aws-s3-001",
                 asset_id="arn:aws:s3:::my-bucket",
                 first_seen=now,
@@ -619,6 +621,8 @@ def _get_sample_aggregation_data() -> tuple[list[CloudAccount], dict[str, list[F
                 title="Public S3 bucket detected",
                 description="S3 bucket allows public access",
                 severity=Severity.CRITICAL,
+                finding_type=FindingType.MISCONFIGURATION,
+                status=FindingStatus.OPEN,
                 rule_id="aws-s3-002",
                 asset_id="arn:aws:s3:::public-bucket",
                 first_seen=now,
@@ -631,6 +635,8 @@ def _get_sample_aggregation_data() -> tuple[list[CloudAccount], dict[str, list[F
                 title="GCS bucket without encryption",
                 description="Cloud Storage bucket does not have encryption",
                 severity=Severity.HIGH,
+                finding_type=FindingType.MISCONFIGURATION,
+                status=FindingStatus.OPEN,
                 rule_id="gcp-storage-001",
                 asset_id="//storage.googleapis.com/projects/my-gcp-project/buckets/my-bucket",
                 first_seen=now,
@@ -643,6 +649,8 @@ def _get_sample_aggregation_data() -> tuple[list[CloudAccount], dict[str, list[F
                 title="Storage account without encryption",
                 description="Azure storage account does not have encryption",
                 severity=Severity.HIGH,
+                finding_type=FindingType.MISCONFIGURATION,
+                status=FindingStatus.OPEN,
                 rule_id="azure-storage-001",
                 asset_id="/subscriptions/azure-sub-001/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/mystorageaccount",
                 first_seen=now,

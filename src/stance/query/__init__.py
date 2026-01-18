@@ -15,6 +15,14 @@ from stance.query.base import (
     ASSETS_SCHEMA,
     FINDINGS_SCHEMA,
     get_common_schemas,
+    # ASM schemas
+    ASM_EXTERNAL_ASSETS_SCHEMA,
+    ASM_SCANS_SCHEMA,
+    V_UNIFIED_ASSETS_SCHEMA,
+    V_SHADOW_IT_SCHEMA,
+    V_ATTACK_SURFACE_SCHEMA,
+    get_asm_schemas,
+    get_all_schemas,
 )
 from stance.query.athena import AthenaQueryEngine
 from stance.query.bigquery import BigQueryEngine
@@ -37,6 +45,14 @@ __all__ = [
     "ASSETS_SCHEMA",
     "FINDINGS_SCHEMA",
     "get_common_schemas",
+    # ASM schemas
+    "ASM_EXTERNAL_ASSETS_SCHEMA",
+    "ASM_SCANS_SCHEMA",
+    "V_UNIFIED_ASSETS_SCHEMA",
+    "V_SHADOW_IT_SCHEMA",
+    "V_ATTACK_SURFACE_SCHEMA",
+    "get_asm_schemas",
+    "get_all_schemas",
     # Factory function
     "get_query_engine",
 ]

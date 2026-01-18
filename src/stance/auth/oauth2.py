@@ -11,12 +11,22 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import secrets
 import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    import httpx
+    HTTPX_AVAILABLE = True
+except ImportError:
+    httpx = None  # type: ignore
+    HTTPX_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -113,20 +123,71 @@ class OIDCConfig(OAuth2Config):
         """
         Create config from OIDC discovery document.
 
-        Note: In a real implementation, this would fetch the discovery document.
+        Fetches the OpenID Connect discovery document from the issuer's
+        .well-known/openid-configuration endpoint.
+
+        Args:
+            issuer: OIDC issuer URL
+            client_id: OAuth2 client ID
+            client_secret: OAuth2 client secret (optional for public clients)
+
+        Returns:
+            OIDCConfig populated from discovery document
         """
-        # This is a placeholder - real implementation would fetch from issuer/.well-known/openid-configuration
-        return cls(
-            provider_name="oidc",
-            client_id=client_id,
-            client_secret=client_secret,
-            issuer=issuer,
-            authorization_endpoint=f"{issuer}/authorize",
-            token_endpoint=f"{issuer}/token",
-            userinfo_endpoint=f"{issuer}/userinfo",
-            jwks_uri=f"{issuer}/.well-known/jwks.json",
-            end_session_endpoint=f"{issuer}/logout",
-        )
+        discovery_url = f"{issuer.rstrip('/')}/.well-known/openid-configuration"
+
+        if not HTTPX_AVAILABLE:
+            logger.warning("httpx not available, using default OIDC endpoints")
+            return cls(
+                provider_name="oidc",
+                client_id=client_id,
+                client_secret=client_secret,
+                issuer=issuer,
+                authorization_endpoint=f"{issuer}/authorize",
+                token_endpoint=f"{issuer}/token",
+                userinfo_endpoint=f"{issuer}/userinfo",
+                jwks_uri=f"{issuer}/.well-known/jwks.json",
+                end_session_endpoint=f"{issuer}/logout",
+            )
+
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(discovery_url)
+                response.raise_for_status()
+                doc = response.json()
+
+            logger.debug(f"Fetched OIDC discovery document from {discovery_url}")
+
+            return cls(
+                provider_name=doc.get("issuer", "oidc"),
+                client_id=client_id,
+                client_secret=client_secret,
+                issuer=doc.get("issuer", issuer),
+                authorization_endpoint=doc.get("authorization_endpoint", ""),
+                token_endpoint=doc.get("token_endpoint", ""),
+                userinfo_endpoint=doc.get("userinfo_endpoint", ""),
+                revocation_endpoint=doc.get("revocation_endpoint", ""),
+                jwks_uri=doc.get("jwks_uri", ""),
+                end_session_endpoint=doc.get("end_session_endpoint", ""),
+                scopes=doc.get("scopes_supported", ["openid", "profile", "email"]),
+                claims_supported=doc.get("claims_supported", []),
+                id_token_signing_alg=doc.get("id_token_signing_alg_values_supported", ["RS256"])[0]
+                    if doc.get("id_token_signing_alg_values_supported") else "RS256",
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch OIDC discovery document: {e}, using defaults")
+            return cls(
+                provider_name="oidc",
+                client_id=client_id,
+                client_secret=client_secret,
+                issuer=issuer,
+                authorization_endpoint=f"{issuer}/authorize",
+                token_endpoint=f"{issuer}/token",
+                userinfo_endpoint=f"{issuer}/userinfo",
+                jwks_uri=f"{issuer}/.well-known/jwks.json",
+                end_session_endpoint=f"{issuer}/logout",
+            )
 
 
 # =============================================================================
@@ -228,6 +289,7 @@ class OAuth2Provider:
     OAuth2 provider integration.
 
     Handles OAuth2 authorization flow and token management.
+    Uses httpx for HTTP requests when available.
     """
 
     def __init__(self, config: OAuth2Config):
@@ -239,6 +301,30 @@ class OAuth2Provider:
         """
         self.config = config
         self._states: Dict[str, OAuth2State] = {}
+        self._http_client: Optional[Any] = None
+
+    def _get_http_client(self) -> Any:
+        """Get or create HTTP client."""
+        if self._http_client is None and HTTPX_AVAILABLE:
+            self._http_client = httpx.Client(
+                timeout=httpx.Timeout(30.0, connect=10.0),
+                follow_redirects=False,  # OAuth redirects should be handled explicitly
+            )
+        return self._http_client
+
+    def close(self) -> None:
+        """Close HTTP client."""
+        if self._http_client is not None:
+            self._http_client.close()
+            self._http_client = None
+
+    def __enter__(self) -> "OAuth2Provider":
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Context manager exit."""
+        self.close()
 
     def generate_authorization_url(
         self,
@@ -343,63 +429,181 @@ class OAuth2Provider:
         """
         Exchange authorization code for tokens.
 
-        Note: In a real implementation, this would make an HTTP request.
-        This is a placeholder that simulates the exchange.
-
         Args:
             code: Authorization code
             state: State object from authorization
 
         Returns:
             OAuth2Token with access and refresh tokens
+
+        Raises:
+            OAuth2TokenError: If token exchange fails
         """
         # Clean up used state
         if state.state in self._states:
             del self._states[state.state]
 
-        # In a real implementation, this would POST to token_endpoint
-        # For now, return a simulated token
-        return OAuth2Token(
-            access_token=f"simulated_access_token_{secrets.token_hex(16)}",
-            token_type="Bearer",
-            expires_in=3600,
-            refresh_token=f"simulated_refresh_token_{secrets.token_hex(16)}",
-            scope=" ".join(state.scopes),
-        )
+        # Build token request
+        token_data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": state.redirect_uri,
+            "client_id": self.config.client_id,
+        }
+
+        # Add client secret if available
+        if self.config.client_secret:
+            token_data["client_secret"] = self.config.client_secret
+
+        # Add PKCE code verifier if used
+        if state.code_verifier:
+            token_data["code_verifier"] = state.code_verifier
+
+        if not HTTPX_AVAILABLE:
+            # Fall back to simulated response for testing
+            logger.warning("httpx not available, returning simulated OAuth2 token")
+            return OAuth2Token(
+                access_token=f"simulated_access_token_{secrets.token_hex(16)}",
+                token_type="Bearer",
+                expires_in=3600,
+                refresh_token=f"simulated_refresh_token_{secrets.token_hex(16)}",
+                scope=" ".join(state.scopes),
+            )
+
+        client = self._get_http_client()
+        try:
+            response = client.post(
+                self.config.token_endpoint,
+                data=token_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+
+            if response.status_code >= 400:
+                error_data = response.json() if response.content else {}
+                error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                raise OAuth2TokenError(f"Token exchange failed: {error_msg}")
+
+            token_response = response.json()
+            logger.debug("Successfully exchanged authorization code for tokens")
+
+            return OAuth2Token(
+                access_token=token_response.get("access_token", ""),
+                token_type=token_response.get("token_type", "Bearer"),
+                expires_in=token_response.get("expires_in", 3600),
+                refresh_token=token_response.get("refresh_token"),
+                scope=token_response.get("scope", " ".join(state.scopes)),
+                id_token=token_response.get("id_token"),
+            )
+
+        except httpx.RequestError as e:
+            raise OAuth2TokenError(f"Token exchange request failed: {e}")
 
     def refresh_token(self, refresh_token: str) -> OAuth2Token:
         """
         Refresh an access token.
-
-        Note: Placeholder implementation.
 
         Args:
             refresh_token: Refresh token
 
         Returns:
             New OAuth2Token
-        """
-        return OAuth2Token(
-            access_token=f"refreshed_access_token_{secrets.token_hex(16)}",
-            token_type="Bearer",
-            expires_in=3600,
-            refresh_token=f"new_refresh_token_{secrets.token_hex(16)}",
-        )
 
-    def revoke_token(self, token: str) -> bool:
+        Raises:
+            OAuth2TokenError: If refresh fails
+        """
+        token_data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": self.config.client_id,
+        }
+
+        if self.config.client_secret:
+            token_data["client_secret"] = self.config.client_secret
+
+        if not HTTPX_AVAILABLE:
+            logger.warning("httpx not available, returning simulated refreshed token")
+            return OAuth2Token(
+                access_token=f"refreshed_access_token_{secrets.token_hex(16)}",
+                token_type="Bearer",
+                expires_in=3600,
+                refresh_token=f"new_refresh_token_{secrets.token_hex(16)}",
+            )
+
+        client = self._get_http_client()
+        try:
+            response = client.post(
+                self.config.token_endpoint,
+                data=token_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+
+            if response.status_code >= 400:
+                error_data = response.json() if response.content else {}
+                error_msg = error_data.get("error_description", error_data.get("error", "Unknown error"))
+                raise OAuth2TokenError(f"Token refresh failed: {error_msg}")
+
+            token_response = response.json()
+            logger.debug("Successfully refreshed access token")
+
+            return OAuth2Token(
+                access_token=token_response.get("access_token", ""),
+                token_type=token_response.get("token_type", "Bearer"),
+                expires_in=token_response.get("expires_in", 3600),
+                refresh_token=token_response.get("refresh_token", refresh_token),
+                scope=token_response.get("scope", ""),
+                id_token=token_response.get("id_token"),
+            )
+
+        except httpx.RequestError as e:
+            raise OAuth2TokenError(f"Token refresh request failed: {e}")
+
+    def revoke_token(self, token: str, token_type_hint: str = "access_token") -> bool:
         """
         Revoke a token.
 
-        Note: Placeholder implementation.
-
         Args:
             token: Token to revoke
+            token_type_hint: Type of token (access_token or refresh_token)
 
         Returns:
             True if revoked successfully
         """
-        # In a real implementation, this would POST to revocation_endpoint
-        return True
+        if not self.config.revocation_endpoint:
+            logger.warning("No revocation endpoint configured")
+            return True  # Silently succeed if no endpoint
+
+        revoke_data = {
+            "token": token,
+            "token_type_hint": token_type_hint,
+            "client_id": self.config.client_id,
+        }
+
+        if self.config.client_secret:
+            revoke_data["client_secret"] = self.config.client_secret
+
+        if not HTTPX_AVAILABLE:
+            logger.warning("httpx not available, simulating token revocation")
+            return True
+
+        client = self._get_http_client()
+        try:
+            response = client.post(
+                self.config.revocation_endpoint,
+                data=revoke_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+
+            # Revocation endpoints typically return 200 even if token is invalid
+            if response.status_code == 200:
+                logger.debug(f"Successfully revoked {token_type_hint}")
+                return True
+
+            logger.warning(f"Token revocation returned status {response.status_code}")
+            return False
+
+        except httpx.RequestError as e:
+            logger.error(f"Token revocation request failed: {e}")
+            return False
 
     def cleanup_expired_states(self) -> int:
         """Clean up expired state parameters."""
@@ -461,27 +665,12 @@ class OIDCProvider(OAuth2Provider):
 
         return url, state
 
-    def exchange_code(
-        self,
-        code: str,
-        state: OAuth2State,
-    ) -> OAuth2Token:
-        """Exchange code and return tokens including ID token."""
-        token = super().exchange_code(code, state)
-
-        # Simulate ID token (in real implementation, this comes from the provider)
-        token.id_token = f"simulated_id_token_{secrets.token_hex(32)}"
-
-        return token
-
     def validate_id_token(self, id_token: str, nonce: Optional[str] = None) -> Dict[str, Any]:
         """
         Validate an ID token.
 
-        Note: Placeholder implementation. Real implementation would:
-        1. Decode the JWT
-        2. Verify signature using JWKS
-        3. Validate claims (iss, aud, exp, nonce)
+        Decodes and validates the JWT ID token. For full security in production,
+        you should also verify the signature using the provider's JWKS.
 
         Args:
             id_token: The ID token to validate
@@ -489,38 +678,95 @@ class OIDCProvider(OAuth2Provider):
 
         Returns:
             Validated claims
+
+        Raises:
+            OAuth2TokenError: If validation fails
         """
-        # Placeholder - return simulated claims
-        return {
-            "sub": f"user_{secrets.token_hex(8)}",
-            "email": "user@example.com",
-            "email_verified": True,
-            "name": "Example User",
-            "nonce": nonce,
-        }
+        try:
+            # Decode JWT payload (header.payload.signature)
+            parts = id_token.split(".")
+            if len(parts) != 3:
+                raise OAuth2TokenError("Invalid ID token format")
+
+            # Decode payload (middle part)
+            payload = parts[1]
+            # Add padding if needed
+            padding = 4 - len(payload) % 4
+            if padding != 4:
+                payload += "=" * padding
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+
+            # Validate issuer
+            if self.oidc_config.issuer and claims.get("iss") != self.oidc_config.issuer:
+                raise OAuth2TokenError(f"Invalid issuer: {claims.get('iss')}")
+
+            # Validate audience
+            aud = claims.get("aud")
+            if isinstance(aud, list):
+                if self.config.client_id not in aud:
+                    raise OAuth2TokenError(f"Client ID not in audience: {aud}")
+            elif aud != self.config.client_id:
+                raise OAuth2TokenError(f"Invalid audience: {aud}")
+
+            # Validate expiration
+            exp = claims.get("exp")
+            if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+                raise OAuth2TokenError("ID token has expired")
+
+            # Validate nonce if provided
+            if nonce and claims.get("nonce") != nonce:
+                raise OAuth2TokenError("Invalid nonce")
+
+            logger.debug("ID token validated successfully")
+            return claims
+
+        except (ValueError, KeyError, json.JSONDecodeError) as e:
+            raise OAuth2TokenError(f"Failed to decode ID token: {e}")
 
     def get_userinfo(self, access_token: str) -> OIDCUserInfo:
         """
         Fetch user info from the userinfo endpoint.
-
-        Note: Placeholder implementation.
 
         Args:
             access_token: Access token
 
         Returns:
             OIDCUserInfo with user claims
+
+        Raises:
+            OAuth2Error: If request fails
         """
-        # Placeholder - return simulated user info
-        return OIDCUserInfo(
-            sub=f"user_{secrets.token_hex(8)}",
-            email="user@example.com",
-            email_verified=True,
-            name="Example User",
-            given_name="Example",
-            family_name="User",
-            preferred_username="exampleuser",
-        )
+        if not self.oidc_config.userinfo_endpoint:
+            raise OAuth2Error("No userinfo endpoint configured")
+
+        if not HTTPX_AVAILABLE:
+            logger.warning("httpx not available, returning simulated userinfo")
+            return OIDCUserInfo(
+                sub=f"user_{secrets.token_hex(8)}",
+                email="user@example.com",
+                email_verified=True,
+                name="Simulated User",
+            )
+
+        client = self._get_http_client()
+        try:
+            response = client.get(
+                self.oidc_config.userinfo_endpoint,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                },
+            )
+
+            if response.status_code >= 400:
+                raise OAuth2Error(f"Userinfo request failed: {response.status_code}")
+
+            claims = response.json()
+            logger.debug("Successfully fetched userinfo")
+            return OIDCUserInfo.from_claims(claims)
+
+        except httpx.RequestError as e:
+            raise OAuth2Error(f"Userinfo request failed: {e}")
 
     def generate_logout_url(
         self,

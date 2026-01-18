@@ -8,6 +8,8 @@ Extended Sources:
 - Snowflake: Data warehouse scanning with read-only queries
 - Google Drive: SaaS file sampling via API
 - Databases: Column sampling for RDS, Cloud SQL, Azure SQL
+- BigQuery: Google BigQuery data warehouse scanning
+- Redshift: Amazon Redshift data warehouse scanning
 """
 
 from stance.dspm.extended.base import (
@@ -39,6 +41,18 @@ from stance.dspm.extended.databases import (
     TableInfo,
     ColumnInfo,
 )
+from stance.dspm.extended.bigquery import (
+    BigQueryConfig,
+    BigQueryScanner,
+    BigQueryTableInfo,
+    BigQueryColumnInfo,
+)
+from stance.dspm.extended.redshift import (
+    RedshiftConfig,
+    RedshiftScanner,
+    RedshiftTableInfo,
+    RedshiftColumnInfo,
+)
 
 __all__ = [
     # Base
@@ -66,4 +80,14 @@ __all__ = [
     "AzureSQLScanner",
     "TableInfo",
     "ColumnInfo",
+    # BigQuery
+    "BigQueryConfig",
+    "BigQueryScanner",
+    "BigQueryTableInfo",
+    "BigQueryColumnInfo",
+    # Redshift
+    "RedshiftConfig",
+    "RedshiftScanner",
+    "RedshiftTableInfo",
+    "RedshiftColumnInfo",
 ]

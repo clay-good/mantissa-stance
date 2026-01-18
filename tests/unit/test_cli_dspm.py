@@ -98,7 +98,7 @@ class TestCmdDspmScan:
 
     def test_scan_aws_table_output(self, capsys):
         """Test scanning AWS bucket with table output."""
-        with patch("stance.cli_dspm.S3DataScanner") as mock_scanner_class:
+        with patch("stance.dspm.scanners.S3DataScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "my-bucket"
@@ -132,7 +132,7 @@ class TestCmdDspmScan:
 
     def test_scan_gcp_json_output(self, capsys):
         """Test scanning GCP bucket with JSON output."""
-        with patch("stance.cli_dspm.GCSDataScanner") as mock_scanner_class:
+        with patch("stance.dspm.scanners.GCSDataScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "gcs-bucket"
@@ -167,7 +167,7 @@ class TestCmdDspmScan:
 
     def test_scan_azure(self, capsys):
         """Test scanning Azure container."""
-        with patch("stance.cli_dspm.AzureBlobDataScanner") as mock_scanner_class:
+        with patch("stance.dspm.scanners.AzureBlobDataScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "azure-container"
@@ -213,7 +213,7 @@ class TestCmdDspmScan:
 
     def test_scan_with_findings(self, capsys):
         """Test scanning with sensitive data findings."""
-        with patch("stance.cli_dspm.S3DataScanner") as mock_scanner_class:
+        with patch("stance.dspm.scanners.S3DataScanner") as mock_scanner_class:
             mock_scanner = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "my-bucket"
@@ -266,7 +266,7 @@ class TestCmdDspmScan:
 
     def test_scan_handles_exception(self, capsys):
         """Test scan handles exceptions gracefully."""
-        with patch("stance.cli_dspm.S3DataScanner") as mock_scanner_class:
+        with patch("stance.dspm.scanners.S3DataScanner") as mock_scanner_class:
             mock_scanner_class.side_effect = Exception("Connection failed")
 
             args = argparse.Namespace(
@@ -291,7 +291,7 @@ class TestCmdDspmAccess:
 
     def test_access_aws_table_output(self, capsys):
         """Test access analysis for AWS with table output."""
-        with patch("stance.cli_dspm.CloudTrailAccessAnalyzer") as mock_analyzer_class:
+        with patch("stance.dspm.access.CloudTrailAccessAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "my-bucket"
@@ -321,7 +321,7 @@ class TestCmdDspmAccess:
 
     def test_access_gcp_json_output(self, capsys):
         """Test access analysis for GCP with JSON output."""
-        with patch("stance.cli_dspm.GCPAuditLogAnalyzer") as mock_analyzer_class:
+        with patch("stance.dspm.access.GCPAuditLogAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "gcs-bucket"
@@ -373,7 +373,7 @@ class TestCmdDspmCost:
 
     def test_cost_aws_table_output(self, capsys):
         """Test cost analysis for AWS with table output."""
-        with patch("stance.cli_dspm.S3CostAnalyzer") as mock_analyzer_class:
+        with patch("stance.dspm.cost.S3CostAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "my-bucket"
@@ -405,7 +405,7 @@ class TestCmdDspmCost:
 
     def test_cost_json_output(self, capsys):
         """Test cost analysis with JSON output."""
-        with patch("stance.cli_dspm.S3CostAnalyzer") as mock_analyzer_class:
+        with patch("stance.dspm.cost.S3CostAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.target = "my-bucket"
@@ -442,8 +442,8 @@ class TestCmdDspmClassify:
 
     def test_classify_text_table_output(self, capsys):
         """Test classification with text input."""
-        with patch("stance.cli_dspm.DataClassifier") as mock_classifier_class, \
-             patch("stance.cli_dspm.SensitiveDataDetector") as mock_detector_class:
+        with patch("stance.dspm.classifier.DataClassifier") as mock_classifier_class, \
+             patch("stance.dspm.detector.SensitiveDataDetector") as mock_detector_class:
 
             mock_classifier = MagicMock()
             mock_classification = MagicMock()
@@ -474,8 +474,8 @@ class TestCmdDspmClassify:
 
     def test_classify_no_text_or_file_fails(self, capsys):
         """Test classification without text or file fails."""
-        with patch("stance.cli_dspm.DataClassifier") as mock_classifier_class, \
-             patch("stance.cli_dspm.SensitiveDataDetector") as mock_detector_class:
+        with patch("stance.dspm.classifier.DataClassifier") as mock_classifier_class, \
+             patch("stance.dspm.detector.SensitiveDataDetector") as mock_detector_class:
 
             args = argparse.Namespace(
                 text=None,
@@ -491,8 +491,8 @@ class TestCmdDspmClassify:
 
     def test_classify_json_output(self, capsys):
         """Test classification with JSON output."""
-        with patch("stance.cli_dspm.DataClassifier") as mock_classifier_class, \
-             patch("stance.cli_dspm.SensitiveDataDetector") as mock_detector_class:
+        with patch("stance.dspm.classifier.DataClassifier") as mock_classifier_class, \
+             patch("stance.dspm.detector.SensitiveDataDetector") as mock_detector_class:
 
             mock_classifier = MagicMock()
             mock_classification = MagicMock()

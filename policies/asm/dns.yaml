@@ -1,0 +1,218 @@
+id: asm-dns-001
+name: Dangling CNAME record detected
+description: |
+  Detects DNS CNAME records pointing to non-existent resources.
+  Dangling DNS records can lead to subdomain takeover attacks where
+  an attacker claims the orphaned resource.
+
+enabled: true
+severity: high
+
+resource_type: external_asset
+
+check:
+  type: expression
+  expression: |
+    resource.raw_data.is_dangling != true
+
+remediation:
+  guidance: |
+    1. Identify what the CNAME was originally pointing to
+    2. If the target resource is no longer needed:
+       - Remove the CNAME record from DNS
+    3. If the target resource should exist:
+       - Re-create the resource with the same name
+       - Or update the CNAME to point to the correct resource
+    4. Document the reason for the change
+    5. Audit other DNS records for similar issues
+  automation_supported: false
+
+tags:
+  - dns
+  - cname
+  - dangling
+  - takeover
+  - asm
+
+references:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover
+  - https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeovers
+
+---
+
+id: asm-dns-002
+name: Subdomain takeover vulnerability
+description: |
+  Detects subdomains vulnerable to takeover attacks. This occurs when
+  a DNS record points to a service that can be claimed by an attacker,
+  such as unclaimed cloud resources, expired SaaS tenants, or
+  deprovisioned CDN endpoints.
+
+enabled: true
+severity: critical
+
+resource_type: external_asset
+
+check:
+  type: expression
+  expression: |
+    resource.raw_data.takeover_vulnerable != true
+
+remediation:
+  guidance: |
+    CRITICAL: Subdomain takeover allows attackers to serve malicious content
+    from your domain, enabling phishing, cookie theft, and reputation damage.
+
+    1. Immediately verify the vulnerability
+    2. If the target service is still needed:
+       - Re-claim the resource (S3 bucket, GitHub Pages, etc.)
+    3. If the service is no longer needed:
+       - Remove the DNS record immediately
+    4. Do NOT wait - attackers actively scan for these vulnerabilities
+    5. Audit all DNS records for similar issues
+    6. Implement monitoring for new dangling records
+
+    Common vulnerable services:
+    - AWS S3 buckets
+    - Azure App Services
+    - GitHub Pages
+    - Heroku apps
+    - CloudFront distributions
+    - Shopify stores
+  automation_supported: false
+
+tags:
+  - dns
+  - subdomain-takeover
+  - critical
+  - vulnerability
+  - asm
+
+references:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover
+  - https://github.com/EdOverflow/can-i-take-over-xyz
+
+---
+
+id: asm-dns-003
+name: Missing SPF record
+description: |
+  Detects domains without an SPF (Sender Policy Framework) record.
+  SPF helps prevent email spoofing by specifying which servers are
+  authorized to send email for your domain.
+
+enabled: true
+severity: medium
+
+resource_type: external_asset
+
+check:
+  type: expression
+  expression: |
+    resource.raw_data.records not_exists or
+    resource.raw_data.spf_record exists
+
+remediation:
+  guidance: |
+    1. Identify all servers that send email for your domain
+    2. Create an SPF record in DNS:
+       v=spf1 include:_spf.google.com include:amazonses.com -all
+    3. Start with ~all (softfail) for testing
+    4. Move to -all (hardfail) after verification
+    5. Keep SPF record under 10 DNS lookups
+    6. Test using online SPF validators
+  automation_supported: false
+
+tags:
+  - dns
+  - spf
+  - email
+  - spoofing
+  - asm
+
+references:
+  - https://www.cloudflare.com/learning/dns/dns-records/dns-spf-record/
+  - https://tools.ietf.org/html/rfc7208
+
+---
+
+id: asm-dns-004
+name: Missing DMARC record
+description: |
+  Detects domains without a DMARC (Domain-based Message Authentication)
+  record. DMARC builds on SPF and DKIM to provide email authentication
+  and reporting.
+
+enabled: true
+severity: medium
+
+resource_type: external_asset
+
+check:
+  type: expression
+  expression: |
+    resource.raw_data.records not_exists or
+    resource.raw_data.dmarc_record exists
+
+remediation:
+  guidance: |
+    1. Ensure SPF and DKIM are configured first
+    2. Create a DMARC record at _dmarc.yourdomain.com:
+       v=DMARC1; p=none; rua=mailto:dmarc-reports@yourdomain.com
+    3. Start with p=none (monitoring only)
+    4. Review reports and fix issues
+    5. Move to p=quarantine then p=reject
+    6. Consider DMARC reporting services for large volumes
+  automation_supported: false
+
+tags:
+  - dns
+  - dmarc
+  - email
+  - spoofing
+  - asm
+
+references:
+  - https://dmarc.org/overview/
+  - https://tools.ietf.org/html/rfc7489
+
+---
+
+id: asm-dns-005
+name: Wildcard DNS may hide assets
+description: |
+  Detects domains with wildcard DNS configured (*.domain.com).
+  While useful for some scenarios, wildcard DNS can mask the true
+  attack surface by resolving any subdomain.
+
+enabled: true
+severity: low
+
+resource_type: external_asset
+
+check:
+  type: expression
+  expression: |
+    resource.raw_data.wildcard_detected != true
+
+remediation:
+  guidance: |
+    1. Evaluate if wildcard DNS is necessary for your use case
+    2. If wildcard is required:
+       - Document the business justification
+       - Ensure all services behind the wildcard are monitored
+       - Implement proper access controls
+    3. If wildcard is not required:
+       - Replace with specific DNS records
+       - This provides better visibility into your attack surface
+    4. Consider using a wildcard only for specific services (e.g., CDN)
+  automation_supported: false
+
+tags:
+  - dns
+  - wildcard
+  - visibility
+  - asm
+
+references:
+  - https://www.cloudflare.com/learning/dns/dns-records/dns-wildcard-record/

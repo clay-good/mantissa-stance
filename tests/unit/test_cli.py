@@ -112,14 +112,14 @@ class TestCLIParser:
         args = parser.parse_args(["policies", "list"])
 
         assert args.command == "policies"
-        assert args.action == "list"
+        assert args.policies_action == "list"
 
     def test_cli_parser_policies_validate(self, parser):
         """Test policies validate command."""
         args = parser.parse_args(["policies", "validate"])
 
         assert args.command == "policies"
-        assert args.action == "validate"
+        assert args.policies_action == "validate"
 
     def test_cli_parser_policies_severity_filter(self, parser):
         """Test policies command with severity filter."""

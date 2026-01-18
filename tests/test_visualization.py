@@ -74,16 +74,16 @@ class TestEventBus(unittest.TestCase):
         """Test client connection and disconnection."""
         connection = self.event_bus.connect("client1", "user1", "tenant1")
         self.assertIsNotNone(connection)
-        self.assertEqual(connection.client_id, "client1")
+        self.assertEqual(connection.id, "client1")
         self.assertEqual(connection.state, ConnectionState.CONNECTED)
 
-        stats = self.event_bus.get_stats()
+        stats = self.event_bus.get_statistics()
         self.assertEqual(stats["connected_clients"], 1)
 
         result = self.event_bus.disconnect("client1")
         self.assertTrue(result)
 
-        stats = self.event_bus.get_stats()
+        stats = self.event_bus.get_statistics()
         self.assertEqual(stats["connected_clients"], 0)
 
     def test_subscribe(self):
@@ -108,7 +108,11 @@ class TestEventBus(unittest.TestCase):
             event_types=[EventType.METRIC_UPDATE],
         )
 
+        # Clear initial connection and subscription acknowledgment messages
+        self.event_bus.get_messages("client1", timeout=0.5, max_messages=10)
+
         event = RealtimeEvent(
+            id="event1",
             event_type=EventType.METRIC_UPDATE,
             data={"metric": "findings_count", "value": 42},
         )
@@ -116,7 +120,7 @@ class TestEventBus(unittest.TestCase):
         delivered = self.event_bus.publish(event)
         self.assertGreaterEqual(delivered, 1)
 
-        messages = self.event_bus.get_messages("client1", timeout=100)
+        messages = self.event_bus.get_messages("client1", timeout=0.5)
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].event_type, EventType.METRIC_UPDATE)
 
@@ -129,30 +133,33 @@ class TestEventBus(unittest.TestCase):
             dashboard_id="dash1",
         )
 
+        # Clear initial connection and subscription acknowledgment messages
+        self.event_bus.get_messages("client1", timeout=0.5, max_messages=10)
+
         # Event that matches
         event1 = RealtimeEvent(
+            id="event1",
             event_type=EventType.FINDING_CREATED,
-            dashboard_id="dash1",
-            data={"finding_id": "f1"},
+            data={"finding_id": "f1", "dashboard_id": "dash1"},
         )
         # Event that doesn't match (wrong type)
         event2 = RealtimeEvent(
+            id="event2",
             event_type=EventType.METRIC_UPDATE,
-            dashboard_id="dash1",
-            data={"metric": "count"},
+            data={"metric": "count", "dashboard_id": "dash1"},
         )
         # Event that doesn't match (wrong dashboard)
         event3 = RealtimeEvent(
+            id="event3",
             event_type=EventType.FINDING_CREATED,
-            dashboard_id="dash2",
-            data={"finding_id": "f2"},
+            data={"finding_id": "f2", "dashboard_id": "dash2"},
         )
 
         self.event_bus.publish(event1)
         self.event_bus.publish(event2)
         self.event_bus.publish(event3)
 
-        messages = self.event_bus.get_messages("client1", timeout=100, max_messages=10)
+        messages = self.event_bus.get_messages("client1", timeout=0.5, max_messages=10)
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].data["finding_id"], "f1")
 
@@ -182,6 +189,9 @@ class TestDashboardStreamManager(unittest.TestCase):
         self.event_bus.connect("client1", "user1", "tenant1")
         self.stream_manager.subscribe_dashboard("client1", "dash1")
 
+        # Clear initial connection and subscription acknowledgment messages
+        self.event_bus.get_messages("client1", timeout=0.5, max_messages=10)
+
         self.stream_manager.push_metric_update(
             metric_name="findings_count",
             value=100,
@@ -189,7 +199,7 @@ class TestDashboardStreamManager(unittest.TestCase):
             dashboard_id="dash1",
         )
 
-        messages = self.event_bus.get_messages("client1", timeout=100)
+        messages = self.event_bus.get_messages("client1", timeout=0.5)
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].event_type, EventType.METRIC_UPDATE)
 
@@ -524,26 +534,27 @@ class TestRealtimeEvent(unittest.TestCase):
     def test_event_creation(self):
         """Test event creation."""
         event = RealtimeEvent(
+            id="event1",
             event_type=EventType.FINDING_CREATED,
-            data={"finding_id": "f1", "severity": "critical"},
-            dashboard_id="dash1",
+            data={"finding_id": "f1", "severity": "critical", "dashboard_id": "dash1"},
         )
 
-        self.assertIsNotNone(event.event_id)
+        self.assertIsNotNone(event.id)
         self.assertEqual(event.event_type, EventType.FINDING_CREATED)
         self.assertEqual(event.data["finding_id"], "f1")
 
     def test_event_serialization(self):
         """Test event serialization."""
         event = RealtimeEvent(
+            id="event1",
             event_type=EventType.METRIC_UPDATE,
             data={"value": 42},
         )
 
         # To dict
         event_dict = event.to_dict()
-        self.assertIn("event_id", event_dict)
-        self.assertIn("event_type", event_dict)
+        self.assertIn("id", event_dict)
+        self.assertIn("type", event_dict)  # to_dict() uses "type" not "event_type"
         self.assertEqual(event_dict["data"]["value"], 42)
 
         # To SSE format
@@ -554,7 +565,7 @@ class TestRealtimeEvent(unittest.TestCase):
         # To JSON
         json_str = event.to_json()
         parsed = json.loads(json_str)
-        self.assertEqual(parsed["event_type"], "metric_update")
+        self.assertEqual(parsed["type"], "metric_update")  # to_json() uses "type" not "event_type"
 
 
 class TestFilterableChart(unittest.TestCase):

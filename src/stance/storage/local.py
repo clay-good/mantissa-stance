@@ -8,6 +8,7 @@ suitable for development and single-user scenarios.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -25,6 +26,42 @@ from stance.models import (
     Severity,
 )
 from stance.storage.base import StorageBackend
+
+logger = logging.getLogger(__name__)
+
+
+def _validate_db_path(db_path: str) -> str:
+    """
+    Validate and normalize a database path.
+
+    Ensures the path doesn't attempt directory traversal outside the
+    intended storage location.
+
+    Args:
+        db_path: Path to validate
+
+    Returns:
+        Validated and normalized path
+
+    Raises:
+        ValueError: If path contains directory traversal attempts
+    """
+    # Expand user directory
+    expanded = os.path.expanduser(db_path)
+
+    # Get absolute path
+    abs_path = os.path.abspath(expanded)
+
+    # Check for directory traversal attempts in the original path
+    # (before expansion/normalization)
+    if ".." in db_path:
+        raise ValueError(f"Invalid database path: directory traversal not allowed: {db_path}")
+
+    # Ensure the path ends with expected extension
+    if not abs_path.endswith(".db"):
+        logger.warning(f"Database path does not end with .db extension: {abs_path}")
+
+    return abs_path
 
 
 class LocalStorage(StorageBackend):
@@ -48,8 +85,11 @@ class LocalStorage(StorageBackend):
         Args:
             db_path: Path to the SQLite database file.
                      Supports ~ for home directory.
+
+        Raises:
+            ValueError: If path contains directory traversal attempts
         """
-        self.db_path = os.path.expanduser(db_path)
+        self.db_path = _validate_db_path(db_path)
 
         # Create directory if it doesn't exist
         db_dir = os.path.dirname(self.db_path)

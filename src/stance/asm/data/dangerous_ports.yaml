@@ -1,0 +1,429 @@
+# =============================================================================
+# Mantissa Stance - Dangerous Ports Configuration
+# =============================================================================
+#
+# This file defines port-to-service mappings and risk classifications.
+# Used by ASM for:
+#   - Service identification during port scanning
+#   - Risk scoring based on exposed services
+#   - Policy evaluation for exposure findings
+#
+# Risk Levels:
+#   - critical: Direct remote access or known exploitable (score: 1.0)
+#   - high: Sensitive services often targeted (score: 0.8)
+#   - medium: Services requiring careful exposure (score: 0.5)
+#   - low: Common services with less risk (score: 0.3)
+#   - info: Standard web services (score: 0.1)
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Critical Risk Ports - Direct Remote Access / Database Access
+# -----------------------------------------------------------------------------
+# These should NEVER be exposed to the internet without VPN/firewall
+critical_ports:
+  3389:
+    service: rdp
+    name: "Remote Desktop Protocol"
+    description: "Windows Remote Desktop - direct system access"
+    common_cves:
+      - CVE-2019-0708  # BlueKeep
+      - CVE-2019-1181  # DejaBlue
+      - CVE-2019-1182  # DejaBlue
+    remediation: "Place behind VPN. Never expose directly to internet."
+
+  1433:
+    service: mssql
+    name: "Microsoft SQL Server"
+    description: "MS SQL database server - direct database access"
+    common_cves:
+      - CVE-2020-0618
+      - CVE-2019-1068
+    remediation: "Restrict to internal networks. Use Azure SQL if cloud-hosted."
+
+  3306:
+    service: mysql
+    name: "MySQL Database"
+    description: "MySQL/MariaDB database server"
+    common_cves:
+      - CVE-2012-2122  # Authentication bypass
+    remediation: "Bind to localhost. Use SSH tunnel or VPN for remote access."
+
+  5432:
+    service: postgresql
+    name: "PostgreSQL Database"
+    description: "PostgreSQL database server"
+    remediation: "Configure pg_hba.conf to restrict access. Use SSL."
+
+  27017:
+    service: mongodb
+    name: "MongoDB Database"
+    description: "MongoDB NoSQL database"
+    common_cves:
+      - CVE-2019-2389
+    remediation: "Enable authentication. Bind to localhost. Use TLS."
+
+  6379:
+    service: redis
+    name: "Redis Cache"
+    description: "Redis in-memory database - often unauthenticated"
+    common_cves:
+      - CVE-2022-0543  # Lua sandbox escape
+    remediation: "Require authentication. Bind to localhost. Use stunnel."
+
+  9200:
+    service: elasticsearch
+    name: "Elasticsearch"
+    description: "Elasticsearch search engine - often unauthenticated"
+    common_cves:
+      - CVE-2015-1427  # Groovy sandbox escape
+    remediation: "Enable X-Pack security. Restrict network access."
+
+  5900:
+    service: vnc
+    name: "VNC Remote Desktop"
+    description: "Virtual Network Computing - graphical remote access"
+    remediation: "Use SSH tunnel. Enable encryption and authentication."
+
+  1521:
+    service: oracle
+    name: "Oracle Database"
+    description: "Oracle database listener"
+    remediation: "Restrict to internal networks. Use Oracle Net encryption."
+
+  11211:
+    service: memcached
+    name: "Memcached"
+    description: "Memcached cache server - no authentication by default"
+    common_cves:
+      - CVE-2018-1000001  # DDoS amplification
+    remediation: "Bind to localhost. Never expose to internet."
+
+# -----------------------------------------------------------------------------
+# High Risk Ports - Remote Access and Sensitive Services
+# -----------------------------------------------------------------------------
+high_risk_ports:
+  22:
+    service: ssh
+    name: "SSH"
+    description: "Secure Shell - encrypted remote access"
+    common_cves:
+      - CVE-2016-0777  # Client roaming
+      - CVE-2016-0778  # Client buffer overflow
+    remediation: "Disable password auth. Use key-based auth. Consider port knocking."
+
+  23:
+    service: telnet
+    name: "Telnet"
+    description: "Unencrypted remote terminal - DEPRECATED"
+    remediation: "Disable telnet. Replace with SSH."
+
+  21:
+    service: ftp
+    name: "FTP"
+    description: "File Transfer Protocol - unencrypted"
+    remediation: "Replace with SFTP or FTPS. Disable anonymous access."
+
+  445:
+    service: smb
+    name: "SMB/CIFS"
+    description: "Windows file sharing"
+    common_cves:
+      - CVE-2017-0144  # EternalBlue
+      - CVE-2020-0796  # SMBGhost
+    remediation: "Block from internet. Use SMB 3.0 with encryption."
+
+  139:
+    service: netbios
+    name: "NetBIOS Session"
+    description: "Windows NetBIOS - legacy protocol"
+    remediation: "Block from internet. Disable if not needed."
+
+  2049:
+    service: nfs
+    name: "Network File System"
+    description: "NFS file sharing"
+    remediation: "Restrict exports. Use NFSv4 with Kerberos."
+
+  111:
+    service: rpcbind
+    name: "RPC Portmapper"
+    description: "Sun RPC portmapper"
+    remediation: "Block from internet. Required for NFS, NIS."
+
+  5985:
+    service: winrm
+    name: "WinRM HTTP"
+    description: "Windows Remote Management"
+    remediation: "Use WinRM over HTTPS (5986). Restrict access."
+
+  5986:
+    service: winrm-ssl
+    name: "WinRM HTTPS"
+    description: "Windows Remote Management (encrypted)"
+    remediation: "Restrict to trusted networks."
+
+  1090:
+    service: jmx
+    name: "JMX RMI"
+    description: "Java Management Extensions - remote management"
+    remediation: "Disable remote JMX or require authentication."
+
+  8089:
+    service: splunk
+    name: "Splunk Management"
+    description: "Splunk management port"
+    remediation: "Restrict to internal networks. Use TLS."
+
+# -----------------------------------------------------------------------------
+# Medium Risk Ports - Services Requiring Careful Configuration
+# -----------------------------------------------------------------------------
+medium_risk_ports:
+  25:
+    service: smtp
+    name: "SMTP"
+    description: "Simple Mail Transfer Protocol"
+    remediation: "Configure SPF, DKIM, DMARC. Require TLS."
+
+  110:
+    service: pop3
+    name: "POP3"
+    description: "Post Office Protocol (unencrypted)"
+    remediation: "Prefer POP3S (995) or IMAPS (993)."
+
+  143:
+    service: imap
+    name: "IMAP"
+    description: "Internet Message Access Protocol (unencrypted)"
+    remediation: "Prefer IMAPS (993). Require STARTTLS."
+
+  389:
+    service: ldap
+    name: "LDAP"
+    description: "Lightweight Directory Access Protocol (unencrypted)"
+    remediation: "Use LDAPS (636) or STARTTLS."
+
+  636:
+    service: ldaps
+    name: "LDAPS"
+    description: "LDAP over SSL/TLS"
+    remediation: "Restrict to internal networks."
+
+  161:
+    service: snmp
+    name: "SNMP"
+    description: "Simple Network Management Protocol"
+    common_cves:
+      - CVE-2017-6736  # Cisco SNMP RCE
+    remediation: "Use SNMPv3 with authentication. Change community strings."
+
+  53:
+    service: dns
+    name: "DNS"
+    description: "Domain Name System"
+    remediation: "Restrict zone transfers. Implement rate limiting."
+
+  1080:
+    service: socks
+    name: "SOCKS Proxy"
+    description: "SOCKS proxy server"
+    remediation: "Require authentication. Restrict access."
+
+  3128:
+    service: squid
+    name: "Squid Proxy"
+    description: "HTTP proxy server"
+    remediation: "Require authentication. Restrict access."
+
+  8000:
+    service: http-alt
+    name: "HTTP Alternate"
+    description: "Alternative HTTP port (often development)"
+    remediation: "Review if intended for public access."
+
+  8888:
+    service: http-alt
+    name: "HTTP Alternate"
+    description: "Alternative HTTP port (often development/debug)"
+    remediation: "Review if intended for public access."
+
+  9000:
+    service: php-fpm
+    name: "PHP-FPM"
+    description: "PHP FastCGI Process Manager"
+    remediation: "Never expose directly. Bind to localhost."
+
+  9090:
+    service: prometheus
+    name: "Prometheus"
+    description: "Prometheus metrics server"
+    remediation: "Restrict access. Metrics may expose sensitive data."
+
+  9443:
+    service: https-alt
+    name: "HTTPS Alternate"
+    description: "Alternative HTTPS port"
+    remediation: "Review if intended for public access."
+
+  10250:
+    service: kubelet
+    name: "Kubernetes Kubelet"
+    description: "Kubernetes node agent"
+    common_cves:
+      - CVE-2018-1002105
+    remediation: "Never expose to internet. Use RBAC."
+
+  2375:
+    service: docker
+    name: "Docker Daemon (unencrypted)"
+    description: "Docker API - unauthenticated by default"
+    remediation: "NEVER expose. Use TLS (2376) with client certs."
+
+  2376:
+    service: docker-tls
+    name: "Docker Daemon (TLS)"
+    description: "Docker API with TLS"
+    remediation: "Require client certificate authentication."
+
+# -----------------------------------------------------------------------------
+# Low Risk Ports - Common Services
+# -----------------------------------------------------------------------------
+low_risk_ports:
+  993:
+    service: imaps
+    name: "IMAPS"
+    description: "IMAP over SSL/TLS"
+    remediation: "Ensure valid certificate."
+
+  995:
+    service: pop3s
+    name: "POP3S"
+    description: "POP3 over SSL/TLS"
+    remediation: "Ensure valid certificate."
+
+  465:
+    service: smtps
+    name: "SMTPS"
+    description: "SMTP over SSL/TLS"
+    remediation: "Ensure valid certificate."
+
+  587:
+    service: submission
+    name: "Mail Submission"
+    description: "Mail submission agent"
+    remediation: "Require STARTTLS. Configure rate limiting."
+
+  873:
+    service: rsync
+    name: "Rsync"
+    description: "Remote file synchronization"
+    remediation: "Require authentication. Use over SSH."
+
+  3000:
+    service: grafana
+    name: "Grafana"
+    description: "Grafana dashboard (common port)"
+    remediation: "Require authentication. Use HTTPS."
+
+  5000:
+    service: flask
+    name: "Flask/Development"
+    description: "Common development server port"
+    remediation: "Not for production. Use proper WSGI server."
+
+# -----------------------------------------------------------------------------
+# Standard Web Ports - Generally Safe When Configured
+# -----------------------------------------------------------------------------
+web_ports:
+  80:
+    service: http
+    name: "HTTP"
+    description: "Hypertext Transfer Protocol (unencrypted)"
+    remediation: "Redirect to HTTPS. Enable HSTS."
+
+  443:
+    service: https
+    name: "HTTPS"
+    description: "HTTP over TLS/SSL"
+    remediation: "Use TLS 1.2+. Configure strong ciphers."
+
+  8080:
+    service: http-proxy
+    name: "HTTP Proxy/Alternate"
+    description: "Common HTTP alternate port"
+    remediation: "Consider using standard ports. Review access."
+
+  8443:
+    service: https-alt
+    name: "HTTPS Alternate"
+    description: "Common HTTPS alternate port"
+    remediation: "Consider using standard ports. Review access."
+
+# -----------------------------------------------------------------------------
+# Risk Score Mapping
+# -----------------------------------------------------------------------------
+risk_scores:
+  critical: 1.0
+  high: 0.8
+  medium: 0.5
+  low: 0.3
+  web: 0.2
+  info: 0.1
+
+# -----------------------------------------------------------------------------
+# Port Categories for Filtering
+# -----------------------------------------------------------------------------
+categories:
+  remote_access:
+    - 22    # SSH
+    - 23    # Telnet
+    - 3389  # RDP
+    - 5900  # VNC
+    - 5985  # WinRM
+    - 5986  # WinRM-SSL
+
+  databases:
+    - 1433  # MSSQL
+    - 3306  # MySQL
+    - 5432  # PostgreSQL
+    - 27017 # MongoDB
+    - 6379  # Redis
+    - 9200  # Elasticsearch
+    - 1521  # Oracle
+    - 11211 # Memcached
+
+  file_transfer:
+    - 21    # FTP
+    - 22    # SFTP via SSH
+    - 445   # SMB
+    - 2049  # NFS
+    - 873   # Rsync
+
+  mail:
+    - 25    # SMTP
+    - 110   # POP3
+    - 143   # IMAP
+    - 465   # SMTPS
+    - 587   # Submission
+    - 993   # IMAPS
+    - 995   # POP3S
+
+  web:
+    - 80    # HTTP
+    - 443   # HTTPS
+    - 8080  # HTTP Alt
+    - 8443  # HTTPS Alt
+
+  management:
+    - 161   # SNMP
+    - 1090  # JMX
+    - 9090  # Prometheus
+    - 10250 # Kubelet
+    - 2375  # Docker
+    - 2376  # Docker TLS
+
+  directory:
+    - 53    # DNS
+    - 389   # LDAP
+    - 636   # LDAPS
+    - 111   # RPC

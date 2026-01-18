@@ -13,7 +13,7 @@ from enum import Enum
 from typing import Any
 
 from stance.models.asset import Asset, AssetCollection
-from stance.models.finding import Finding, FindingType, Severity
+from stance.models.finding import Finding, FindingType, FindingStatus, Severity
 
 logger = logging.getLogger(__name__)
 
@@ -85,29 +85,26 @@ class EscalationPath:
     def to_finding(self) -> Finding:
         """Convert to a Finding object."""
         steps_desc = " → ".join(s.action for s in self.steps)
+        recommendation = (
+            f"Remove the permission that enables this escalation: "
+            f"{self.steps[0].permission_used if self.steps else 'unknown'}"
+        )
 
         return Finding(
             id=f"privesc-{self.identity_id}-{self.escalation_type.value}",
-            rule_id="ciem-privesc-001",
-            resource_id=self.identity_id,
-            resource_type="iam_identity",
+            asset_id=self.identity_id,
             finding_type=FindingType.VULNERABILITY,
             severity=self.severity,
+            status=FindingStatus.OPEN,
             title=f"Privilege escalation path: {self.identity_name}",
             description=(
                 f"{self.identity_name} can escalate privileges via "
                 f"{self.escalation_type.value}: {steps_desc}. "
-                f"Final access: {self.final_access}"
+                f"Final access: {self.final_access}. "
+                f"Recommendation: {recommendation}"
             ),
-            recommendation=(
-                f"Remove the permission that enables this escalation: "
-                f"{self.steps[0].permission_used if self.steps else 'unknown'}"
-            ),
-            properties={
-                "escalation_type": self.escalation_type.value,
-                "steps": [s.to_dict() for s in self.steps],
-                "final_access": self.final_access,
-            },
+            rule_id="ciem-privesc-001",
+            resource_path="iam_identity",
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -428,7 +425,7 @@ class PrivilegeEscalationAnalyzer:
 
     def _is_admin_role(self, role: Asset) -> bool:
         """Check if a role has admin-level permissions."""
-        attached_policies = role.properties.get("attached_policies", [])
+        attached_policies = role.raw_config.get("attached_policies", [])
 
         admin_policies = [
             "arn:aws:iam::aws:policy/AdministratorAccess",

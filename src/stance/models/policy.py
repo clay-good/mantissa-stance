@@ -624,7 +624,27 @@ def _parse_nested_dict(lines: list[str], start: int, base_indent: int) -> dict[s
             key = stripped[:colon_pos].strip()
             value_part = stripped[colon_pos + 1 :].strip()
 
-            if value_part:
+            if value_part == "|" or value_part == ">":
+                # Multiline string in nested dict
+                multiline_content = []
+                multiline_indent = indent + 2
+                j = i + 1
+                while j < len(lines):
+                    ml_line = lines[j]
+                    ml_stripped = ml_line.strip()
+                    if not ml_stripped:
+                        multiline_content.append("")
+                        j += 1
+                        continue
+                    ml_indent = len(ml_line) - len(ml_line.lstrip())
+                    if ml_indent >= multiline_indent:
+                        multiline_content.append(ml_line[multiline_indent:])
+                        j += 1
+                    else:
+                        break
+                result[key] = "\n".join(multiline_content).strip()
+                i = j - 1
+            elif value_part:
                 result[key] = _parse_value(value_part)
             else:
                 # Check for nested structure

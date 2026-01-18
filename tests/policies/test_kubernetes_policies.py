@@ -561,7 +561,8 @@ class TestServiceAccountTokenPolicy:
         if policy is None:
             pytest.skip("Service account tokens policy not found")
 
-        assert policy.severity == Severity.MEDIUM
+        # k8s-rbac-005 is node/proxy access which is CRITICAL (privilege escalation)
+        assert policy.severity == Severity.CRITICAL
 
     def test_disabled_automount_passes(self, rbac_policies):
         """Test disabled automount passes validation."""

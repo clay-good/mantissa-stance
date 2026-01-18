@@ -75,15 +75,15 @@ def _cmd_dspm_scan(args: argparse.Namespace) -> int:
     cloud = args.cloud
     output_format = getattr(args, "format", "table")
     sample_size = getattr(args, "sample_size", 100)
-    max_file_size = getattr(args, "max_file_size", 10 * 1024 * 1024)  # 10MB
+    max_object_size_bytes = getattr(args, "max_file_size", 10 * 1024 * 1024)  # 10MB
 
     try:
         # Create scan config
         config = ScanConfig(
             sample_size=sample_size,
-            max_file_size=max_file_size,
-            include_patterns=args.include.split(",") if args.include else None,
-            exclude_patterns=args.exclude.split(",") if args.exclude else None,
+            max_object_size_bytes=max_object_size_bytes,
+            file_extensions=args.include.split(",") if args.include else None,
+            exclude_patterns=args.exclude.split(",") if args.exclude else [],
         )
 
         # Select scanner based on cloud provider
@@ -97,7 +97,8 @@ def _cmd_dspm_scan(args: argparse.Namespace) -> int:
             print(f"Error: Unknown cloud provider: {cloud}")
             return 1
 
-        print(f"Scanning {target} for sensitive data...")
+        if output_format != "json":
+            print(f"Scanning {target} for sensitive data...")
         result = scanner.scan(target)
 
         # Output results
@@ -195,7 +196,8 @@ def _cmd_dspm_access(args: argparse.Namespace) -> int:
             print(f"Error: Unknown cloud provider: {cloud}")
             return 1
 
-        print(f"Analyzing access patterns for {target}...")
+        if output_format != "json":
+            print(f"Analyzing access patterns for {target}...")
         result = analyzer.analyze(target)
 
         # Output results
@@ -295,7 +297,8 @@ def _cmd_dspm_cost(args: argparse.Namespace) -> int:
             print(f"Error: Unknown cloud provider: {cloud}")
             return 1
 
-        print(f"Analyzing storage costs for {target}...")
+        if output_format != "json":
+            print(f"Analyzing storage costs for {target}...")
         result = analyzer.analyze(target)
 
         # Output results

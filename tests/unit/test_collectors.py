@@ -578,6 +578,8 @@ class TestECRCollector:
                     }
                 ],
             }
+            # Clear the side_effect set by fixture and set return value
+            mock_ecr_client.get_repository_policy.side_effect = None
             mock_ecr_client.get_repository_policy.return_value = {
                 "policyText": json.dumps(public_policy)
             }
@@ -1743,9 +1745,10 @@ class TestEKSCollector:
             mock_eks_client.get_paginator.return_value = mock_paginator
             mock_paginator.paginate.side_effect = Exception("API error")
 
-            # Should not raise, just log warning
-            with pytest.raises(Exception):
-                collector.collect()
+            # Should not raise, just log warning and return empty collection
+            assets = collector.collect()
+            assert isinstance(assets, AssetCollection)
+            assert len(assets) == 0
 
     def test_eks_collector_nodegroup_collection(self, mock_eks_client):
         """Test node group collection."""

@@ -9,14 +9,23 @@ from __future__ import annotations
 import base64
 import json
 import logging
-import urllib.request
 import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Any
 
 from stance.models.finding import Finding, Severity
 from stance.alerting.destinations.base import BaseDestination
 
 logger = logging.getLogger(__name__)
+
+
+class WebhookError(Exception):
+    """Exception raised when a webhook request fails."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class WebhookDestination(BaseDestination):
@@ -150,7 +159,10 @@ class WebhookDestination(BaseDestination):
 
         with urllib.request.urlopen(request, timeout=self._timeout) as response:
             if response.status >= 400:
-                raise Exception(f"Webhook returned status {response.status}")
+                raise WebhookError(
+                    f"Webhook returned status {response.status}",
+                    status_code=response.status,
+                )
 
 
 class TeamsDestination(BaseDestination):
@@ -302,7 +314,10 @@ class TeamsDestination(BaseDestination):
 
         with urllib.request.urlopen(request, timeout=30) as response:
             if response.status not in (200, 201, 202):
-                raise Exception(f"Teams returned status {response.status}")
+                raise WebhookError(
+                    f"Teams webhook returned status {response.status}",
+                    status_code=response.status,
+                )
 
 
 class JiraDestination(BaseDestination):

@@ -87,7 +87,7 @@ def _cmd_enrich_findings(args: argparse.Namespace) -> int:
     try:
         # Load findings from storage
         storage = get_storage()
-        findings_data = storage.load_findings()
+        findings_data = storage.get_findings()
 
         if not findings_data:
             print("No findings found. Run 'stance scan' first.")
@@ -132,7 +132,8 @@ def _cmd_enrich_findings(args: argparse.Namespace) -> int:
             pipeline = create_default_pipeline()
 
         # Enrich findings
-        print(f"Enriching {len(findings)} findings...")
+        if output_format != "json":
+            print(f"Enriching {len(findings)} findings...")
         enriched = pipeline.enrich_findings(findings)
 
         # Count enrichments
@@ -230,7 +231,7 @@ def _cmd_enrich_assets(args: argparse.Namespace) -> int:
     try:
         # Load assets from storage
         storage = get_storage()
-        assets_data = storage.load_assets()
+        assets_data = storage.get_assets()
 
         if not assets_data or not assets_data.assets:
             print("No assets found. Run 'stance scan' first.")

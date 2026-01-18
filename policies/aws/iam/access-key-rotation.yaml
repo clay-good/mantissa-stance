@@ -12,10 +12,7 @@ resource_type: aws_iam_user
 
 check:
   type: expression
-  expression: |
-    resource.access_keys_count == 0 or
-    (resource.access_keys exists and
-     resource.access_keys[0].age_days <= 90)
+  expression: "resource.access_keys_count == 0 or resource.oldest_access_key_age_days <= 90"
 
 compliance:
   - framework: cis-aws-foundations

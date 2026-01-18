@@ -326,8 +326,8 @@ def get_collectors_for_provider(
         try:
             collector = collector_class(session=session, **kwargs)
             collectors.append(collector)
-        except Exception:
-            pass  # Skip collectors that fail to initialize
+        except Exception as e:
+            logger.debug(f"Failed to initialize collector {name}: {e}")
 
     return collectors
 
@@ -417,48 +417,49 @@ def run_collection(
     # Collect security findings separately from security-focused collectors
     findings = FindingCollection()
     for collector in all_collectors:
+        collector_name = type(collector).__name__
         # AWS SecurityCollector
         if isinstance(collector, SecurityCollector):
             try:
                 security_findings = collector.collect_findings()
                 findings = findings.merge(security_findings)
-            except Exception:
-                pass  # Errors already logged by collector
+            except Exception as e:
+                logger.debug(f"Error collecting findings from {collector_name}: {e}")
         # AWS ECRCollector (container vulnerability findings)
         elif isinstance(collector, ECRCollector):
             try:
                 ecr_findings = collector.collect_findings()
                 findings = findings.merge(ecr_findings)
-            except Exception:
-                pass  # Errors already logged by collector
+            except Exception as e:
+                logger.debug(f"Error collecting findings from {collector_name}: {e}")
         # GCP SecurityCollector
         elif GCP_COLLECTORS_AVAILABLE and isinstance(collector, GCPSecurityCollector):
             try:
                 security_findings = collector.collect_findings()
                 findings = findings.merge(security_findings)
-            except Exception:
-                pass  # Errors already logged by collector
+            except Exception as e:
+                logger.debug(f"Error collecting findings from {collector_name}: {e}")
         # GCP ArtifactRegistryCollector (container vulnerability findings)
         elif GCP_COLLECTORS_AVAILABLE and isinstance(collector, GCPArtifactRegistryCollector):
             try:
                 ar_findings = collector.collect_findings()
                 findings = findings.merge(ar_findings)
-            except Exception:
-                pass  # Errors already logged by collector
+            except Exception as e:
+                logger.debug(f"Error collecting findings from {collector_name}: {e}")
         # Azure SecurityCollector
         elif AZURE_COLLECTORS_AVAILABLE and isinstance(collector, AzureSecurityCollector):
             try:
                 security_findings = collector.collect_findings()
                 findings = findings.merge(security_findings)
-            except Exception:
-                pass  # Errors already logged by collector
+            except Exception as e:
+                logger.debug(f"Error collecting findings from {collector_name}: {e}")
         # Azure ContainerRegistryCollector (container security findings)
         elif AZURE_COLLECTORS_AVAILABLE and isinstance(collector, AzureContainerRegistryCollector):
             try:
                 acr_findings = collector.collect_findings()
                 findings = findings.merge(acr_findings)
-            except Exception:
-                pass  # Errors already logged by collector
+            except Exception as e:
+                logger.debug(f"Error collecting findings from {collector_name}: {e}")
 
     return assets, findings, results
 

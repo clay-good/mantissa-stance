@@ -18,6 +18,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
+from cryptography.hazmat.primitives.asymmetric.types import (
+    PrivateKeyTypes,
+    PublicKeyTypes,
+)
+from cryptography.exceptions import InvalidSignature
+
 logger = logging.getLogger(__name__)
 
 
@@ -455,18 +463,42 @@ class AttestationBuilder:
 class AttestationSigner:
     """
     Signs attestations using various algorithms.
+
+    Supports:
+    - HMAC-SHA256/SHA512 (symmetric, uses secret_key)
+    - RSA-SHA256 (asymmetric, uses private_key)
+    - ECDSA-P256 (asymmetric, uses private_key)
+    - ED25519 (asymmetric, uses private_key)
     """
 
-    def __init__(self, secret_key: str | bytes | None = None):
+    def __init__(
+        self,
+        secret_key: str | bytes | None = None,
+        private_key: PrivateKeyTypes | None = None,
+        private_key_pem: str | bytes | None = None,
+        private_key_password: bytes | None = None,
+    ):
         """
         Initialize the signer.
 
         Args:
             secret_key: Secret key for HMAC signing (required for HMAC algorithms)
+            private_key: Private key object for asymmetric signing
+            private_key_pem: PEM-encoded private key string/bytes
+            private_key_password: Password for encrypted private key PEM
         """
         if isinstance(secret_key, str):
             secret_key = secret_key.encode()
         self._secret_key = secret_key
+        self._private_key = private_key
+
+        # Load private key from PEM if provided
+        if private_key_pem is not None:
+            if isinstance(private_key_pem, str):
+                private_key_pem = private_key_pem.encode()
+            self._private_key = serialization.load_pem_private_key(
+                private_key_pem, password=private_key_password
+            )
 
     def sign(
         self,
@@ -485,57 +517,113 @@ class AttestationSigner:
         Returns:
             Signed attestation
         """
+        # Build the statement and serialize
+        statement = attestation._build_statement()
+        message = json.dumps(statement, sort_keys=True).encode()
+
         if algorithm in (SignatureAlgorithm.HMAC_SHA256, SignatureAlgorithm.HMAC_SHA512):
-            if not self._secret_key:
-                raise ValueError("Secret key required for HMAC signing")
-
-            # Build the statement and serialize
-            statement = attestation._build_statement()
-            message = json.dumps(statement, sort_keys=True).encode()
-
-            # Sign with HMAC
-            if algorithm == SignatureAlgorithm.HMAC_SHA256:
-                signature_bytes = hmac.new(
-                    self._secret_key, message, hashlib.sha256
-                ).digest()
-            else:
-                signature_bytes = hmac.new(
-                    self._secret_key, message, hashlib.sha512
-                ).digest()
-
-            signature_b64 = base64.b64encode(signature_bytes).decode()
-
-            attestation.signature = Signature(
-                algorithm=algorithm,
-                value=signature_b64,
-                key_id=key_id,
-            )
-
+            signature_bytes = self._sign_hmac(message, algorithm)
+        elif algorithm == SignatureAlgorithm.RSA_SHA256:
+            signature_bytes = self._sign_rsa(message)
+        elif algorithm == SignatureAlgorithm.ECDSA_P256:
+            signature_bytes = self._sign_ecdsa(message)
+        elif algorithm == SignatureAlgorithm.ED25519:
+            signature_bytes = self._sign_ed25519(message)
         else:
-            # Placeholder for RSA/ECDSA support
-            raise NotImplementedError(
-                f"Signature algorithm {algorithm.value} not yet implemented. "
-                "Use HMAC_SHA256 or HMAC_SHA512 for now."
-            )
+            raise ValueError(f"Unknown signature algorithm: {algorithm.value}")
+
+        signature_b64 = base64.b64encode(signature_bytes).decode()
+
+        attestation.signature = Signature(
+            algorithm=algorithm,
+            value=signature_b64,
+            key_id=key_id,
+        )
 
         return attestation
+
+    def _sign_hmac(
+        self, message: bytes, algorithm: SignatureAlgorithm
+    ) -> bytes:
+        """Sign with HMAC."""
+        if not self._secret_key:
+            raise ValueError("Secret key required for HMAC signing")
+
+        if algorithm == SignatureAlgorithm.HMAC_SHA256:
+            return hmac.new(self._secret_key, message, hashlib.sha256).digest()
+        else:
+            return hmac.new(self._secret_key, message, hashlib.sha512).digest()
+
+    def _sign_rsa(self, message: bytes) -> bytes:
+        """Sign with RSA-SHA256 using PKCS#1 v1.5 padding."""
+        if not self._private_key:
+            raise ValueError("Private key required for RSA signing")
+        if not isinstance(self._private_key, rsa.RSAPrivateKey):
+            raise ValueError("RSA private key required for RSA-SHA256 signing")
+
+        return self._private_key.sign(
+            message,
+            padding.PKCS1v15(),
+            hashes.SHA256(),
+        )
+
+    def _sign_ecdsa(self, message: bytes) -> bytes:
+        """Sign with ECDSA-P256."""
+        if not self._private_key:
+            raise ValueError("Private key required for ECDSA signing")
+        if not isinstance(self._private_key, ec.EllipticCurvePrivateKey):
+            raise ValueError("EC private key required for ECDSA-P256 signing")
+
+        return self._private_key.sign(
+            message,
+            ec.ECDSA(hashes.SHA256()),
+        )
+
+    def _sign_ed25519(self, message: bytes) -> bytes:
+        """Sign with ED25519."""
+        if not self._private_key:
+            raise ValueError("Private key required for ED25519 signing")
+        if not isinstance(self._private_key, ed25519.Ed25519PrivateKey):
+            raise ValueError("ED25519 private key required for ED25519 signing")
+
+        return self._private_key.sign(message)
 
 
 class AttestationVerifier:
     """
     Verifies attestation signatures.
+
+    Supports:
+    - HMAC-SHA256/SHA512 (symmetric, uses secret_key)
+    - RSA-SHA256 (asymmetric, uses public_key)
+    - ECDSA-P256 (asymmetric, uses public_key)
+    - ED25519 (asymmetric, uses public_key)
     """
 
-    def __init__(self, secret_key: str | bytes | None = None):
+    def __init__(
+        self,
+        secret_key: str | bytes | None = None,
+        public_key: PublicKeyTypes | None = None,
+        public_key_pem: str | bytes | None = None,
+    ):
         """
         Initialize the verifier.
 
         Args:
             secret_key: Secret key for HMAC verification
+            public_key: Public key object for asymmetric verification
+            public_key_pem: PEM-encoded public key string/bytes
         """
         if isinstance(secret_key, str):
             secret_key = secret_key.encode()
         self._secret_key = secret_key
+        self._public_key = public_key
+
+        # Load public key from PEM if provided
+        if public_key_pem is not None:
+            if isinstance(public_key_pem, str):
+                public_key_pem = public_key_pem.encode()
+            self._public_key = serialization.load_pem_public_key(public_key_pem)
 
     def verify(self, attestation: Attestation) -> VerificationResult:
         """
@@ -576,6 +664,12 @@ class AttestationVerifier:
                 SignatureAlgorithm.HMAC_SHA512,
             ):
                 return self._verify_hmac(attestation)
+            elif algorithm == SignatureAlgorithm.RSA_SHA256:
+                return self._verify_rsa(attestation)
+            elif algorithm == SignatureAlgorithm.ECDSA_P256:
+                return self._verify_ecdsa(attestation)
+            elif algorithm == SignatureAlgorithm.ED25519:
+                return self._verify_ed25519(attestation)
             else:
                 return VerificationResult(
                     status=VerificationStatus.UNSUPPORTED_ALGORITHM,
@@ -638,6 +732,171 @@ class AttestationVerifier:
             return VerificationResult(
                 status=VerificationStatus.INVALID,
                 message="Signature does not match",
+            )
+
+    def _verify_rsa(self, attestation: Attestation) -> VerificationResult:
+        """Verify RSA-SHA256 signature."""
+        if not self._public_key:
+            return VerificationResult(
+                status=VerificationStatus.ERROR,
+                message="Public key required for RSA verification",
+            )
+
+        if not isinstance(self._public_key, rsa.RSAPublicKey):
+            return VerificationResult(
+                status=VerificationStatus.ERROR,
+                message="RSA public key required for RSA-SHA256 verification",
+            )
+
+        sig = attestation.signature
+        if sig is None:
+            return VerificationResult(
+                status=VerificationStatus.MISSING_SIGNATURE,
+                message="No signature found",
+            )
+
+        # Rebuild the statement
+        statement = attestation._build_statement()
+        message = json.dumps(statement, sort_keys=True).encode()
+
+        # Decode signature
+        try:
+            signature_bytes = base64.b64decode(sig.value)
+        except Exception:
+            return VerificationResult(
+                status=VerificationStatus.INVALID,
+                message="Invalid signature encoding",
+            )
+
+        # Verify
+        try:
+            self._public_key.verify(
+                signature_bytes,
+                message,
+                padding.PKCS1v15(),
+                hashes.SHA256(),
+            )
+            return VerificationResult(
+                status=VerificationStatus.VALID,
+                message="RSA-SHA256 signature verified successfully",
+                details={
+                    "algorithm": sig.algorithm.value,
+                    "key_id": sig.key_id,
+                    "signed_at": sig.signed_at.isoformat(),
+                },
+            )
+        except InvalidSignature:
+            return VerificationResult(
+                status=VerificationStatus.INVALID,
+                message="RSA signature does not match",
+            )
+
+    def _verify_ecdsa(self, attestation: Attestation) -> VerificationResult:
+        """Verify ECDSA-P256 signature."""
+        if not self._public_key:
+            return VerificationResult(
+                status=VerificationStatus.ERROR,
+                message="Public key required for ECDSA verification",
+            )
+
+        if not isinstance(self._public_key, ec.EllipticCurvePublicKey):
+            return VerificationResult(
+                status=VerificationStatus.ERROR,
+                message="EC public key required for ECDSA-P256 verification",
+            )
+
+        sig = attestation.signature
+        if sig is None:
+            return VerificationResult(
+                status=VerificationStatus.MISSING_SIGNATURE,
+                message="No signature found",
+            )
+
+        # Rebuild the statement
+        statement = attestation._build_statement()
+        message = json.dumps(statement, sort_keys=True).encode()
+
+        # Decode signature
+        try:
+            signature_bytes = base64.b64decode(sig.value)
+        except Exception:
+            return VerificationResult(
+                status=VerificationStatus.INVALID,
+                message="Invalid signature encoding",
+            )
+
+        # Verify
+        try:
+            self._public_key.verify(
+                signature_bytes,
+                message,
+                ec.ECDSA(hashes.SHA256()),
+            )
+            return VerificationResult(
+                status=VerificationStatus.VALID,
+                message="ECDSA-P256 signature verified successfully",
+                details={
+                    "algorithm": sig.algorithm.value,
+                    "key_id": sig.key_id,
+                    "signed_at": sig.signed_at.isoformat(),
+                },
+            )
+        except InvalidSignature:
+            return VerificationResult(
+                status=VerificationStatus.INVALID,
+                message="ECDSA signature does not match",
+            )
+
+    def _verify_ed25519(self, attestation: Attestation) -> VerificationResult:
+        """Verify ED25519 signature."""
+        if not self._public_key:
+            return VerificationResult(
+                status=VerificationStatus.ERROR,
+                message="Public key required for ED25519 verification",
+            )
+
+        if not isinstance(self._public_key, ed25519.Ed25519PublicKey):
+            return VerificationResult(
+                status=VerificationStatus.ERROR,
+                message="ED25519 public key required for ED25519 verification",
+            )
+
+        sig = attestation.signature
+        if sig is None:
+            return VerificationResult(
+                status=VerificationStatus.MISSING_SIGNATURE,
+                message="No signature found",
+            )
+
+        # Rebuild the statement
+        statement = attestation._build_statement()
+        message = json.dumps(statement, sort_keys=True).encode()
+
+        # Decode signature
+        try:
+            signature_bytes = base64.b64decode(sig.value)
+        except Exception:
+            return VerificationResult(
+                status=VerificationStatus.INVALID,
+                message="Invalid signature encoding",
+            )
+
+        # Verify
+        try:
+            self._public_key.verify(signature_bytes, message)
+            return VerificationResult(
+                status=VerificationStatus.VALID,
+                message="ED25519 signature verified successfully",
+                details={
+                    "algorithm": sig.algorithm.value,
+                    "key_id": sig.key_id,
+                    "signed_at": sig.signed_at.isoformat(),
+                },
+            )
+        except InvalidSignature:
+            return VerificationResult(
+                status=VerificationStatus.INVALID,
+                message="ED25519 signature does not match",
             )
 
 

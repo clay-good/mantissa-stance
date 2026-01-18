@@ -9,6 +9,7 @@ Google Cloud Trace, and Azure Application Insights.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 import uuid
@@ -18,6 +19,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Iterator
+
+logger = logging.getLogger(__name__)
 
 
 class SpanStatus(Enum):
@@ -303,9 +306,9 @@ class XRayTracingBackend(TracingBackend):
 
             self._buffer.clear()
 
-        except Exception:
-            # Log error but don't fail
-            pass
+        except Exception as e:
+            # Log error but don't fail - telemetry export should not break app
+            logger.debug(f"Failed to export spans to X-Ray: {e}")
 
     def _span_to_xray(self, span: Span) -> str:
         """Convert span to X-Ray segment document."""
@@ -414,9 +417,9 @@ class CloudTraceBackend(TracingBackend):
 
             self._buffer.clear()
 
-        except Exception:
-            # Log error but don't fail
-            pass
+        except Exception as e:
+            # Log error but don't fail - telemetry export should not break app
+            logger.debug(f"Failed to export spans to Google Cloud Trace: {e}")
 
 
 class ApplicationInsightsBackend(TracingBackend):
@@ -475,13 +478,14 @@ class ApplicationInsightsBackend(TracingBackend):
             self._send_spans_http()
             self._buffer.clear()
 
-        except Exception:
-            # Log error but don't fail
-            pass
+        except Exception as e:
+            # Log error but don't fail - telemetry export should not break app
+            logger.debug(f"Failed to export spans to Application Insights: {e}")
 
     def _send_spans_http(self) -> None:
         """Send spans via HTTP to Application Insights."""
         import json
+        import urllib.error
         import urllib.request
 
         if not self.connection_string:
@@ -535,7 +539,19 @@ class ApplicationInsightsBackend(TracingBackend):
             data=data,
             headers={"Content-Type": "application/json"},
         )
-        urllib.request.urlopen(req, timeout=10)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                # Read response to ensure connection is properly closed
+                response.read()
+        except urllib.error.HTTPError as e:
+            logger.debug(f"Application Insights HTTP error: {e.code} {e.reason}")
+            raise
+        except urllib.error.URLError as e:
+            logger.debug(f"Application Insights connection error: {e.reason}")
+            raise
+        except TimeoutError:
+            logger.debug("Application Insights request timed out")
+            raise
 
     def _format_duration(self, duration_ms: float) -> str:
         """Format duration for Application Insights."""

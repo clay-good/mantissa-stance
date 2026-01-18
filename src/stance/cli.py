@@ -67,6 +67,7 @@ from stance.cli_dashboards import cmd_dashboards, add_dashboards_parser
 from stance.cli_auth import cmd_auth, add_auth_parser
 from stance.cli_ciem import cmd_ciem, add_ciem_parser
 from stance.cli_benchmark import cmd_benchmark, add_benchmark_parser
+from stance.cli_asm import cmd_asm, add_asm_parser
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -136,6 +137,29 @@ def create_parser() -> argparse.ArgumentParser:
         "--secrets-only",
         action="store_true",
         help="Only run secrets detection (skip policy evaluation)",
+    )
+    scan_parser.add_argument(
+        "--include-asm",
+        action="store_true",
+        help="Include Attack Surface Management scan (external reconnaissance)",
+    )
+    scan_parser.add_argument(
+        "--asm-domains",
+        nargs="+",
+        metavar="DOMAIN",
+        help="Target domains for ASM scan (requires --include-asm)",
+    )
+    scan_parser.add_argument(
+        "--asm-mode",
+        choices=["passive", "active", "full"],
+        default="passive",
+        help="ASM scan mode (default: passive)",
+    )
+    scan_parser.add_argument(
+        "--asm-correlate",
+        action="store_true",
+        default=True,
+        help="Correlate ASM results with CSPM inventory (default: True)",
     )
 
     # query command
@@ -1864,6 +1888,9 @@ def create_parser() -> argparse.ArgumentParser:
     # benchmark command (CIS Benchmarks)
     add_benchmark_parser(subparsers)
 
+    # asm command (Attack Surface Management)
+    add_asm_parser(subparsers)
+
     return parser
 
 
@@ -1942,6 +1969,7 @@ def main() -> int:
         "auth": cmd_auth,
         "ciem": cmd_ciem,
         "benchmark": cmd_benchmark,
+        "asm": cmd_asm,
     }
 
     handler = command_handlers.get(args.command)

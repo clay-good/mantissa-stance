@@ -21,10 +21,14 @@ classifiers = [
     "Topic :: Security",
     "Topic :: System :: Systems Administration",
 ]
-keywords = ["cspm", "dspm", "ciem", "cloud-security", "vulnerability-management", "aws", "gcp", "azure", "security", "multi-cloud", "iam", "posture-management"]
+keywords = ["cspm", "dspm", "ciem", "asm", "attack-surface-management", "cloud-security", "vulnerability-management", "aws", "gcp", "azure", "security", "multi-cloud", "iam", "posture-management", "reconnaissance", "external-attack-surface"]
 
 dependencies = [
     "boto3>=1.34.0",
+    "cryptography>=42.0.0",
+    "dnspython>=2.4.0",
+    "httpx>=0.25.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -73,6 +77,9 @@ Documentation = "https://github.com/clay-good/mantissa-stance/tree/main/docs"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"stance.asm.data" = ["*.yaml", "*.txt", "*.json"]
 
 [tool.black]
 line-length = 88

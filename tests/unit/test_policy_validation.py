@@ -218,6 +218,9 @@ class TestComplianceMappings:
             "hipaa",
             "soc2",
             "nist-800-53",
+            "nist-ai-rmf",
+            "owasp-api-security",
+            "gdpr",
         ]
 
         for mapping in policy.compliance:

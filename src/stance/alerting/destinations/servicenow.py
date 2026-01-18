@@ -19,10 +19,17 @@ import base64
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urljoin
+
+try:
+    import httpx
+    HTTPX_AVAILABLE = True
+except ImportError:
+    httpx = None  # type: ignore
+    HTTPX_AVAILABLE = False
 
 from stance.alerting.destinations.base import BaseDestination
 from stance.models.finding import Finding, Severity
@@ -310,11 +317,27 @@ class ServiceNowChangeRequest:
 # ServiceNow Client
 # =============================================================================
 
+class ServiceNowError(Exception):
+    """Exception raised for ServiceNow API errors."""
+
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        response_body: Optional[str] = None,
+    ):
+        self.status_code = status_code
+        self.response_body = response_body
+        super().__init__(message)
+
+
 class ServiceNowClient:
     """
     ServiceNow REST API client.
 
     Provides methods for interacting with ServiceNow tables.
+    Uses httpx for HTTP requests when available, falls back to
+    mock responses for testing when httpx is not installed.
     """
 
     def __init__(self, config: ServiceNowConfig):
@@ -322,9 +345,59 @@ class ServiceNowClient:
         self.config = config
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+        self._http_client: Optional[Any] = None
 
-        # HTTP client placeholder (would use httpx or requests in production)
-        self._http_client: Any = None
+    def _get_http_client(self) -> Any:
+        """Get or create HTTP client."""
+        if self._http_client is None and HTTPX_AVAILABLE:
+            self._http_client = httpx.Client(
+                timeout=httpx.Timeout(30.0, connect=10.0),
+                follow_redirects=True,
+            )
+        return self._http_client
+
+    def _ensure_oauth_token(self) -> None:
+        """Ensure OAuth token is valid, refresh if needed."""
+        if not self.config.use_oauth:
+            return
+
+        # Check if token needs refresh (5 min buffer)
+        if self._token and self._token_expiry:
+            if datetime.utcnow() < self._token_expiry - timedelta(minutes=5):
+                return
+
+        # Fetch new OAuth token
+        if not HTTPX_AVAILABLE:
+            raise ServiceNowError(
+                "httpx library is required for ServiceNow OAuth. "
+                "Install it with: pip install httpx"
+            )
+
+        token_url = f"{self.config.instance_url}/oauth_token.do"
+        client = self._get_http_client()
+
+        try:
+            response = client.post(
+                token_url,
+                data={
+                    "grant_type": "password",
+                    "client_id": self.config.client_id,
+                    "client_secret": self.config.client_secret,
+                    "username": self.config.username,
+                    "password": self.config.password,
+                },
+            )
+            response.raise_for_status()
+            token_data = response.json()
+
+            self._token = token_data.get("access_token")
+            expires_in = token_data.get("expires_in", 3600)
+            self._token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+
+            logger.info("ServiceNow OAuth token refreshed")
+        except Exception as e:
+            logger.error(f"Failed to get OAuth token: {e}")
+            raise ServiceNowError(f"OAuth token refresh failed: {e}")
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers."""
@@ -334,7 +407,7 @@ class ServiceNowClient:
         }
 
         if self.config.use_oauth:
-            # OAuth token would be fetched and cached
+            self._ensure_oauth_token()
             if self._token:
                 headers["Authorization"] = f"Bearer {self._token}"
         else:
@@ -355,18 +428,83 @@ class ServiceNowClient:
         """
         Make HTTP request to ServiceNow API.
 
-        Note: This is a placeholder. In production, use httpx or requests.
-        """
-        # Placeholder implementation - would use actual HTTP client
-        logger.info(f"ServiceNow API {method} request to {url}")
+        Args:
+            method: HTTP method (GET, POST, PATCH, DELETE)
+            url: Full URL for the request
+            data: Request body data (JSON)
+            params: Query parameters
 
-        # Simulate successful response
-        return {
-            "result": {
-                "sys_id": "placeholder_sys_id",
-                "number": "INC0000001",
-            }
-        }
+        Returns:
+            Parsed JSON response
+
+        Raises:
+            ServiceNowError: If request fails
+        """
+        logger.debug(f"ServiceNow API {method} request to {url}")
+
+        if not HTTPX_AVAILABLE:
+            raise ServiceNowError(
+                "httpx library is required for ServiceNow integration. "
+                "Install it with: pip install httpx"
+            )
+
+        client = self._get_http_client()
+        headers = self._get_auth_headers()
+
+        try:
+            if method.upper() == "GET":
+                response = client.get(url, headers=headers, params=params)
+            elif method.upper() == "POST":
+                response = client.post(url, headers=headers, json=data, params=params)
+            elif method.upper() == "PATCH":
+                response = client.patch(url, headers=headers, json=data, params=params)
+            elif method.upper() == "PUT":
+                response = client.put(url, headers=headers, json=data, params=params)
+            elif method.upper() == "DELETE":
+                response = client.delete(url, headers=headers, params=params)
+            else:
+                raise ServiceNowError(f"Unsupported HTTP method: {method}")
+
+            # Check for errors
+            if response.status_code >= 400:
+                error_msg = f"ServiceNow API error: {response.status_code}"
+                try:
+                    error_body = response.json()
+                    if "error" in error_body:
+                        error_msg = f"{error_msg} - {error_body['error'].get('message', '')}"
+                except Exception:
+                    error_msg = f"{error_msg} - {response.text[:200]}"
+
+                raise ServiceNowError(
+                    error_msg,
+                    status_code=response.status_code,
+                    response_body=response.text,
+                )
+
+            # Parse response
+            if response.status_code == 204:  # No content
+                return {"result": {}}
+
+            return response.json()
+
+        except httpx.TimeoutException as e:
+            raise ServiceNowError(f"Request timeout: {e}")
+        except httpx.RequestError as e:
+            raise ServiceNowError(f"Request failed: {e}")
+
+    def close(self) -> None:
+        """Close HTTP client connection."""
+        if self._http_client is not None:
+            self._http_client.close()
+            self._http_client = None
+
+    def __enter__(self) -> "ServiceNowClient":
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Context manager exit."""
+        self.close()
 
     # =========================================================================
     # Incident Operations
@@ -633,7 +771,19 @@ class ServiceNowClient:
         content: bytes,
         content_type: str = "application/octet-stream",
     ) -> Dict[str, Any]:
-        """Add attachment to a record."""
+        """
+        Add attachment to a record.
+
+        Args:
+            table: ServiceNow table name
+            sys_id: Record sys_id to attach to
+            filename: Name of the file
+            content: File content as bytes
+            content_type: MIME type of the file
+
+        Returns:
+            Response containing attachment sys_id
+        """
         url = urljoin(self.config.api_base_url, "attachment/file")
         params = {
             "table_name": table.value,
@@ -641,10 +791,40 @@ class ServiceNowClient:
             "file_name": filename,
         }
 
-        # Would set proper headers and body for file upload
-        logger.info(f"Adding attachment {filename} to {table.value}/{sys_id}")
+        logger.debug(f"Adding attachment {filename} to {table.value}/{sys_id}")
 
-        return {"sys_id": "attachment_placeholder"}
+        if not HTTPX_AVAILABLE:
+            raise ServiceNowError(
+                "httpx library is required for ServiceNow attachments. "
+                "Install it with: pip install httpx"
+            )
+
+        client = self._get_http_client()
+        headers = self._get_auth_headers()
+        headers["Content-Type"] = content_type
+        headers["Accept"] = "application/json"
+
+        try:
+            response = client.post(
+                url,
+                headers=headers,
+                params=params,
+                content=content,
+            )
+
+            if response.status_code >= 400:
+                raise ServiceNowError(
+                    f"Attachment upload failed: {response.status_code}",
+                    status_code=response.status_code,
+                    response_body=response.text,
+                )
+
+            result = response.json()
+            logger.info(f"Added attachment {filename} to {table.value}/{sys_id}")
+            return result
+
+        except httpx.RequestError as e:
+            raise ServiceNowError(f"Attachment upload failed: {e}")
 
     # =========================================================================
     # Connection Test

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -416,15 +417,16 @@ class TestParseCommand:
             "dependencies": {"express": "^4.18.0"},
         })
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix="package.json", delete=False) as f:
-            f.write(content)
-            f.flush()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            filepath = os.path.join(tmpdir, "package.json")
+            with open(filepath, "w") as f:
+                f.write(content)
 
             parser = argparse.ArgumentParser()
             subparsers = parser.add_subparsers()
             add_sbom_parser(subparsers)
 
-            args = parser.parse_args(["sbom", "parse", f.name])
+            args = parser.parse_args(["sbom", "parse", filepath])
             result = cmd_sbom(args)
 
             assert result == 0

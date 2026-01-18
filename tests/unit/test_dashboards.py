@@ -1059,7 +1059,8 @@ class TestMetricCalculators:
         assert "frameworks" in gaps
         assert gaps["frameworks"]["CIS"]["status"] == "compliant"
         assert gaps["frameworks"]["PCI"]["status"] == "non_compliant"
-        assert gaps["frameworks_compliant"] == 2
+        assert gaps["frameworks"]["SOC2"]["status"] == "non_compliant"  # 85 < 90
+        assert gaps["frameworks_compliant"] == 1  # Only CIS meets target
 
 
 class TestSecurityMetrics:

@@ -8,14 +8,17 @@ for analyzing security posture changes over time.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from stance.models.finding import Finding, FindingCollection, Severity
+
+logger = logging.getLogger(__name__)
 
 
 class DiffType(Enum):
@@ -434,7 +437,7 @@ class ScanHistoryManager:
         Returns:
             List of trend data points
         """
-        since = datetime.utcnow() - __import__("datetime").timedelta(days=days)
+        since = datetime.utcnow() - timedelta(days=days)
         entries = self.get_history(config_name=config_name, since=since)
 
         trend_data = []
@@ -463,7 +466,7 @@ class ScanHistoryManager:
         Returns:
             Number of entries removed
         """
-        cutoff = datetime.utcnow() - __import__("datetime").timedelta(days=retention_days)
+        cutoff = datetime.utcnow() - timedelta(days=retention_days)
         entries = self._load_all_entries()
 
         kept = []
@@ -476,7 +479,10 @@ class ScanHistoryManager:
                 # Remove findings file
                 findings_file = os.path.join(self._findings_dir, f"{entry.scan_id}.json")
                 if os.path.exists(findings_file):
-                    os.remove(findings_file)
+                    try:
+                        os.remove(findings_file)
+                    except OSError as e:
+                        logger.warning(f"Failed to remove findings file {findings_file}: {e}")
                 removed += 1
 
         # Save remaining entries

@@ -238,7 +238,7 @@ class PolicyViolation:
             "violation_id": self.violation_id,
             "policy_id": self.policy.policy_id,
             "policy_name": self.policy.name,
-            "secret_id": self.secret.secret_id,
+            "secret_id": self.secret.id,
             "secret_name": self.secret.name,
             "secret_type": self.secret.secret_type.value,
             "violation_type": self.violation_type,
@@ -526,7 +526,7 @@ class RotationPolicyEnforcer:
         compliant: List[SecretInventoryItem] = []
         no_policy: List[SecretInventoryItem] = []
 
-        for secret in inventory.secrets:
+        for secret in inventory.items:
             policy = self.policy_set.get_most_restrictive_policy(secret)
 
             if not policy:
@@ -558,7 +558,7 @@ class RotationPolicyEnforcer:
 
         # Generate summary
         return {
-            "total_secrets": len(inventory.secrets),
+            "total_secrets": len(inventory.items),
             "compliant_count": len(compliant),
             "violation_count": len(violations),
             "warning_count": len(warnings),
@@ -648,7 +648,7 @@ class RotationPolicyEnforcer:
         remediation_steps = self._generate_remediation_steps(secret, policy, result)
 
         return PolicyViolation(
-            violation_id=f"viol-{secret.secret_id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            violation_id=f"viol-{secret.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
             policy=policy,
             secret=secret,
             violation_type=result["type"],

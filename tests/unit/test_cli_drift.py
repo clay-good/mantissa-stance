@@ -94,12 +94,12 @@ class TestDriftDetect:
             name="test-bucket",
             resource_type="aws_s3_bucket",
             cloud_provider="aws",
+            account_id="123456789012",
             region="us-east-1",
             raw_config={"Versioning": True, "Encryption": True},
         )
-        collection = MagicMock(spec=AssetCollection)
-        collection.assets = [asset]
-        return collection
+        # Use a real AssetCollection instead of mock
+        return AssetCollection([asset])
 
     @pytest.fixture
     def mock_baseline(self):
@@ -164,8 +164,8 @@ class TestDriftDetect:
             limit=50,
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = None
             result = _cmd_drift_detect(args)
 
         assert result == 1
@@ -184,11 +184,11 @@ class TestDriftDetect:
             limit=50,
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
-                with patch("stance.cli_drift.DriftDetector") as mock_detector:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
+                with patch("stance.drift.drift_detector.DriftDetector") as mock_detector:
                     # Simulate no baseline found
                     mock_detector_instance = MagicMock()
                     mock_detector_instance.detect_drift.return_value = DriftDetectionResult(
@@ -219,11 +219,11 @@ class TestDriftDetect:
             limit=50,
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager"):
-                with patch("stance.cli_drift.DriftDetector") as mock_detector:
+            with patch("stance.drift.baseline.BaselineManager"):
+                with patch("stance.drift.drift_detector.DriftDetector") as mock_detector:
                     mock_detector_instance = MagicMock()
                     mock_detector_instance.detect_drift.return_value = mock_drift_result
                     mock_detector.return_value = mock_detector_instance
@@ -249,11 +249,11 @@ class TestDriftDetect:
             limit=50,
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager"):
-                with patch("stance.cli_drift.DriftDetector") as mock_detector:
+            with patch("stance.drift.baseline.BaselineManager"):
+                with patch("stance.drift.drift_detector.DriftDetector") as mock_detector:
                     mock_detector_instance = MagicMock()
                     mock_detector_instance.detect_drift.return_value = mock_drift_result
                     mock_detector.return_value = mock_detector_instance
@@ -279,11 +279,11 @@ class TestDriftDetect:
             limit=50,
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager"):
-                with patch("stance.cli_drift.DriftDetector") as mock_detector:
+            with patch("stance.drift.baseline.BaselineManager"):
+                with patch("stance.drift.drift_detector.DriftDetector") as mock_detector:
                     mock_detector_instance = MagicMock()
                     mock_detector_instance.detect_drift.return_value = mock_drift_result
                     mock_detector.return_value = mock_detector_instance
@@ -305,11 +305,11 @@ class TestDriftDetect:
             limit=50,
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager"):
-                with patch("stance.cli_drift.DriftDetector") as mock_detector:
+            with patch("stance.drift.baseline.BaselineManager"):
+                with patch("stance.drift.drift_detector.DriftDetector") as mock_detector:
                     mock_detector_instance = MagicMock()
                     mock_detector_instance.detect_drift.return_value = mock_drift_result
                     mock_detector.return_value = mock_detector_instance
@@ -330,11 +330,11 @@ class TestBaselineCommands:
             name="test-bucket",
             resource_type="aws_s3_bucket",
             cloud_provider="aws",
+            account_id="123456789012",
             region="us-east-1",
         )
-        collection = MagicMock(spec=AssetCollection)
-        collection.assets = [asset]
-        return collection
+        # Use a real AssetCollection instead of mock
+        return AssetCollection([asset])
 
     @pytest.fixture
     def mock_baseline(self):
@@ -376,8 +376,8 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = None
             result = _cmd_baseline_create(args)
 
         assert result == 1
@@ -393,10 +393,10 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
                 mock_manager_instance = MagicMock()
                 mock_manager_instance.create_baseline.return_value = mock_baseline
                 mock_manager.return_value = mock_manager_instance
@@ -417,10 +417,10 @@ class TestBaselineCommands:
             format="json",
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
                 mock_manager_instance = MagicMock()
                 mock_manager_instance.create_baseline.return_value = mock_baseline
                 mock_manager.return_value = mock_manager_instance
@@ -441,7 +441,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.list_baselines.return_value = []
             mock_manager.return_value = mock_manager_instance
@@ -460,7 +460,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.list_baselines.return_value = [mock_baseline]
             mock_manager.return_value = mock_manager_instance
@@ -480,7 +480,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.list_baselines.return_value = [mock_baseline]
             mock_manager.return_value = mock_manager_instance
@@ -497,7 +497,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.get_baseline.return_value = None
             mock_manager.return_value = mock_manager_instance
@@ -516,7 +516,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.get_baseline.return_value = mock_baseline
             mock_manager.return_value = mock_manager_instance
@@ -551,10 +551,10 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
                 mock_manager_instance = MagicMock()
                 mock_manager_instance.update_baseline.return_value = mock_baseline
                 mock_manager.return_value = mock_manager_instance
@@ -573,7 +573,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.archive_baseline.return_value = True
             mock_manager.return_value = mock_manager_instance
@@ -608,7 +608,7 @@ class TestBaselineCommands:
             format="table",
         )
 
-        with patch("stance.cli_drift.BaselineManager") as mock_manager:
+        with patch("stance.drift.baseline.BaselineManager") as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager_instance.delete_baseline.return_value = True
             mock_manager.return_value = mock_manager_instance
@@ -659,7 +659,7 @@ class TestHistoryCommand:
             format="table",
         )
 
-        with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+        with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
             mock_tracker_instance = MagicMock()
             mock_tracker_instance.get_asset_history.return_value = None
             mock_tracker.return_value = mock_tracker_instance
@@ -689,7 +689,7 @@ class TestHistoryCommand:
             }
         ]
 
-        with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+        with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
             mock_tracker_instance = MagicMock()
             mock_tracker_instance.get_asset_history.return_value = mock_history
             mock_tracker_instance.get_change_timeline.return_value = timeline
@@ -713,7 +713,7 @@ class TestHistoryCommand:
 
         timeline = []
 
-        with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+        with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
             mock_tracker_instance = MagicMock()
             mock_tracker_instance.get_asset_history.return_value = mock_history
             mock_tracker_instance.get_change_timeline.return_value = timeline
@@ -750,7 +750,7 @@ class TestChangesCommand:
             "most_active_assets": [],
         }
 
-        with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+        with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
             mock_tracker_instance = MagicMock()
             mock_tracker_instance.get_change_summary.return_value = summary
             mock_tracker_instance.get_recent_changes.return_value = []
@@ -790,7 +790,7 @@ class TestChangesCommand:
         mock_change.change_type = ChangeType.UPDATED
         mock_change.source = "console"
 
-        with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+        with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
             mock_tracker_instance = MagicMock()
             mock_tracker_instance.get_change_summary.return_value = summary
             mock_tracker_instance.get_recent_changes.return_value = [mock_change]
@@ -822,7 +822,7 @@ class TestChangesCommand:
             "deleted": 0,
         }
 
-        with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+        with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
             mock_tracker_instance = MagicMock()
             mock_tracker_instance.get_change_summary.return_value = summary
             mock_tracker_instance.get_recent_changes.return_value = []
@@ -847,11 +847,11 @@ class TestSummaryCommand:
             name="test-bucket",
             resource_type="aws_s3_bucket",
             cloud_provider="aws",
+            account_id="123456789012",
             region="us-east-1",
         )
-        collection = MagicMock(spec=AssetCollection)
-        collection.assets = [asset]
-        return collection
+        # Use a real AssetCollection instead of mock
+        return AssetCollection([asset])
 
     def test_summary_no_assets(self, capsys):
         """Test summary with no assets."""
@@ -861,8 +861,8 @@ class TestSummaryCommand:
             format="table",
         )
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = None
             result = _cmd_drift_summary(args)
 
         assert result == 1
@@ -885,16 +885,16 @@ class TestSummaryCommand:
             "deleted": 0,
         }
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
                 mock_manager_instance = MagicMock()
                 mock_manager_instance.list_baselines.return_value = []
                 mock_manager_instance.get_active_baseline.return_value = None
                 mock_manager.return_value = mock_manager_instance
 
-                with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+                with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
                     mock_tracker_instance = MagicMock()
                     mock_tracker_instance.get_change_summary.return_value = change_summary
                     mock_tracker.return_value = mock_tracker_instance
@@ -943,21 +943,21 @@ class TestSummaryCommand:
             "deleted": 1,
         }
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
                 mock_manager_instance = MagicMock()
                 mock_manager_instance.list_baselines.return_value = [mock_baseline]
                 mock_manager_instance.get_active_baseline.return_value = mock_baseline
                 mock_manager.return_value = mock_manager_instance
 
-                with patch("stance.cli_drift.DriftDetector") as mock_detector:
+                with patch("stance.drift.drift_detector.DriftDetector") as mock_detector:
                     mock_detector_instance = MagicMock()
                     mock_detector_instance.detect_drift.return_value = mock_drift_result
                     mock_detector.return_value = mock_detector_instance
 
-                    with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+                    with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
                         mock_tracker_instance = MagicMock()
                         mock_tracker_instance.get_change_summary.return_value = change_summary
                         mock_tracker.return_value = mock_tracker_instance
@@ -985,16 +985,16 @@ class TestSummaryCommand:
             "deleted": 0,
         }
 
-        with patch("stance.cli_drift.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets
 
-            with patch("stance.cli_drift.BaselineManager") as mock_manager:
+            with patch("stance.drift.baseline.BaselineManager") as mock_manager:
                 mock_manager_instance = MagicMock()
                 mock_manager_instance.list_baselines.return_value = []
                 mock_manager_instance.get_active_baseline.return_value = None
                 mock_manager.return_value = mock_manager_instance
 
-                with patch("stance.cli_drift.ChangeTracker") as mock_tracker:
+                with patch("stance.drift.change_tracker.ChangeTracker") as mock_tracker:
                     mock_tracker_instance = MagicMock()
                     mock_tracker_instance.get_change_summary.return_value = change_summary
                     mock_tracker.return_value = mock_tracker_instance

@@ -98,7 +98,7 @@ class TestCmdExposureInventory:
 
     def test_inventory_table_output(self, capsys):
         """Test inventory with table output."""
-        with patch("stance.cli_exposure.PublicAssetInventory") as mock_inventory_class:
+        with patch("stance.exposure.inventory.PublicAssetInventory") as mock_inventory_class:
             mock_inventory = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -127,7 +127,7 @@ class TestCmdExposureInventory:
 
     def test_inventory_json_output(self, capsys):
         """Test inventory with JSON output."""
-        with patch("stance.cli_exposure.PublicAssetInventory") as mock_inventory_class:
+        with patch("stance.exposure.inventory.PublicAssetInventory") as mock_inventory_class:
             mock_inventory = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -157,7 +157,7 @@ class TestCmdExposureInventory:
 
     def test_inventory_with_assets(self, capsys):
         """Test inventory shows asset details."""
-        with patch("stance.cli_exposure.PublicAssetInventory") as mock_inventory_class:
+        with patch("stance.exposure.inventory.PublicAssetInventory") as mock_inventory_class:
             mock_inventory = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -208,7 +208,7 @@ class TestCmdExposureInventory:
 
     def test_inventory_handles_exception(self, capsys):
         """Test inventory handles exceptions gracefully."""
-        with patch("stance.cli_exposure.PublicAssetInventory") as mock_inventory_class:
+        with patch("stance.exposure.inventory.PublicAssetInventory") as mock_inventory_class:
             mock_inventory_class.side_effect = Exception("API error")
 
             args = argparse.Namespace(
@@ -230,7 +230,7 @@ class TestCmdExposureCertificates:
 
     def test_certificates_table_output(self, capsys):
         """Test certificates with table output."""
-        with patch("stance.cli_exposure.CertificateMonitor") as mock_monitor_class:
+        with patch("stance.exposure.certificates.CertificateMonitor") as mock_monitor_class:
             mock_monitor = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -260,7 +260,7 @@ class TestCmdExposureCertificates:
 
     def test_certificates_json_output(self, capsys):
         """Test certificates with JSON output."""
-        with patch("stance.cli_exposure.CertificateMonitor") as mock_monitor_class:
+        with patch("stance.exposure.certificates.CertificateMonitor") as mock_monitor_class:
             mock_monitor = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -291,7 +291,7 @@ class TestCmdExposureCertificates:
 
     def test_certificates_with_findings(self, capsys):
         """Test certificates shows findings."""
-        with patch("stance.cli_exposure.CertificateMonitor") as mock_monitor_class:
+        with patch("stance.exposure.certificates.CertificateMonitor") as mock_monitor_class:
             mock_monitor = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -346,7 +346,7 @@ class TestCmdExposureDNS:
 
     def test_dns_table_output(self, capsys):
         """Test DNS analysis with table output."""
-        with patch("stance.cli_exposure.DNSInventory") as mock_inventory_class:
+        with patch("stance.exposure.dns.DNSInventory") as mock_inventory_class:
             mock_inventory = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -374,7 +374,7 @@ class TestCmdExposureDNS:
 
     def test_dns_json_output(self, capsys):
         """Test DNS analysis with JSON output."""
-        with patch("stance.cli_exposure.DNSInventory") as mock_inventory_class:
+        with patch("stance.exposure.dns.DNSInventory") as mock_inventory_class:
             mock_inventory = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -403,7 +403,7 @@ class TestCmdExposureDNS:
 
     def test_dns_with_findings(self, capsys):
         """Test DNS shows dangling record findings."""
-        with patch("stance.cli_exposure.DNSInventory") as mock_inventory_class:
+        with patch("stance.exposure.dns.DNSInventory") as mock_inventory_class:
             mock_inventory = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -453,7 +453,7 @@ class TestCmdExposureSensitive:
 
     def test_sensitive_table_output(self, capsys):
         """Test sensitive data exposure with table output."""
-        with patch("stance.cli_exposure.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.exposure.sensitive.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -482,7 +482,7 @@ class TestCmdExposureSensitive:
 
     def test_sensitive_json_output(self, capsys):
         """Test sensitive data exposure with JSON output."""
-        with patch("stance.cli_exposure.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.exposure.sensitive.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -512,7 +512,7 @@ class TestCmdExposureSensitive:
 
     def test_sensitive_with_findings(self, capsys):
         """Test sensitive shows exposure findings."""
-        with patch("stance.cli_exposure.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.exposure.sensitive.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.summary = MagicMock()
@@ -556,7 +556,7 @@ class TestCmdExposureSensitive:
 
     def test_sensitive_handles_exception(self, capsys):
         """Test sensitive handles exceptions gracefully."""
-        with patch("stance.cli_exposure.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.exposure.sensitive.SensitiveDataExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer_class.side_effect = Exception("API error")
 
             args = argparse.Namespace(

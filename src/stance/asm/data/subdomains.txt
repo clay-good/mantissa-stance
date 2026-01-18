@@ -1,0 +1,786 @@
+# =============================================================================
+# Mantissa Stance - Common Subdomain Wordlist
+# =============================================================================
+#
+# Top 1000 most common subdomain prefixes for enumeration.
+# Lines starting with # are comments and will be ignored.
+#
+# Categories:
+#   - Web/Application Servers
+#   - Mail Servers
+#   - Development/Staging
+#   - APIs and Services
+#   - CDN and Static Assets
+#   - Administration
+#   - Infrastructure
+#   - Database Servers
+#   - Monitoring and DevOps
+#   - Collaboration Tools
+#   - Mobile and Apps
+#   - Regional/Localized
+#   - Miscellaneous
+#
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Web/Application Servers
+# ---------------------------------------------------------------------------
+www
+www1
+www2
+www3
+www01
+www02
+web
+web1
+web2
+web01
+web02
+webmail
+portal
+app
+apps
+application
+site
+home
+main
+public
+secure
+ssl
+https
+
+# ---------------------------------------------------------------------------
+# Mail Servers
+# ---------------------------------------------------------------------------
+mail
+mail1
+mail2
+mail01
+mail02
+smtp
+smtp1
+smtp2
+imap
+pop
+pop3
+mx
+mx1
+mx2
+mx01
+mx02
+exchange
+owa
+autodiscover
+email
+emails
+mailserver
+mta
+relay
+postfix
+sendmail
+newsletter
+lists
+listserv
+mailin
+mailout
+
+# ---------------------------------------------------------------------------
+# Development/Staging
+# ---------------------------------------------------------------------------
+dev
+dev1
+dev2
+dev01
+dev02
+develop
+developer
+developers
+development
+stage
+staging
+staging1
+staging2
+test
+test1
+test2
+test01
+testing
+qa
+qa1
+qa2
+uat
+uat1
+sandbox
+sandbox1
+beta
+beta1
+alpha
+demo
+demo1
+demo2
+preview
+preprod
+pre-prod
+pre
+lab
+labs
+experiment
+poc
+
+# ---------------------------------------------------------------------------
+# APIs and Services
+# ---------------------------------------------------------------------------
+api
+api1
+api2
+api01
+api02
+api-v1
+api-v2
+api-dev
+api-stage
+api-staging
+api-test
+api-prod
+rest
+restapi
+graphql
+ws
+websocket
+websockets
+rpc
+grpc
+oauth
+oauth2
+auth
+auth1
+authentication
+sso
+login
+signin
+signup
+register
+identity
+id
+ids
+token
+tokens
+gateway
+gw
+service
+services
+svc
+microservice
+microservices
+backend
+internal
+external
+
+# ---------------------------------------------------------------------------
+# CDN and Static Assets
+# ---------------------------------------------------------------------------
+cdn
+cdn1
+cdn2
+cdn01
+static
+static1
+static2
+assets
+asset
+images
+image
+img
+img1
+img2
+media
+media1
+video
+videos
+audio
+files
+file
+download
+downloads
+dl
+content
+resources
+res
+cache
+edge
+
+# ---------------------------------------------------------------------------
+# Administration
+# ---------------------------------------------------------------------------
+admin
+admin1
+admin2
+administrator
+administration
+adm
+manage
+manager
+management
+panel
+cpanel
+whm
+webmin
+plesk
+directadmin
+console
+dashboard
+control
+controlpanel
+backend
+backoffice
+cms
+wp-admin
+phpmyadmin
+pma
+myadmin
+adminer
+root
+superadmin
+sysadmin
+
+# ---------------------------------------------------------------------------
+# Infrastructure
+# ---------------------------------------------------------------------------
+ns
+ns1
+ns2
+ns3
+ns4
+ns01
+ns02
+dns
+dns1
+dns2
+proxy
+proxy1
+proxy2
+prx
+fw
+firewall
+router
+gateway
+gw
+gw1
+vpn
+vpn1
+vpn2
+openvpn
+ipsec
+remote
+remoteaccess
+rdp
+rdgw
+terminal
+ts
+citrix
+bastion
+jump
+jumphost
+jumpbox
+nat
+
+# ---------------------------------------------------------------------------
+# Database Servers
+# ---------------------------------------------------------------------------
+db
+db1
+db2
+db01
+db02
+database
+databases
+data
+mysql
+mysql1
+mysql2
+mariadb
+postgres
+postgresql
+pgsql
+oracle
+mssql
+sqlserver
+sql
+sql1
+sql2
+mongodb
+mongo
+redis
+redis1
+memcache
+memcached
+elastic
+elasticsearch
+es
+es1
+cassandra
+couchdb
+neo4j
+influxdb
+clickhouse
+
+# ---------------------------------------------------------------------------
+# Monitoring and DevOps
+# ---------------------------------------------------------------------------
+monitor
+monitoring
+mon
+nagios
+zabbix
+prometheus
+grafana
+kibana
+logstash
+elk
+splunk
+datadog
+newrelic
+apm
+metrics
+stats
+statistics
+status
+health
+healthcheck
+uptime
+uptimerobot
+prtg
+icinga
+cacti
+mrtg
+jenkins
+jenkins1
+ci
+ci1
+cd
+build
+builds
+deploy
+deployment
+ansible
+puppet
+chef
+terraform
+kubernetes
+k8s
+docker
+registry
+containers
+helm
+argocd
+gitlab
+github
+bitbucket
+git
+svn
+repo
+repos
+repository
+artifactory
+nexus
+sonar
+sonarqube
+codecov
+travis
+circleci
+teamcity
+bamboo
+
+# ---------------------------------------------------------------------------
+# Collaboration Tools
+# ---------------------------------------------------------------------------
+jira
+confluence
+wiki
+wikis
+sharepoint
+teams
+slack
+mattermost
+rocket
+rocketchat
+chat
+irc
+forums
+forum
+community
+social
+intranet
+internal
+corp
+corporate
+helpdesk
+servicedesk
+ticketing
+zendesk
+freshdesk
+intercom
+crm
+salesforce
+hubspot
+hr
+hrms
+workday
+payroll
+onboarding
+training
+learn
+learning
+lms
+moodle
+canvas
+classroom
+
+# ---------------------------------------------------------------------------
+# Storage and File Sharing
+# ---------------------------------------------------------------------------
+ftp
+ftp1
+ftp2
+sftp
+ftps
+storage
+storage1
+nas
+san
+backup
+backups
+bak
+archive
+archives
+cloud
+cloudfiles
+drive
+docs
+documents
+owncloud
+nextcloud
+seafile
+box
+dropbox
+s3
+minio
+ceph
+
+# ---------------------------------------------------------------------------
+# Mobile and Apps
+# ---------------------------------------------------------------------------
+m
+mobile
+mobile1
+mobile2
+mobi
+wap
+pda
+android
+ios
+iphone
+ipad
+tablet
+app-api
+mobileapi
+push
+notifications
+gcm
+fcm
+apns
+
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+security
+sec
+soc
+siem
+ids
+ips
+waf
+scan
+scanner
+pentest
+audit
+compliance
+pci
+hipaa
+gdpr
+vault
+secrets
+keystore
+pki
+ca
+crl
+ocsp
+tls
+cert
+certs
+certificates
+
+# ---------------------------------------------------------------------------
+# Customer/Client Facing
+# ---------------------------------------------------------------------------
+customer
+customers
+client
+clients
+partner
+partners
+vendor
+vendors
+supplier
+suppliers
+portal
+myaccount
+my
+account
+accounts
+profile
+user
+users
+member
+members
+subscriber
+subscribers
+guest
+support
+help
+helpdesk
+ticket
+tickets
+kb
+knowledge
+knowledgebase
+faq
+faqs
+
+# ---------------------------------------------------------------------------
+# E-commerce
+# ---------------------------------------------------------------------------
+shop
+shops
+shopping
+store
+stores
+ecommerce
+commerce
+cart
+checkout
+payment
+payments
+pay
+billing
+invoice
+invoices
+order
+orders
+catalog
+products
+product
+inventory
+merchant
+pos
+woocommerce
+magento
+shopify
+bigcommerce
+
+# ---------------------------------------------------------------------------
+# Marketing and Analytics
+# ---------------------------------------------------------------------------
+marketing
+market
+promo
+promotions
+campaign
+campaigns
+landing
+lp
+track
+tracking
+tracker
+analytics
+ga
+gtm
+pixel
+conversion
+ads
+ad
+advertising
+banner
+banners
+click
+clicks
+affiliate
+affiliates
+seo
+sem
+
+# ---------------------------------------------------------------------------
+# Regional/Localized
+# ---------------------------------------------------------------------------
+us
+usa
+eu
+europe
+uk
+de
+fr
+es
+it
+nl
+be
+ch
+at
+au
+nz
+ca
+mx
+br
+jp
+cn
+kr
+tw
+hk
+sg
+in
+ru
+za
+ae
+sa
+global
+international
+intl
+local
+regional
+asia
+apac
+emea
+latam
+americas
+north
+south
+east
+west
+
+# ---------------------------------------------------------------------------
+# Infrastructure Providers
+# ---------------------------------------------------------------------------
+aws
+ec2
+s3
+lambda
+cloudfront
+cf
+azure
+gcp
+google
+digitalocean
+do
+linode
+vultr
+ovh
+hetzner
+scaleway
+alibaba
+aliyun
+tencent
+oracle
+ibm
+rackspace
+heroku
+netlify
+vercel
+cloudflare
+akamai
+fastly
+maxcdn
+incapsula
+
+# ---------------------------------------------------------------------------
+# Miscellaneous
+# ---------------------------------------------------------------------------
+old
+new
+legacy
+archive
+temp
+temporary
+tmp
+bak
+backup
+copy
+www-old
+old-www
+new-www
+www-new
+www-test
+www-dev
+www-staging
+v1
+v2
+v3
+version1
+version2
+alpha1
+beta2
+release
+prod
+production
+live
+mirror
+mirrors
+failover
+dr
+disaster
+recovery
+primary
+secondary
+master
+slave
+replica
+node
+node1
+node2
+node3
+cluster
+pool
+lb
+loadbalancer
+haproxy
+nginx
+apache
+iis
+tomcat
+jboss
+wildfly
+weblogic
+websphere
+glassfish
+info
+about
+contact
+privacy
+terms
+legal
+careers
+jobs
+press
+news
+blog
+blogs
+feeds
+rss
+atom
+sitemap
+robots
+status
+ping
+health
+readiness
+liveness
+version
+about

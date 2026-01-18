@@ -14,6 +14,7 @@ from stance.alerting.destinations.pagerduty import PagerDutyDestination
 from stance.alerting.destinations.email import EmailDestination
 from stance.alerting.destinations.webhook import (
     WebhookDestination,
+    WebhookError,
     TeamsDestination,
     JiraDestination,
 )
@@ -22,6 +23,8 @@ __all__ = [
     # Base
     "BaseDestination",
     "AlertPayload",
+    # Exceptions
+    "WebhookError",
     # Destinations
     "SlackDestination",
     "PagerDutyDestination",

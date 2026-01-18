@@ -25,6 +25,33 @@ from stance.dspm.scanners.base import FindingSeverity
 
 logger = logging.getLogger(__name__)
 
+
+def _escape_identifier(name: str) -> str:
+    """
+    Escape a Snowflake identifier for safe inclusion in SQL queries.
+
+    Snowflake identifiers can be quoted with double quotes. Any double quotes
+    within the identifier must be escaped by doubling them.
+
+    Args:
+        name: The identifier name (database, schema, table, or column name)
+
+    Returns:
+        Safely quoted identifier string
+    """
+    if not name:
+        raise ValueError("Identifier cannot be empty")
+    # Remove any existing quotes and escape internal double quotes
+    clean_name = name.strip('"').replace('"', '""')
+    # Validate that identifier doesn't contain dangerous characters
+    # Snowflake identifiers: letters, digits, underscores (and $ in some cases)
+    # After quoting, most characters are allowed, but we still block semicolons
+    # and SQL comment sequences as defense-in-depth
+    if ';' in clean_name or '--' in clean_name or '/*' in clean_name:
+        raise ValueError(f"Invalid identifier: {name}")
+    return f'"{clean_name}"'
+
+
 # Import snowflake connector optionally
 try:
     import snowflake.connector
@@ -142,8 +169,17 @@ class SnowflakeTableInfo:
 
     @property
     def full_name(self) -> str:
-        """Get fully qualified table name."""
+        """Get fully qualified table name for display purposes."""
         return f"{self.database}.{self.schema}.{self.name}"
+
+    @property
+    def safe_full_name(self) -> str:
+        """Get safely quoted fully qualified table name for SQL queries."""
+        return (
+            f"{_escape_identifier(self.database)}."
+            f"{_escape_identifier(self.schema)}."
+            f"{_escape_identifier(self.name)}"
+        )
 
 
 class SnowflakeScanner(BaseExtendedScanner):
@@ -368,7 +404,8 @@ class SnowflakeScanner(BaseExtendedScanner):
 
         try:
             # Get all schemas in the database
-            cursor.execute(f"SHOW SCHEMAS IN DATABASE {database}")
+            safe_database = _escape_identifier(database)
+            cursor.execute(f"SHOW SCHEMAS IN DATABASE {safe_database}")
             schemas = [row[1] for row in cursor.fetchall()]
 
             for schema in schemas:
@@ -382,7 +419,8 @@ class SnowflakeScanner(BaseExtendedScanner):
                         continue
 
                 # Get tables in schema
-                cursor.execute(f"SHOW TABLES IN {database}.{schema}")
+                safe_schema = _escape_identifier(schema)
+                cursor.execute(f"SHOW TABLES IN {safe_database}.{safe_schema}")
                 tables = cursor.fetchall()
 
                 for row in tables:
@@ -431,7 +469,10 @@ class SnowflakeScanner(BaseExtendedScanner):
         cursor = conn.cursor()
 
         try:
-            cursor.execute(f"DESCRIBE TABLE {database}.{schema}.{table}")
+            safe_db = _escape_identifier(database)
+            safe_schema = _escape_identifier(schema)
+            safe_table = _escape_identifier(table)
+            cursor.execute(f"DESCRIBE TABLE {safe_db}.{safe_schema}.{safe_table}")
             columns = cursor.fetchall()
 
             for row in columns:
@@ -570,11 +611,15 @@ class SnowflakeScanner(BaseExtendedScanner):
         """
         try:
             # Use SAMPLE for random sampling, with LIMIT as fallback
+            # Escape column name and use safe_full_name for table
+            safe_column = _escape_identifier(column.name)
+            # Validate limit is a positive integer to prevent injection
+            limit = max(1, min(10000, int(self._config.sample_rows_per_column)))
             query = f"""
-                SELECT "{column.name}"
-                FROM {table.full_name}
-                WHERE "{column.name}" IS NOT NULL
-                LIMIT {self._config.sample_rows_per_column}
+                SELECT {safe_column}
+                FROM {table.safe_full_name}
+                WHERE {safe_column} IS NOT NULL
+                LIMIT {limit}
             """
 
             cursor.execute(query)

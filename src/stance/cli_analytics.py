@@ -74,15 +74,16 @@ def _cmd_attack_paths(args: argparse.Namespace) -> int:
     try:
         # Load data from storage
         storage = get_storage()
-        assets = storage.load_assets()
-        findings_data = storage.load_findings()
+        assets = storage.get_assets()
+        findings_data = storage.get_findings()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")
             return 1
 
         # Build asset graph
-        print("Building asset graph...")
+        if output_format != "json":
+            print("Building asset graph...")
         graph = AssetGraph()
         graph.build_from_assets(assets)
 
@@ -92,7 +93,8 @@ def _cmd_attack_paths(args: argparse.Namespace) -> int:
             findings = findings_data
 
         # Run attack path analysis
-        print("Analyzing attack paths...")
+        if output_format != "json":
+            print("Analyzing attack paths...")
         analyzer = AttackPathAnalyzer(graph, findings)
         paths = analyzer.analyze()
 
@@ -187,8 +189,8 @@ def _cmd_risk_score(args: argparse.Namespace) -> int:
     try:
         # Load data from storage
         storage = get_storage()
-        assets = storage.load_assets()
-        findings_data = storage.load_findings()
+        assets = storage.get_assets()
+        findings_data = storage.get_findings()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")
@@ -309,8 +311,8 @@ def _cmd_blast_radius(args: argparse.Namespace) -> int:
     try:
         # Load data from storage
         storage = get_storage()
-        assets = storage.load_assets()
-        findings_data = storage.load_findings()
+        assets = storage.get_assets()
+        findings_data = storage.get_findings()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")
@@ -321,7 +323,8 @@ def _cmd_blast_radius(args: argparse.Namespace) -> int:
             return 1
 
         # Build asset graph
-        print("Building asset graph...")
+        if output_format != "json":
+            print("Building asset graph...")
         graph = AssetGraph()
         graph.build_from_assets(assets)
 
@@ -336,7 +339,8 @@ def _cmd_blast_radius(args: argparse.Namespace) -> int:
                 return 1
             results = [calculator.calculate(finding)]
         else:
-            print("Calculating blast radius for all findings...")
+            if output_format != "json":
+                print("Calculating blast radius for all findings...")
             results = calculator.calculate_all()
 
         # Filter by impact category
@@ -480,7 +484,7 @@ def _cmd_mitre(args: argparse.Namespace) -> int:
 
         # Load findings
         storage = get_storage()
-        findings_data = storage.load_findings()
+        findings_data = storage.get_findings()
 
         if not findings_data or not findings_data.findings:
             print("No findings found. Run 'stance scan' first.")
@@ -494,7 +498,8 @@ def _cmd_mitre(args: argparse.Namespace) -> int:
                 return 1
             mappings = [mapper.map_finding(finding)]
         else:
-            print("Mapping findings to MITRE ATT&CK...")
+            if output_format != "json":
+                print("Mapping findings to MITRE ATT&CK...")
             mappings = mapper.map_findings(findings_data)
 
         # Filter by tactic

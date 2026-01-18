@@ -240,7 +240,13 @@ class SlackDestination(BaseDestination):
 
         with urllib.request.urlopen(request, timeout=30) as response:
             if response.status != 200:
-                raise Exception(f"Slack returned status {response.status}")
+                raise urllib.error.HTTPError(
+                    self._webhook_url,
+                    response.status,
+                    f"Slack returned status {response.status}",
+                    response.headers,
+                    None,
+                )
 
     def _get_severity_emoji(self, severity: Severity) -> str:
         """Get emoji for severity level."""

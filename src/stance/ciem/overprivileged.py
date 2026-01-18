@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from stance.models.asset import Asset, AssetCollection
-from stance.models.finding import Finding, FindingType, Severity
+from stance.models.finding import Finding, FindingType, FindingStatus, Severity
 from stance.ciem.effective_permissions import EffectiveAccess, Permission
 
 logger = logging.getLogger(__name__)
@@ -97,25 +97,19 @@ class OverprivilegedFinding:
         """Convert to a Finding object."""
         return Finding(
             id=f"overprivileged-{self.identity_id}",
-            rule_id="ciem-overprivileged-001",
-            resource_id=self.identity_id,
-            resource_type=f"iam_{self.identity_type}",
+            asset_id=self.identity_id,
             finding_type=FindingType.MISCONFIGURATION,
             severity=self.severity,
+            status=FindingStatus.OPEN,
             title=f"Overprivileged {self.identity_type}: {self.identity_name}",
             description=(
                 f"Identity has {len(self.unused_permissions)} unused permissions "
                 f"({self.unused_percentage:.1f}% of total). "
-                f"Unused services: {', '.join(self.unused_services[:5])}"
+                f"Unused services: {', '.join(self.unused_services[:5])}. "
+                f"Recommendation: {self.recommendation}"
             ),
-            recommendation=self.recommendation,
-            properties={
-                "unused_permissions_count": len(self.unused_permissions),
-                "unused_services": self.unused_services,
-                "total_permissions": self.total_permissions,
-                "used_permissions": self.used_permissions,
-                "risk_reduction": self.risk_reduction,
-            },
+            rule_id="ciem-overprivileged-001",
+            resource_path=f"iam_{self.identity_type}",
         )
 
     def to_dict(self) -> dict[str, Any]:

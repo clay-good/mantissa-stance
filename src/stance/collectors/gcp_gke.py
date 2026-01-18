@@ -27,6 +27,7 @@ try:
 
     GCP_CONTAINER_AVAILABLE = True
 except ImportError:
+    container_v1 = None  # type: ignore[assignment]
     GCP_CONTAINER_AVAILABLE = False
 
 

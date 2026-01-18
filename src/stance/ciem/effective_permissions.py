@@ -238,7 +238,7 @@ class EffectivePermissionsCalculator:
         for policy in policies:
             policy_permissions = self._parse_policy(policy)
             permissions.extend(policy_permissions)
-            policy_arn = policy.properties.get("arn", policy.id)
+            policy_arn = policy.raw_config.get("arn", policy.id)
             for p in policy_permissions:
                 key = f"{p.service}:{p.action}"
                 if key not in sources:
@@ -248,7 +248,7 @@ class EffectivePermissionsCalculator:
         # Collect permissions from group memberships
         if groups:
             for group in groups:
-                group_policies = group.properties.get("attached_policies", [])
+                group_policies = group.raw_config.get("attached_policies", [])
                 for policy_arn in group_policies:
                     # Would need to resolve policy ARN to policy document
                     pass
@@ -314,10 +314,10 @@ class EffectivePermissionsCalculator:
                 continue
 
             # Get attached policies for this identity
-            attached_policy_arns = identity.properties.get("attached_policies", [])
+            attached_policy_arns = identity.raw_config.get("attached_policies", [])
             attached_policies = [
                 p for p in policies
-                if p.properties.get("arn") in attached_policy_arns
+                if p.raw_config.get("arn") in attached_policy_arns
             ]
 
             try:
@@ -337,7 +337,7 @@ class EffectivePermissionsCalculator:
         """Parse a policy into individual permissions."""
         permissions: list[Permission] = []
 
-        document = policy.properties.get("policy_document", {})
+        document = policy.raw_config.get("policy_document", {})
         statements = document.get("Statement", [])
 
         for statement in statements:

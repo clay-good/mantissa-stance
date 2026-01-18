@@ -36,7 +36,7 @@ from stance.models import (
 )
 from stance.storage import LocalStorage, generate_snapshot_id
 from stance.engine import PolicyLoader, PolicyEvaluator, run_evaluation
-from stance.engine.compliance import ComplianceCalculator
+from stance.engine.benchmark import BenchmarkCalculator
 
 
 @pytest.fixture
@@ -381,7 +381,7 @@ class TestComplianceReport:
         storage.store_findings(findings, snapshot_id)
 
         # Calculate compliance scores
-        calculator = ComplianceCalculator()
+        calculator = BenchmarkCalculator()
         report = calculator.calculate_scores(
             sample_policies,
             findings,
@@ -391,14 +391,14 @@ class TestComplianceReport:
         assert report is not None
         assert report.overall_score >= 0
         assert report.overall_score <= 100
-        assert len(report.frameworks) > 0
+        assert len(report.benchmarks) > 0
 
     def test_compliance_score_calculation(self, sample_assets, sample_policies):
         """Test compliance score is calculated correctly."""
         evaluator = PolicyEvaluator()
         findings, _ = evaluator.evaluate_all(sample_policies, sample_assets)
 
-        calculator = ComplianceCalculator()
+        calculator = BenchmarkCalculator()
         report = calculator.calculate_scores(
             sample_policies,
             findings,
@@ -407,9 +407,9 @@ class TestComplianceReport:
 
         # Find CIS framework score
         cis_score = None
-        for fw in report.frameworks:
-            if fw.framework_id == "cis-aws-foundations":
-                cis_score = fw
+        for bm in report.benchmarks:
+            if bm.benchmark_id == "cis-aws-foundations":
+                cis_score = bm
                 break
 
         if cis_score:

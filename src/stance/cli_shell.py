@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import cmd
 import json
+import logging
 import readline
 import shlex
 import sys
@@ -17,6 +18,46 @@ from datetime import datetime
 from typing import Any
 
 from stance import __version__
+
+logger = logging.getLogger(__name__)
+
+
+def _escape_sql_string(value: str) -> str:
+    """
+    Escape a string value for safe inclusion in SQL queries.
+
+    Args:
+        value: The string to escape
+
+    Returns:
+        Escaped string safe for SQL inclusion
+    """
+    if value is None:
+        return ""
+    # Escape single quotes by doubling them, remove dangerous chars
+    escaped = str(value).replace("'", "''")
+    # Remove SQL comment markers and statement separators
+    escaped = escaped.replace("--", "").replace(";", "").replace("/*", "").replace("*/", "")
+    return escaped
+
+
+def _escape_sql_like(value: str) -> str:
+    """
+    Escape a string value for safe inclusion in SQL LIKE patterns.
+
+    Args:
+        value: The string to escape
+
+    Returns:
+        Escaped string safe for SQL LIKE patterns
+    """
+    if value is None:
+        return ""
+    # First apply basic SQL escaping
+    escaped = _escape_sql_string(value)
+    # Escape LIKE special characters
+    escaped = escaped.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return escaped
 
 
 class StanceShell(cmd.Cmd):
@@ -82,8 +123,8 @@ class StanceShell(cmd.Cmd):
         """Save history after each command."""
         try:
             readline.write_history_file(".stance_history")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to write shell history: {e}")
         return stop
 
     def default(self, line: str) -> None:
@@ -169,17 +210,22 @@ class StanceShell(cmd.Cmd):
 
     def _show_findings(self, args: argparse.Namespace) -> None:
         """Display findings based on arguments."""
-        # Build SQL query
+        # Build SQL query with safe escaping
         conditions = []
         if args.severity:
-            conditions.append(f"severity = '{args.severity}'")
+            # Validate severity is from allowed list
+            valid_severities = ["critical", "high", "medium", "low", "info"]
+            if args.severity.lower() in valid_severities:
+                conditions.append(f"severity = '{_escape_sql_string(args.severity)}'")
         if args.policy:
-            conditions.append(f"rule_id LIKE '%{args.policy}%'")
+            conditions.append(f"rule_id LIKE '%{_escape_sql_like(args.policy)}%'")
         if args.asset:
-            conditions.append(f"asset_id LIKE '%{args.asset}%'")
+            conditions.append(f"asset_id LIKE '%{_escape_sql_like(args.asset)}%'")
 
         where = " AND ".join(conditions) if conditions else "1=1"
-        sql = f"SELECT * FROM findings WHERE {where} ORDER BY severity LIMIT {args.limit}"
+        # Validate limit is a positive integer
+        limit = max(1, min(1000, int(args.limit)))
+        sql = f"SELECT * FROM findings WHERE {where} ORDER BY severity LIMIT {limit}"
 
         results = self.storage.query_findings(sql)
         self._last_results = results
@@ -224,7 +270,9 @@ class StanceShell(cmd.Cmd):
         finding_id = parts[0]
 
         try:
-            sql = f"SELECT * FROM findings WHERE id = '{finding_id}'"
+            # Escape finding_id to prevent SQL injection
+            safe_finding_id = _escape_sql_string(finding_id)
+            sql = f"SELECT * FROM findings WHERE id = '{safe_finding_id}'"
             results = self.storage.query_findings(sql)
 
             if not results:
@@ -297,14 +345,17 @@ class StanceShell(cmd.Cmd):
 
     def _show_assets(self, args: argparse.Namespace) -> None:
         """Display assets based on arguments."""
+        # Build SQL query with safe escaping
         conditions = []
         if args.type:
-            conditions.append(f"asset_type LIKE '%{args.type}%'")
+            conditions.append(f"asset_type LIKE '%{_escape_sql_like(args.type)}%'")
         if args.id:
-            conditions.append(f"id LIKE '%{args.id}%'")
+            conditions.append(f"id LIKE '%{_escape_sql_like(args.id)}%'")
 
         where = " AND ".join(conditions) if conditions else "1=1"
-        sql = f"SELECT * FROM assets WHERE {where} LIMIT {args.limit}"
+        # Validate limit is a positive integer
+        limit = max(1, min(1000, int(args.limit)))
+        sql = f"SELECT * FROM assets WHERE {where} LIMIT {limit}"
 
         results = self.storage.query_assets(sql)
         self._last_results = results
@@ -348,7 +399,9 @@ class StanceShell(cmd.Cmd):
         asset_id = parts[0]
 
         try:
-            sql = f"SELECT * FROM assets WHERE id = '{asset_id}'"
+            # Escape asset_id to prevent SQL injection
+            safe_asset_id = _escape_sql_string(asset_id)
+            sql = f"SELECT * FROM assets WHERE id = '{safe_asset_id}'"
             results = self.storage.query_assets(sql)
 
             if not results:

@@ -32,8 +32,7 @@ class TestUserManagement:
         """Test creating a user model."""
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
-        credentials = UserCredentials()
-        credentials.set_password("secure_password123!")
+        credentials = UserCredentials.create("secure_password123!")
 
         user = User(
             id="usr_001",
@@ -55,8 +54,7 @@ class TestUserManagement:
         """Test password verification."""
         from stance.auth.models import UserCredentials
 
-        credentials = UserCredentials()
-        credentials.set_password("my_secure_password!")
+        credentials = UserCredentials.create("my_secure_password!")
 
         assert credentials.verify_password("my_secure_password!")
         assert not credentials.verify_password("wrong_password")
@@ -65,12 +63,11 @@ class TestUserManagement:
         """Test account lockout after failed attempts."""
         from stance.auth.models import UserCredentials
 
-        credentials = UserCredentials(max_login_attempts=3, lockout_duration_minutes=30)
-        credentials.set_password("password123!")
+        credentials = UserCredentials.create("password123!")
 
-        # Record failed attempts
-        for _ in range(3):
-            credentials.record_failed_attempt()
+        # Record failed attempts (3 times, lockout threshold defaults to 5)
+        for _ in range(5):
+            credentials.record_failed_login(lockout_threshold=5)
 
         assert credentials.is_locked()
 
@@ -160,19 +157,24 @@ class TestAPIKeyManagement:
     def test_api_key_creation(self):
         """Test creating an API key."""
         from stance.auth.api_keys import APIKeyManager
+        from stance.auth.models import APIKeyScope
 
         manager = APIKeyManager()
 
+        scope = APIKeyScope(
+            resources=["findings", "assets"],
+            actions=["read"],
+        )
         key, plaintext = manager.create_key(
             name="Test Key",
             user_id="usr_001",
-            scopes=["read:findings", "read:assets"],
+            scope=scope,
         )
 
         assert key.id is not None
         assert key.name == "Test Key"
         assert key.user_id == "usr_001"
-        assert plaintext.startswith(key.prefix)
+        assert plaintext.startswith(key.key_prefix)
 
     def test_api_key_validation(self):
         """Test validating an API key."""
@@ -187,6 +189,8 @@ class TestAPIKeyManagement:
 
         validated = manager.validate_key(plaintext)
         assert validated.id == key.id
+        # Note: use_count is incremented when use_key() is called
+        manager.use_key(validated)
         assert validated.use_count == 1
 
     def test_api_key_expiration(self):
@@ -215,7 +219,7 @@ class TestAPIKeyManagement:
             user_id="usr_001",
         )
 
-        manager.revoke_key(key.id, reason="Testing revocation")
+        manager.revoke_key(key.id, revoked_by="admin", reason="Testing revocation")
 
         with pytest.raises(APIKeyRevokedError):
             manager.validate_key(plaintext)
@@ -256,7 +260,7 @@ class TestJWTManagement:
             id="usr_001",
             email="jwt@example.com",
             username="jwtuser",
-            credentials=UserCredentials(),
+            credentials=UserCredentials.create("test_password"),
             roles={UserRole.ADMIN},
             status=UserStatus.ACTIVE,
         )
@@ -278,15 +282,15 @@ class TestJWTManagement:
             id="usr_001",
             email="validate@example.com",
             username="validateuser",
-            credentials=UserCredentials(),
-            roles={UserRole.ANALYST},
+            credentials=UserCredentials.create("test_password"),
+            roles={UserRole.SECURITY_ANALYST},
             status=UserStatus.ACTIVE,
         )
 
         token_pair = manager.generate_tokens(user)
         payload = manager.validate_token(token_pair.access_token)
 
-        assert payload.user_id == "usr_001"
+        assert payload.sub == "usr_001"
         assert payload.email == "validate@example.com"
 
     def test_jwt_token_refresh(self):
@@ -300,7 +304,7 @@ class TestJWTManagement:
             id="usr_001",
             email="refresh@example.com",
             username="refreshuser",
-            credentials=UserCredentials(),
+            credentials=UserCredentials.create("test_password"),
             roles={UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -312,7 +316,7 @@ class TestJWTManagement:
 
     def test_jwt_token_revocation(self):
         """Test revoking JWT tokens."""
-        from stance.auth.jwt_manager import JWTManager, TokenExpiredError
+        from stance.auth.jwt_manager import JWTManager, InvalidTokenError
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
         manager = JWTManager()
@@ -321,7 +325,7 @@ class TestJWTManagement:
             id="usr_001",
             email="revoke@example.com",
             username="revokeuser",
-            credentials=UserCredentials(),
+            credentials=UserCredentials.create("test_password"),
             roles={UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -329,7 +333,7 @@ class TestJWTManagement:
         token_pair = manager.generate_tokens(user)
         manager.revoke_token(token_pair.access_token)
 
-        with pytest.raises(TokenExpiredError):
+        with pytest.raises(InvalidTokenError):
             manager.validate_token(token_pair.access_token)
 
 
@@ -444,8 +448,8 @@ class TestRBAC:
             id="usr_001",
             email="rbac@example.com",
             username="rbacuser",
-            credentials=UserCredentials(),
-            roles={UserRole.ANALYST},
+            credentials=UserCredentials.create("test_password"),
+            roles={UserRole.SECURITY_ANALYST},
             status=UserStatus.ACTIVE,
         )
 
@@ -464,7 +468,7 @@ class TestRBAC:
             id="usr_001",
             email="viewer@example.com",
             username="vieweruser",
-            credentials=UserCredentials(),
+            credentials=UserCredentials.create("test_password"),
             roles={UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -484,7 +488,7 @@ class TestRBAC:
             id="usr_001",
             email="admin@example.com",
             username="adminuser",
-            credentials=UserCredentials(),
+            credentials=UserCredentials.create("test_password"),
             roles={UserRole.ADMIN},
             status=UserStatus.ACTIVE,
         )
@@ -505,8 +509,8 @@ class TestRBAC:
             id="usr_001",
             email="multi@example.com",
             username="multiuser",
-            credentials=UserCredentials(),
-            roles={UserRole.ANALYST, UserRole.VIEWER},
+            credentials=UserCredentials.create("test_password"),
+            roles={UserRole.SECURITY_ANALYST, UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
 
@@ -524,10 +528,11 @@ class TestAuditLogging:
 
     def test_audit_event_creation(self):
         """Test creating an audit event."""
-        from stance.auth.audit import AuditLogger
+        from stance.auth.audit import AuditLogger, AuditConfig
         from stance.auth.models import AuditEventType
 
-        logger = AuditLogger()
+        config = AuditConfig(log_to_file=False, log_to_console=False)
+        logger = AuditLogger(config)
 
         event = logger.log_event(
             event_type=AuditEventType.LOGIN_SUCCESS,
@@ -543,16 +548,17 @@ class TestAuditLogging:
 
     def test_audit_login_events(self):
         """Test logging login events."""
-        from stance.auth.audit import AuditLogger
+        from stance.auth.audit import AuditLogger, AuditConfig
 
-        logger = AuditLogger()
+        config = AuditConfig(log_to_file=False, log_to_console=False)
+        logger = AuditLogger(config)
 
         # Log success
         success_event = logger.log_login_success(
             user_id="usr_001",
             ip_address="192.168.1.100",
         )
-        assert success_event.status == "success"
+        assert success_event.success is True
 
         # Log failure
         failure_event = logger.log_login_failure(
@@ -560,14 +566,15 @@ class TestAuditLogging:
             ip_address="192.168.1.100",
             reason="Invalid password",
         )
-        assert failure_event.status == "failure"
+        assert failure_event.success is False
 
     def test_audit_query(self):
         """Test querying audit events."""
-        from stance.auth.audit import AuditLogger
+        from stance.auth.audit import AuditLogger, AuditConfig
         from stance.auth.models import AuditEventType
 
-        logger = AuditLogger()
+        config = AuditConfig(log_to_file=False, log_to_console=False)
+        logger = AuditLogger(config)
 
         # Create some events
         logger.log_login_success(user_id="usr_001", ip_address="10.0.0.1")
@@ -584,10 +591,11 @@ class TestAuditLogging:
 
     def test_audit_sensitive_field_redaction(self):
         """Test sensitive field redaction."""
-        from stance.auth.audit import AuditLogger
+        from stance.auth.audit import AuditLogger, AuditConfig
         from stance.auth.models import AuditEventType
 
-        logger = AuditLogger()
+        config = AuditConfig(log_to_file=False, log_to_console=False)
+        logger = AuditLogger(config)
 
         event = logger.log_event(
             event_type=AuditEventType.PASSWORD_CHANGED,
@@ -600,9 +608,9 @@ class TestAuditLogging:
             },
         )
 
-        assert event.metadata.get("password") == "[REDACTED]"
-        assert event.metadata.get("new_password") == "[REDACTED]"
-        assert event.metadata.get("reason") == "User requested"
+        assert event.details.get("password") == "[REDACTED]"
+        assert event.details.get("new_password") == "[REDACTED]"
+        assert event.details.get("reason") == "User requested"
 
 
 # =============================================================================
@@ -617,6 +625,7 @@ class TestOAuth2:
         from stance.auth.oauth2 import OAuth2Provider, OAuth2Config
 
         config = OAuth2Config(
+            provider_name="test_provider",
             client_id="test_client",
             client_secret="test_secret",
             authorization_endpoint="https://auth.example.com/authorize",
@@ -638,6 +647,7 @@ class TestOAuth2:
         from stance.auth.oauth2 import OIDCProvider, OIDCConfig
 
         config = OIDCConfig(
+            provider_name="oidc_test",
             client_id="oidc_client",
             client_secret="oidc_secret",
             issuer="https://issuer.example.com",
@@ -665,15 +675,15 @@ class TestAuthMiddleware:
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus, AuthMethod
 
         jwt_manager = JWTManager()
-        config = AuthConfig(jwt_manager=jwt_manager)
-        middleware = AuthMiddleware(config)
+        config = AuthConfig()
+        middleware = AuthMiddleware(config, jwt_manager=jwt_manager)
 
         # Create a user and token
         user = User(
             id="usr_001",
             email="middleware@example.com",
             username="middlewareuser",
-            credentials=UserCredentials(),
+            credentials=UserCredentials.create("test_password"),
             roles={UserRole.ADMIN},
             status=UserStatus.ACTIVE,
         )
@@ -685,9 +695,9 @@ class TestAuthMiddleware:
             headers={"Authorization": f"Bearer {token_pair.access_token}"},
         )
 
-        assert result.authenticated
-        assert result.auth_method == AuthMethod.JWT
-        assert result.context.user_id == "usr_001"
+        assert result.success
+        assert result.context.auth_method == AuthMethod.JWT
+        assert result.context.token_payload.sub == "usr_001"
 
     def test_middleware_public_path(self):
         """Test public path bypass."""
@@ -701,8 +711,9 @@ class TestAuthMiddleware:
             headers={},
         )
 
-        assert result.authenticated
-        assert result.context is None
+        assert result.success
+        # For public paths, context is present but is_authenticated is False
+        assert not result.context.is_authenticated
 
 
 # =============================================================================
@@ -730,12 +741,12 @@ class TestFactoryFunctions:
         from stance.auth import create_api_key_manager
 
         manager = create_api_key_manager(
-            key_prefix="test_",
-            default_expiry_days=30,
+            max_keys_per_user=5,
+            default_expires_days=30,
         )
 
-        assert manager.config.key_prefix == "test_"
-        assert manager.config.default_expiry_days == 30
+        assert manager.config.max_keys_per_user == 5
+        assert manager.config.default_expires_days == 30
 
     def test_create_session_manager(self):
         """Test session manager factory."""
@@ -766,12 +777,12 @@ class TestFactoryFunctions:
         from stance.auth import create_jwt_manager
 
         manager = create_jwt_manager(
-            access_token_expiry_minutes=30,
-            refresh_token_expiry_days=7,
+            access_expires=1800,  # 30 minutes in seconds
+            refresh_expires=604800,  # 7 days in seconds
         )
 
-        assert manager.config.access_token_expiry_minutes == 30
-        assert manager.config.refresh_token_expiry_days == 7
+        assert manager.config.access_token_expires == 1800
+        assert manager.config.refresh_token_expires == 604800
 
     def test_create_audit_logger(self):
         """Test audit logger factory."""
@@ -814,7 +825,7 @@ class TestAuthIntegration:
             email="integration@example.com",
             username="integrationuser",
             password="IntegrationPass123!",
-            roles={UserRole.ANALYST},
+            roles={UserRole.SECURITY_ANALYST},
         )
 
         # Authenticate
@@ -845,7 +856,7 @@ class TestAuthIntegration:
 
         # Validate token
         payload = jwt_manager.validate_token(tokens.access_token)
-        assert payload.user_id == authenticated_user.id
+        assert payload.sub == authenticated_user.id
 
         # Validate session
         validated_session = session_manager.validate_session(session_token)

@@ -12,7 +12,7 @@ resource_type: aws_apigateway_rest_api
 
 check:
   type: expression
-  expression: "resource.stages != null and any(resource.stages, stage.method_settings != null)"
+  expression: "resource.stages != null and resource.method_settings != null"
 
 compliance:
   - framework: owasp-api-security

@@ -16,6 +16,9 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable
 from uuid import uuid4
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ScheduleType(Enum):
@@ -528,38 +531,44 @@ class ScanScheduler:
 
     def get_job(self, job_id: str) -> ScanJob | None:
         """Get a job by ID."""
-        return self._jobs.get(job_id)
+        with self._lock:
+            return self._jobs.get(job_id)
 
     def get_jobs(self) -> list[ScanJob]:
         """Get all jobs."""
-        return list(self._jobs.values())
+        with self._lock:
+            return list(self._jobs.values())
 
     def get_enabled_jobs(self) -> list[ScanJob]:
         """Get all enabled jobs."""
-        return [job for job in self._jobs.values() if job.enabled]
+        with self._lock:
+            return [job for job in self._jobs.values() if job.enabled]
 
     def get_pending_jobs(self, now: datetime | None = None) -> list[ScanJob]:
         """Get jobs that should run now."""
         if now is None:
             now = datetime.utcnow()
-        return [job for job in self._jobs.values() if job.should_run(now)]
+        with self._lock:
+            return [job for job in self._jobs.values() if job.should_run(now)]
 
     def enable_job(self, job_id: str) -> bool:
         """Enable a job."""
-        job = self._jobs.get(job_id)
-        if job:
-            job.enabled = True
-            job.next_run = job.schedule.get_next_run()
-            return True
-        return False
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job.enabled = True
+                job.next_run = job.schedule.get_next_run()
+                return True
+            return False
 
     def disable_job(self, job_id: str) -> bool:
         """Disable a job."""
-        job = self._jobs.get(job_id)
-        if job:
-            job.enabled = False
-            return True
-        return False
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job.enabled = False
+                return True
+            return False
 
     def run_job_now(self, job_id: str) -> ScanResult | None:
         """
@@ -571,7 +580,8 @@ class ScanScheduler:
         Returns:
             ScanResult if executed, None if job not found
         """
-        job = self._jobs.get(job_id)
+        with self._lock:
+            job = self._jobs.get(job_id)
         if not job:
             return None
 
@@ -611,9 +621,8 @@ class ScanScheduler:
         while self._running:
             try:
                 self._check_and_run_jobs()
-            except Exception:
-                # Log error but keep running
-                pass
+            except Exception as e:
+                logger.error(f"Error in scheduler loop: {e}")
             time.sleep(self._check_interval)
 
     def _check_and_run_jobs(self) -> None:
@@ -624,9 +633,8 @@ class ScanScheduler:
         for job in pending:
             try:
                 self._execute_job(job)
-            except Exception:
-                # Log error but continue with other jobs
-                pass
+            except Exception as e:
+                logger.error(f"Error executing job {job.name}: {e}")
 
     def _execute_job(self, job: ScanJob) -> ScanResult:
         """Execute a single job."""
@@ -662,8 +670,8 @@ class ScanScheduler:
         for callback in self._callbacks:
             try:
                 callback(job, result)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error in scheduler callback: {e}")
 
         return result
 

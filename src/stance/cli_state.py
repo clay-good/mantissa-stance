@@ -12,8 +12,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from datetime import datetime, timedelta
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def add_state_parser(subparsers: Any) -> None:
@@ -526,8 +529,8 @@ def _get_all_checkpoints() -> list[dict[str, Any]]:
                     "cursor": row["cursor"],
                     "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
                 })
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Error loading checkpoints: %s", e)
 
     return checkpoints
 

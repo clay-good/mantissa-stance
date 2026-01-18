@@ -393,7 +393,7 @@ class TestEngineStatusEndpoint:
         assert "ExpressionEvaluator" in components
         assert "PolicyLoader" in components
         assert "PolicyEvaluator" in components
-        assert "ComplianceCalculator" in components
+        assert "BenchmarkCalculator" in components
 
 
 class TestEngineSummaryEndpoint:

@@ -14,6 +14,7 @@ import logging
 import threading
 import time
 import uuid
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -68,6 +69,16 @@ class WidgetStatus(Enum):
 
 
 # =============================================================================
+# Exceptions
+# =============================================================================
+
+
+class RateLimitError(Exception):
+    """Raised when rate limit is exceeded."""
+    pass
+
+
+# =============================================================================
 # Data Providers
 # =============================================================================
 
@@ -86,11 +97,12 @@ class DataProviderConfig:
     retry_delay_seconds: float = 1.0
 
 
-class DataProvider:
+class DataProvider(ABC):
     """
-    Base class for widget data providers.
+    Abstract base class for widget data providers.
 
     Provides data fetching with caching, rate limiting, and error handling.
+    Subclasses must implement the _fetch_data method.
     """
 
     def __init__(self, config: DataProviderConfig):
@@ -140,13 +152,14 @@ class DataProvider:
                 return self.cache[cache_key], True
             raise
 
+    @abstractmethod
     def _fetch_data(
         self,
         widget_id: str,
         params: Optional[Dict[str, Any]] = None
     ) -> Any:
-        """Override to implement data fetching."""
-        raise NotImplementedError
+        """Fetch data for a widget. Must be implemented by subclasses."""
+        pass
 
     def _make_cache_key(
         self,
@@ -204,11 +217,6 @@ class DataProvider:
             # Invalidate all
             self.cache.clear()
             self.cache_timestamps.clear()
-
-
-class RateLimitError(Exception):
-    """Raised when rate limit is exceeded."""
-    pass
 
 
 # =============================================================================
@@ -762,8 +770,9 @@ class LiveMetricTracker:
     def get_all_metrics(self) -> List[Dict[str, Any]]:
         """Get all tracked metrics."""
         return [
-            self.get_metric(name)
+            metric
             for name in self.metric_values.keys()
+            if (metric := self.get_metric(name)) is not None
         ]
 
 

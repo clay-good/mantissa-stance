@@ -552,7 +552,8 @@ class S3StorageAdapter:
             return json.loads(content)
         except self._client.exceptions.NoSuchKey:
             return None
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error reading S3 record {path}: {e}")
             return None
 
     def list_records(self, prefix: str) -> list[str]:
@@ -579,7 +580,8 @@ class S3StorageAdapter:
                 "last_modified": response["LastModified"].isoformat(),
                 "etag": response["ETag"],
             }
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error getting S3 metadata for {path}: {e}")
             return None
 
 
@@ -616,7 +618,8 @@ class GCSStorageAdapter:
             blob = self._bucket.blob(path)
             content = blob.download_as_text()
             return json.loads(content)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error reading GCS record {path}: {e}")
             return None
 
     def list_records(self, prefix: str) -> list[str]:
@@ -639,7 +642,8 @@ class GCSStorageAdapter:
                 "last_modified": blob.updated.isoformat() if blob.updated else None,
                 "etag": blob.etag,
             }
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error getting GCS metadata for {path}: {e}")
             return None
 
 
@@ -679,7 +683,8 @@ class AzureBlobStorageAdapter:
             blob_client = self._container.get_blob_client(path)
             content = blob_client.download_blob().readall().decode("utf-8")
             return json.loads(content)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error reading Azure blob {path}: {e}")
             return None
 
     def list_records(self, prefix: str) -> list[str]:
@@ -702,5 +707,6 @@ class AzureBlobStorageAdapter:
                 "last_modified": props.last_modified.isoformat() if props.last_modified else None,
                 "etag": props.etag,
             }
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error getting Azure blob metadata for {path}: {e}")
             return None

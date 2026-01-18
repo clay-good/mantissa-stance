@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 from stance.web.server import StanceRequestHandler
 from stance.models.asset import Asset, AssetCollection
-from stance.models.finding import Finding, FindingType, Severity
+from stance.models.finding import Finding, FindingType, FindingStatus, Severity
 from stance.enrichment.base import (
     EnrichedFinding,
     EnrichedAsset,
@@ -40,6 +40,7 @@ class TestEnrichmentFindingsEndpoint:
             description="Test description",
             severity=Severity.HIGH,
             finding_type=FindingType.VULNERABILITY,
+            status=FindingStatus.OPEN,
             cve_id="CVE-2021-44228",
             asset_id="asset-001",
         )
@@ -55,8 +56,8 @@ class TestEnrichmentFindingsEndpoint:
         """Test enrichment findings with no findings available."""
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = None
 
             result = StanceRequestHandler._enrichment_findings(handler, {})
 
@@ -79,10 +80,10 @@ class TestEnrichmentFindingsEndpoint:
             ],
         )
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
-            with patch("stance.web.server.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_findings.return_value = [enriched_finding]
 
                 result = StanceRequestHandler._enrichment_findings(handler, {})
@@ -99,12 +100,12 @@ class TestEnrichmentFindingsEndpoint:
 
         enriched_finding = EnrichedFinding(finding=mock_finding, enrichments=[])
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
-            with patch("stance.web.server.CVEEnricher"):
-                with patch("stance.web.server.KEVEnricher"):
-                    with patch("stance.web.server.EnrichmentPipeline") as mock_pipeline:
+            with patch("stance.enrichment.CVEEnricher"):
+                with patch("stance.enrichment.KEVEnricher"):
+                    with patch("stance.enrichment.EnrichmentPipeline") as mock_pipeline:
                         mock_pipeline.return_value.enrich_findings.return_value = [enriched_finding]
 
                         result = StanceRequestHandler._enrichment_findings(handler, params)
@@ -117,8 +118,8 @@ class TestEnrichmentFindingsEndpoint:
 
         params = {"types": ["invalid"]}
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
             result = StanceRequestHandler._enrichment_findings(handler, params)
 
@@ -133,10 +134,10 @@ class TestEnrichmentFindingsEndpoint:
 
         enriched_finding = EnrichedFinding(finding=mock_finding, enrichments=[])
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_findings_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_findings_data
 
-            with patch("stance.web.server.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_findings.return_value = [enriched_finding]
 
                 result = StanceRequestHandler._enrichment_findings(handler, params)
@@ -155,6 +156,7 @@ class TestEnrichmentAssetsEndpoint:
             name="test-bucket",
             resource_type="aws_s3_bucket",
             cloud_provider="aws",
+            account_id="123456789012",
             region="us-east-1",
             tags={"environment": "production"},
         )
@@ -170,8 +172,8 @@ class TestEnrichmentAssetsEndpoint:
         """Test enrichment assets with no assets available."""
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = None
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = None
 
             result = StanceRequestHandler._enrichment_assets(handler, {})
 
@@ -194,10 +196,10 @@ class TestEnrichmentAssetsEndpoint:
             ],
         )
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets_data
 
-            with patch("stance.web.server.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_assets.return_value = [enriched_asset]
 
                 result = StanceRequestHandler._enrichment_assets(handler, {})
@@ -213,10 +215,10 @@ class TestEnrichmentAssetsEndpoint:
 
         enriched_asset = EnrichedAsset(asset=mock_asset, enrichments=[])
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_assets_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_assets_data
 
-            with patch("stance.web.server.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 mock_pipeline.return_value.enrich_assets.return_value = [enriched_asset]
 
                 result = StanceRequestHandler._enrichment_assets(handler, params)
@@ -250,7 +252,7 @@ class TestEnrichmentIPEndpoint:
             "geolocation": None,
         }
 
-        with patch("stance.web.server.IPEnricher") as mock_enricher:
+        with patch("stance.enrichment.IPEnricher") as mock_enricher:
             mock_enricher.return_value.lookup_ip.return_value = mock_result
 
             result = StanceRequestHandler._enrichment_ip(handler, params)
@@ -270,7 +272,7 @@ class TestEnrichmentIPEndpoint:
             "cloud_provider": None,
         }
 
-        with patch("stance.web.server.IPEnricher") as mock_enricher:
+        with patch("stance.enrichment.IPEnricher") as mock_enricher:
             mock_enricher.return_value.lookup_ip.return_value = mock_result
 
             result = StanceRequestHandler._enrichment_ip(handler, params)
@@ -295,7 +297,7 @@ class TestEnrichmentCVEEndpoint:
 
         params = {"cve_id": ["CVE-9999-99999"]}
 
-        with patch("stance.web.server.CVEEnricher") as mock_enricher:
+        with patch("stance.enrichment.CVEEnricher") as mock_enricher:
             mock_enricher.return_value._lookup_cve.return_value = None
 
             result = StanceRequestHandler._enrichment_cve(handler, params)
@@ -315,7 +317,7 @@ class TestEnrichmentCVEEndpoint:
             "cvss_v3": {"score": 10.0, "severity": "CRITICAL"},
         }
 
-        with patch("stance.web.server.CVEEnricher") as mock_enricher:
+        with patch("stance.enrichment.CVEEnricher") as mock_enricher:
             mock_enricher.return_value._lookup_cve.return_value = mock_result
 
             result = StanceRequestHandler._enrichment_cve(handler, params)
@@ -335,7 +337,7 @@ class TestEnrichmentCVEEndpoint:
             "description": "Test",
         }
 
-        with patch("stance.web.server.CVEEnricher") as mock_enricher:
+        with patch("stance.enrichment.CVEEnricher") as mock_enricher:
             mock_enricher.return_value._lookup_cve.return_value = mock_result
 
             result = StanceRequestHandler._enrichment_cve(handler, params)
@@ -350,7 +352,7 @@ class TestEnrichmentKEVEndpoint:
         """Test KEV lookup without CVE ID or list flag."""
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {}
 
             result = StanceRequestHandler._enrichment_kev(handler, {})
@@ -370,7 +372,7 @@ class TestEnrichmentKEVEndpoint:
             },
         }
 
-        with patch("stance.web.server.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = mock_kev_data
 
             result = StanceRequestHandler._enrichment_kev(handler, params)
@@ -384,7 +386,7 @@ class TestEnrichmentKEVEndpoint:
 
         params = {"cve_id": ["CVE-9999-99999"]}
 
-        with patch("stance.web.server.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {}
             mock_enricher.return_value.is_known_exploited.return_value = False
 
@@ -404,7 +406,7 @@ class TestEnrichmentKEVEndpoint:
             "vulnerabilityName": "Log4Shell",
         }
 
-        with patch("stance.web.server.KEVEnricher") as mock_enricher:
+        with patch("stance.enrichment.KEVEnricher") as mock_enricher:
             mock_enricher.return_value._kev_data = {"CVE-2021-44228": mock_kev_entry}
             mock_enricher.return_value.is_known_exploited.return_value = True
 
@@ -467,6 +469,7 @@ class TestEnrichmentEndpointEdgeCases:
                 description="Test",
                 severity=Severity.MEDIUM,
                 finding_type=FindingType.MISCONFIGURATION,
+                status=FindingStatus.OPEN,
                 asset_id="asset-001",
             )
             for i in range(10)
@@ -477,10 +480,10 @@ class TestEnrichmentEndpointEdgeCases:
 
         params = {"limit": ["5"]}
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_data
 
-            with patch("stance.web.server.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 # Return enriched findings based on input count
                 def side_effect(input_findings):
                     return [EnrichedFinding(finding=f, enrichments=[]) for f in input_findings]
@@ -502,6 +505,7 @@ class TestEnrichmentEndpointEdgeCases:
                 name=f"asset-{i}",
                 resource_type="aws_s3_bucket",
                 cloud_provider="aws",
+                account_id="123456789012",
                 region="us-east-1",
             )
             for i in range(10)
@@ -512,10 +516,10 @@ class TestEnrichmentEndpointEdgeCases:
 
         params = {"limit": ["3"]}
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_data
 
-            with patch("stance.web.server.create_default_pipeline") as mock_pipeline:
+            with patch("stance.enrichment.create_default_pipeline") as mock_pipeline:
                 def side_effect(input_assets):
                     return [EnrichedAsset(asset=a, enrichments=[]) for a in input_assets]
 
@@ -534,8 +538,8 @@ class TestEnrichmentEndpointEdgeCases:
 
         params = {"finding_id": ["nonexistent"]}
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_findings.return_value = mock_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_findings.return_value = mock_data
 
             result = StanceRequestHandler._enrichment_findings(handler, params)
 
@@ -550,8 +554,8 @@ class TestEnrichmentEndpointEdgeCases:
 
         params = {"asset_id": ["nonexistent"]}
 
-        with patch("stance.web.server.get_storage") as mock_storage:
-            mock_storage.return_value.load_assets.return_value = mock_data
+        with patch("stance.storage.get_storage") as mock_storage:
+            mock_storage.return_value.get_assets.return_value = mock_data
 
             result = StanceRequestHandler._enrichment_assets(handler, params)
 

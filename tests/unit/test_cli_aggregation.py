@@ -619,7 +619,7 @@ class TestCmdStatus(TestCase):
         self.assertEqual(result, 0)
         self.assertIn("Aggregation Module Status", output)
         self.assertIn("Capabilities", output)
-        self.assertIn("multi_account_aggregation", output.lower().replace("_", " "))
+        self.assertIn("multi account aggregation", output.lower().replace("_", " "))
 
 
 class TestSampleData(TestCase):

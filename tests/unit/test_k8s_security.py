@@ -533,6 +533,8 @@ class TestNetworkPolicyAnalyzer:
         """Test policy that is not overly permissive."""
         analyzer = NetworkPolicyAnalyzer()
 
+        # Must include namespaceSelector to restrict to specific namespace
+        # Without it, podSelector matches pods in ALL namespaces
         policy = {
             "metadata": {"name": "restricted", "namespace": "default"},
             "spec": {
@@ -540,6 +542,7 @@ class TestNetworkPolicyAnalyzer:
                 "policyTypes": ["Ingress"],
                 "ingress": [{
                     "from": [{
+                        "namespaceSelector": {"matchLabels": {"env": "production"}},
                         "podSelector": {"matchLabels": {"role": "db"}},
                     }],
                 }],

@@ -84,7 +84,7 @@ class TestCmdIdentityWhoCanAccess:
 
     def test_who_can_access_aws_table_output(self, capsys):
         """Test who-can-access for AWS with table output."""
-        with patch("stance.cli_identity.AWSDataAccessMapper") as mock_mapper_class:
+        with patch("stance.identity.AWSDataAccessMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_result = MagicMock()
             mock_result.resource_id = "arn:aws:s3:::my-bucket"
@@ -112,7 +112,7 @@ class TestCmdIdentityWhoCanAccess:
 
     def test_who_can_access_gcp_json_output(self, capsys):
         """Test who-can-access for GCP with JSON output."""
-        with patch("stance.cli_identity.GCPDataAccessMapper") as mock_mapper_class:
+        with patch("stance.identity.GCPDataAccessMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_result = MagicMock()
             mock_result.resource_id = "gs://gcs-bucket"
@@ -153,7 +153,7 @@ class TestCmdIdentityWhoCanAccess:
 
     def test_who_can_access_azure(self, capsys):
         """Test who-can-access for Azure."""
-        with patch("stance.cli_identity.AzureDataAccessMapper") as mock_mapper_class:
+        with patch("stance.identity.AzureDataAccessMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_result = MagicMock()
             mock_result.resource_id = "/subscriptions/.../storageAccounts/test"
@@ -196,7 +196,7 @@ class TestCmdIdentityWhoCanAccess:
 
     def test_who_can_access_with_principals(self, capsys):
         """Test who-can-access shows principal details."""
-        with patch("stance.cli_identity.AWSDataAccessMapper") as mock_mapper_class:
+        with patch("stance.identity.AWSDataAccessMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_result = MagicMock()
             mock_result.resource_id = "arn:aws:s3:::my-bucket"
@@ -250,7 +250,7 @@ class TestCmdIdentityExposure:
 
     def test_exposure_table_output(self, capsys):
         """Test exposure analysis with table output."""
-        with patch("stance.cli_identity.PrincipalExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.exposure.PrincipalExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.principal_id = "arn:aws:iam::123456789012:user/admin"
@@ -279,7 +279,7 @@ class TestCmdIdentityExposure:
 
     def test_exposure_json_output(self, capsys):
         """Test exposure analysis with JSON output."""
-        with patch("stance.cli_identity.PrincipalExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.exposure.PrincipalExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.principal_id = "user:test@example.com"
@@ -310,7 +310,7 @@ class TestCmdIdentityExposure:
 
     def test_exposure_with_findings(self, capsys):
         """Test exposure with exposure findings."""
-        with patch("stance.cli_identity.PrincipalExposureAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.exposure.PrincipalExposureAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.principal_id = "admin-user"
@@ -355,7 +355,7 @@ class TestCmdIdentityOverprivileged:
 
     def test_overprivileged_aws_table_output(self, capsys):
         """Test overprivileged analysis for AWS with table output."""
-        with patch("stance.cli_identity.OverPrivilegedAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.overprivileged.OverPrivilegedAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.cloud_provider = "aws"
@@ -384,7 +384,7 @@ class TestCmdIdentityOverprivileged:
 
     def test_overprivileged_gcp_json_output(self, capsys):
         """Test overprivileged analysis for GCP with JSON output."""
-        with patch("stance.cli_identity.OverPrivilegedAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.overprivileged.OverPrivilegedAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.cloud_provider = "gcp"
@@ -415,7 +415,7 @@ class TestCmdIdentityOverprivileged:
 
     def test_overprivileged_with_findings(self, capsys):
         """Test overprivileged with findings."""
-        with patch("stance.cli_identity.OverPrivilegedAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.overprivileged.OverPrivilegedAnalyzer") as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_result = MagicMock()
             mock_result.cloud_provider = "aws"
@@ -459,7 +459,7 @@ class TestCmdIdentityOverprivileged:
 
     def test_overprivileged_handles_exception(self, capsys):
         """Test overprivileged handles exceptions gracefully."""
-        with patch("stance.cli_identity.OverPrivilegedAnalyzer") as mock_analyzer_class:
+        with patch("stance.identity.overprivileged.OverPrivilegedAnalyzer") as mock_analyzer_class:
             mock_analyzer_class.side_effect = Exception("API error")
 
             args = argparse.Namespace(

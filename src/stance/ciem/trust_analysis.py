@@ -13,7 +13,7 @@ from enum import Enum
 from typing import Any
 
 from stance.models.asset import Asset, AssetCollection
-from stance.models.finding import Finding, FindingType, Severity
+from stance.models.finding import Finding, FindingType, FindingStatus, Severity
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +162,7 @@ class TrustAnalyzer:
         """
         trusts: list[TrustRelationship] = []
 
-        trust_policy = role.properties.get("assume_role_policy", {})
+        trust_policy = role.raw_config.get("assume_role_policy", {})
         statements = trust_policy.get("Statement", [])
 
         source_account = self._extract_account_id(role.id)
@@ -309,40 +309,39 @@ class TrustAnalyzer:
                 findings.append(
                     Finding(
                         id=f"trust-critical-{trust.source_id}",
-                        rule_id="ciem-trust-001",
-                        resource_id=trust.source_id,
-                        resource_type="aws_iam_role",
+                        asset_id=trust.source_id,
                         finding_type=FindingType.MISCONFIGURATION,
                         severity=Severity.CRITICAL,
+                        status=FindingStatus.OPEN,
                         title=f"Critical trust relationship: {trust.source_name}",
                         description=(
                             f"Role {trust.source_name} has a critical trust "
                             f"configuration allowing {trust.target_principal} "
-                            f"to assume it."
+                            f"to assume it. Recommendation: Review and restrict "
+                            f"the trust policy. Add conditions to limit who can "
+                            f"assume this role."
                         ),
-                        recommendation=(
-                            "Review and restrict the trust policy. "
-                            "Add conditions to limit who can assume this role."
-                        ),
+                        rule_id="ciem-trust-001",
+                        resource_path="aws_iam_role",
                     )
                 )
             elif trust.risk == TrustRisk.HIGH:
                 findings.append(
                     Finding(
                         id=f"trust-high-{trust.source_id}",
-                        rule_id="ciem-trust-002",
-                        resource_id=trust.source_id,
-                        resource_type="aws_iam_role",
+                        asset_id=trust.source_id,
                         finding_type=FindingType.MISCONFIGURATION,
                         severity=Severity.HIGH,
+                        status=FindingStatus.OPEN,
                         title=f"High-risk trust relationship: {trust.source_name}",
                         description=(
                             f"Role {trust.source_name} trusts "
-                            f"{trust.target_principal} without conditions."
+                            f"{trust.target_principal} without conditions. "
+                            f"Recommendation: Add conditions like sts:ExternalId "
+                            f"to the trust policy."
                         ),
-                        recommendation=(
-                            "Add conditions like sts:ExternalId to the trust policy."
-                        ),
+                        rule_id="ciem-trust-002",
+                        resource_path="aws_iam_role",
                     )
                 )
 

@@ -79,7 +79,7 @@ def _cmd_drift_detect(args: argparse.Namespace) -> int:
     try:
         # Load assets from storage
         storage = get_storage()
-        assets = storage.load_assets()
+        assets = storage.get_assets()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")
@@ -90,10 +90,11 @@ def _cmd_drift_detect(args: argparse.Namespace) -> int:
         detector = DriftDetector(baseline_manager=manager)
 
         # Detect drift
-        if baseline_id:
-            print(f"Detecting drift against baseline: {baseline_id}")
-        else:
-            print("Detecting drift against active baseline...")
+        if output_format != "json":
+            if baseline_id:
+                print(f"Detecting drift against baseline: {baseline_id}")
+            else:
+                print("Detecting drift against active baseline...")
 
         result = detector.detect_drift(assets, baseline_id=baseline_id)
 
@@ -269,7 +270,7 @@ def _cmd_baseline_create(args: argparse.Namespace) -> int:
     try:
         # Load assets
         storage = get_storage()
-        assets = storage.load_assets()
+        assets = storage.get_assets()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")
@@ -455,7 +456,7 @@ def _cmd_baseline_update(args: argparse.Namespace) -> int:
     try:
         # Load assets
         storage = get_storage()
-        assets = storage.load_assets()
+        assets = storage.get_assets()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")
@@ -757,7 +758,7 @@ def _cmd_drift_summary(args: argparse.Namespace) -> int:
     try:
         # Load assets
         storage = get_storage()
-        assets = storage.load_assets()
+        assets = storage.get_assets()
 
         if not assets or not assets.assets:
             print("No assets found. Run 'stance scan' first.")

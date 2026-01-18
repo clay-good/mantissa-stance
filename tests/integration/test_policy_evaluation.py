@@ -35,7 +35,7 @@ from stance.models import (
 )
 from stance.engine import PolicyLoader, PolicyEvaluator, run_evaluation
 from stance.engine.expressions import ExpressionEvaluator
-from stance.engine.compliance import ComplianceCalculator
+from stance.engine.benchmark import BenchmarkCalculator
 
 
 @pytest.fixture
@@ -326,7 +326,7 @@ class TestComplianceScoring:
         assets = AssetCollection([])
         findings = FindingCollection([])
 
-        calculator = ComplianceCalculator()
+        calculator = BenchmarkCalculator()
         report = calculator.calculate_scores(policies, findings, assets)
 
         assert report is not None
@@ -369,7 +369,7 @@ class TestComplianceScoring:
         evaluator = PolicyEvaluator()
         findings, _ = evaluator.evaluate_all(policies, assets)
 
-        calculator = ComplianceCalculator()
+        calculator = BenchmarkCalculator()
         report = calculator.calculate_scores(policies, findings, assets)
 
         # With findings, score should be affected

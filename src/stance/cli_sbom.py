@@ -597,7 +597,7 @@ def _handle_generate(args: argparse.Namespace) -> int:
         "cyclonedx-xml": SBOMFormat.CYCLONEDX_XML,
         "spdx-json": SBOMFormat.SPDX_JSON,
         "spdx-tag": SBOMFormat.SPDX_TAG_VALUE,
-        "stance": SBOMFormat.STANCE,
+        "stance": SBOMFormat.STANCE_JSON,
     }
 
     generator = SBOMGenerator()
@@ -644,6 +644,10 @@ def _handle_parse(args: argparse.Namespace) -> int:
     parser = DependencyParser()
     path = Path(args.path)
 
+    if not path.exists():
+        print(f"Error: Path does not exist: {path}")
+        return 1
+
     try:
         if path.is_file():
             dep_file = parser.parse_file(str(path))
@@ -655,7 +659,7 @@ def _handle_parse(args: argparse.Namespace) -> int:
             output = {
                 "files": [
                     {
-                        "path": df.path,
+                        "path": df.file_path,
                         "ecosystem": df.ecosystem.value,
                         "dependencies": [
                             {
@@ -676,7 +680,7 @@ def _handle_parse(args: argparse.Namespace) -> int:
         else:
             total_deps = 0
             for df in dep_files:
-                print(f"\n{df.path} ({df.ecosystem.value}):")
+                print(f"\n{df.file_path} ({df.ecosystem.value}):")
                 print("-" * 50)
                 for dep in df.dependencies:
                     version = dep.version or "any"
@@ -1144,9 +1148,9 @@ def _handle_licenses(args: argparse.Namespace) -> int:
     analyzer = LicenseAnalyzer()
     licenses = []
 
-    for spdx_id, lic in analyzer.license_db.items():
+    for lic in analyzer.list_known_licenses():
         lic_info = {
-            "spdx_id": spdx_id,
+            "spdx_id": lic.spdx_id,
             "name": lic.name,
             "category": lic.category.value,
             "risk": lic.risk.value,
@@ -1453,7 +1457,7 @@ def _handle_convert(args: argparse.Namespace) -> int:
         "cyclonedx-xml": SBOMFormat.CYCLONEDX_XML,
         "spdx-json": SBOMFormat.SPDX_JSON,
         "spdx-tag": SBOMFormat.SPDX_TAG_VALUE,
-        "stance": SBOMFormat.STANCE,
+        "stance": SBOMFormat.STANCE_JSON,
     }
 
     try:

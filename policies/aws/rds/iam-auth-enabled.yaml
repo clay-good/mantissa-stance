@@ -12,7 +12,7 @@ resource_type: aws_rds_instance
 
 check:
   type: expression
-  expression: "resource.iam_database_authentication_enabled == true or resource.engine not_in ['mysql', 'postgres', 'mariadb']"
+  expression: "resource.iam_database_authentication_enabled == true or (resource.engine != 'mysql' and resource.engine != 'postgres' and resource.engine != 'mariadb')"
 
 compliance:
   - framework: aws-foundational-security

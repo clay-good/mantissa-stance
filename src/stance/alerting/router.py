@@ -58,6 +58,10 @@ class RoutingRule:
         tags: Asset tags to match (empty = all)
         enabled: Whether this rule is active
         priority: Rule priority (lower = higher priority)
+        asm_finding_types: ASM-specific finding types to match (empty = all)
+        asm_domains: ASM domains to match (supports wildcards, empty = all)
+        asm_risk_threshold: Minimum ASM risk score to match (None = no threshold)
+        asm_only: Only match ASM findings (default: False)
     """
 
     name: str
@@ -68,6 +72,11 @@ class RoutingRule:
     tags: dict[str, str] = field(default_factory=dict)
     enabled: bool = True
     priority: int = 100
+    # ASM-specific routing fields
+    asm_finding_types: list[str] = field(default_factory=list)
+    asm_domains: list[str] = field(default_factory=list)
+    asm_risk_threshold: float | None = None
+    asm_only: bool = False
 
 
 @dataclass
@@ -328,6 +337,13 @@ class AlertRouter:
         context: dict[str, Any],
     ) -> bool:
         """Check if a routing rule matches a finding."""
+        # Check if this is an ASM finding
+        is_asm_finding = self._is_asm_finding(finding, context)
+
+        # If rule is ASM-only, skip non-ASM findings
+        if rule.asm_only and not is_asm_finding:
+            return False
+
         # Check severity
         if rule.severities and finding.severity not in rule.severities:
             return False
@@ -350,7 +366,121 @@ class AlertRouter:
                 if asset_tags.get(key) != value:
                     return False
 
+        # ASM-specific matching
+        if is_asm_finding:
+            if not self._asm_rule_matches(rule, finding, context):
+                return False
+
         return True
+
+    def _is_asm_finding(self, finding: Finding, context: dict[str, Any]) -> bool:
+        """Check if a finding is from ASM."""
+        # Check context for ASM markers
+        if context.get("alert_type", "").startswith("asm_"):
+            return True
+        if context.get("asm_scan_id"):
+            return True
+        if context.get("asm_domain"):
+            return True
+
+        # Check asset_id prefix
+        if finding.asset_id and finding.asset_id.startswith("asm:"):
+            return True
+
+        # Check rule_id prefix
+        if finding.rule_id and finding.rule_id.startswith("asm-"):
+            return True
+
+        return False
+
+    def _asm_rule_matches(
+        self,
+        rule: RoutingRule,
+        finding: Finding,
+        context: dict[str, Any],
+    ) -> bool:
+        """Check ASM-specific rule conditions."""
+        # Check ASM finding types
+        if rule.asm_finding_types:
+            asm_finding_type = context.get("asm_finding_type", "")
+            # Also check rule_id for ASM type hints (e.g., "asm-cert-001")
+            if not asm_finding_type and finding.rule_id:
+                # Extract type from rule_id like "asm-cert-001" -> "certificate"
+                asm_finding_type = self._extract_asm_type(finding.rule_id)
+
+            if asm_finding_type not in rule.asm_finding_types:
+                return False
+
+        # Check ASM domains (with wildcard support)
+        if rule.asm_domains:
+            asm_domain = context.get("asm_domain", "")
+            if not asm_domain:
+                # Try to extract from finding metadata
+                if finding.metadata:
+                    asm_domain = finding.metadata.get("domain", "")
+
+            if not asm_domain:
+                return False
+
+            domain_matched = False
+            for pattern in rule.asm_domains:
+                if self._matches_domain_pattern(asm_domain, pattern):
+                    domain_matched = True
+                    break
+
+            if not domain_matched:
+                return False
+
+        # Check ASM risk threshold
+        if rule.asm_risk_threshold is not None:
+            asm_risk_score = context.get("asm_risk_score", 0.0)
+            if not asm_risk_score and finding.metadata:
+                asm_risk_score = finding.metadata.get("risk_score", 0.0)
+
+            if asm_risk_score < rule.asm_risk_threshold:
+                return False
+
+        return True
+
+    def _extract_asm_type(self, rule_id: str) -> str:
+        """Extract ASM finding type from rule ID."""
+        # Map rule ID prefixes to finding types
+        type_map = {
+            "asm-cert": "certificate",
+            "asm-exp": "exposure",
+            "asm-dns": "dns",
+            "asm-shadow": "shadow_it",
+            "asm-drift": "drift",
+            "asm-port": "port",
+            "asm-tech": "technology",
+        }
+
+        for prefix, finding_type in type_map.items():
+            if rule_id.startswith(prefix):
+                return finding_type
+
+        return ""
+
+    def _matches_domain_pattern(self, domain: str, pattern: str) -> bool:
+        """Match domain against pattern with wildcard support."""
+        domain = domain.lower()
+        pattern = pattern.lower()
+
+        if pattern == "*":
+            return True
+
+        # Wildcard at start (e.g., *.example.com)
+        if pattern.startswith("*."):
+            suffix = pattern[2:]
+            return domain == suffix or domain.endswith("." + suffix)
+
+        # Wildcard at end (e.g., api.*)
+        if pattern.endswith(".*"):
+            prefix = pattern[:-2]
+            return domain.startswith(prefix + ".")
+
+        # Exact match
+        return domain == pattern
 
     def _is_suppressed(self, finding: Finding) -> bool:
         """Check if finding is suppressed."""
@@ -534,6 +664,11 @@ class AlertRouter:
                 "finding_types": rule.finding_types,
                 "enabled": rule.enabled,
                 "priority": rule.priority,
+                # ASM-specific fields
+                "asm_only": rule.asm_only,
+                "asm_finding_types": rule.asm_finding_types,
+                "asm_domains": rule.asm_domains,
+                "asm_risk_threshold": rule.asm_risk_threshold,
             }
             for rule in self._routing_rules
         ]
@@ -561,3 +696,164 @@ class AlertRouter:
         """Clear rate limit counters."""
         self._rate_limit_counters.clear()
         logger.info("Rate limit counters cleared")
+
+
+# =============================================================================
+# ASM-specific routing helper functions
+# =============================================================================
+
+
+def create_asm_critical_rule(
+    destinations: list[str],
+    name: str = "asm-critical-alerts",
+    domains: list[str] | None = None,
+) -> RoutingRule:
+    """
+    Create a routing rule for critical ASM findings.
+
+    Args:
+        destinations: List of destination names
+        name: Rule name
+        domains: Optional list of domains to filter (supports wildcards)
+
+    Returns:
+        RoutingRule configured for critical ASM alerts
+    """
+    return RoutingRule(
+        name=name,
+        destinations=destinations,
+        severities=[Severity.CRITICAL],
+        asm_only=True,
+        asm_domains=domains or [],
+        priority=10,  # High priority
+    )
+
+
+def create_asm_certificate_rule(
+    destinations: list[str],
+    name: str = "asm-certificate-alerts",
+    domains: list[str] | None = None,
+) -> RoutingRule:
+    """
+    Create a routing rule for ASM certificate findings.
+
+    Args:
+        destinations: List of destination names
+        name: Rule name
+        domains: Optional list of domains to filter
+
+    Returns:
+        RoutingRule configured for certificate alerts
+    """
+    return RoutingRule(
+        name=name,
+        destinations=destinations,
+        severities=[Severity.CRITICAL, Severity.HIGH],
+        asm_only=True,
+        asm_finding_types=["certificate"],
+        asm_domains=domains or [],
+        priority=20,
+    )
+
+
+def create_asm_exposure_rule(
+    destinations: list[str],
+    name: str = "asm-exposure-alerts",
+    risk_threshold: float = 7.0,
+) -> RoutingRule:
+    """
+    Create a routing rule for ASM exposure findings.
+
+    Args:
+        destinations: List of destination names
+        name: Rule name
+        risk_threshold: Minimum risk score to alert on
+
+    Returns:
+        RoutingRule configured for exposure alerts
+    """
+    return RoutingRule(
+        name=name,
+        destinations=destinations,
+        severities=[Severity.CRITICAL, Severity.HIGH],
+        asm_only=True,
+        asm_finding_types=["exposure", "port"],
+        asm_risk_threshold=risk_threshold,
+        priority=15,
+    )
+
+
+def create_asm_shadow_it_rule(
+    destinations: list[str],
+    name: str = "asm-shadow-it-alerts",
+) -> RoutingRule:
+    """
+    Create a routing rule for shadow IT findings.
+
+    Args:
+        destinations: List of destination names
+        name: Rule name
+
+    Returns:
+        RoutingRule configured for shadow IT alerts
+    """
+    return RoutingRule(
+        name=name,
+        destinations=destinations,
+        severities=[Severity.HIGH, Severity.MEDIUM],
+        asm_only=True,
+        asm_finding_types=["shadow_it"],
+        priority=25,
+    )
+
+
+def create_asm_drift_rule(
+    destinations: list[str],
+    name: str = "asm-drift-alerts",
+    risk_threshold: float = 5.0,
+) -> RoutingRule:
+    """
+    Create a routing rule for ASM drift findings.
+
+    Args:
+        destinations: List of destination names
+        name: Rule name
+        risk_threshold: Minimum risk score for drift alerts
+
+    Returns:
+        RoutingRule configured for drift alerts
+    """
+    return RoutingRule(
+        name=name,
+        destinations=destinations,
+        severities=[Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM],
+        asm_only=True,
+        asm_finding_types=["drift"],
+        asm_risk_threshold=risk_threshold,
+        priority=30,
+    )
+
+
+def create_asm_all_findings_rule(
+    destinations: list[str],
+    name: str = "asm-all-findings",
+    severities: list[Severity] | None = None,
+) -> RoutingRule:
+    """
+    Create a routing rule for all ASM findings.
+
+    Args:
+        destinations: List of destination names
+        name: Rule name
+        severities: Severities to include (default: all)
+
+    Returns:
+        RoutingRule configured for all ASM findings
+    """
+    return RoutingRule(
+        name=name,
+        destinations=destinations,
+        severities=severities or [],
+        asm_only=True,
+        priority=100,
+    )

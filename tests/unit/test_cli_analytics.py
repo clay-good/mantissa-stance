@@ -104,9 +104,9 @@ class TestCmdAttackPaths:
 
     def test_no_assets_shows_message(self, capsys):
         """Test that no assets shows appropriate message."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
-            mock_store.load_assets.return_value = None
+            mock_store.get_assets.return_value = None
             mock_storage.return_value = mock_store
 
             args = argparse.Namespace(
@@ -124,15 +124,15 @@ class TestCmdAttackPaths:
 
     def test_attack_paths_table_output(self, capsys):
         """Test attack paths with table output."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.AttackPathAnalyzer") as mock_analyzer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.attack_paths.AttackPathAnalyzer") as mock_analyzer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -172,15 +172,15 @@ class TestCmdAttackPaths:
 
     def test_attack_paths_json_output(self, capsys):
         """Test attack paths with JSON output."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.AttackPathAnalyzer") as mock_analyzer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.attack_paths.AttackPathAnalyzer") as mock_analyzer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -215,16 +215,16 @@ class TestCmdAttackPaths:
 
     def test_attack_paths_filter_by_type(self, capsys):
         """Test attack paths filtered by type."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.AttackPathAnalyzer") as mock_analyzer_class, \
-             patch("stance.cli_analytics.AttackPathType") as mock_type:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.attack_paths.AttackPathAnalyzer") as mock_analyzer_class, \
+             patch("stance.analytics.attack_paths.AttackPathType") as mock_type:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -251,7 +251,7 @@ class TestCmdAttackPaths:
 
     def test_attack_paths_error_handling(self, capsys):
         """Test attack paths error handling."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_storage.side_effect = Exception("Test error")
 
             args = argparse.Namespace(
@@ -273,9 +273,9 @@ class TestCmdRiskScore:
 
     def test_no_assets_shows_message(self, capsys):
         """Test that no assets shows appropriate message."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
-            mock_store.load_assets.return_value = None
+            mock_store.get_assets.return_value = None
             mock_storage.return_value = mock_store
 
             args = argparse.Namespace(
@@ -294,15 +294,15 @@ class TestCmdRiskScore:
 
     def test_risk_score_table_output(self, capsys):
         """Test risk scoring with table output."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -349,15 +349,15 @@ class TestCmdRiskScore:
 
     def test_risk_score_json_output(self, capsys):
         """Test risk scoring with JSON output."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -394,17 +394,17 @@ class TestCmdRiskScore:
 
     def test_risk_score_single_asset(self, capsys):
         """Test risk scoring for a single asset."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_asset = MagicMock()
             mock_assets.assets = [mock_asset]
             mock_assets.get_by_id.return_value = mock_asset
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -444,15 +444,15 @@ class TestCmdRiskScore:
 
     def test_risk_score_asset_not_found(self, capsys):
         """Test risk scoring for non-existent asset."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
             mock_assets.get_by_id.return_value = None
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -475,15 +475,15 @@ class TestCmdRiskScore:
 
     def test_risk_score_filter_by_level(self, capsys):
         """Test risk scoring filtered by level."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -503,7 +503,12 @@ class TestCmdRiskScore:
             mock_score2.overall_score = 20.0
             mock_score2.top_risks = []
             mock_scorer.score_collection.return_value = [mock_score1, mock_score2]
-            mock_scorer.aggregate_risk.return_value = {"total_assets": 2}
+            mock_scorer.aggregate_risk.return_value = {
+                "total_assets": 2,
+                "average_score": 57.5,
+                "max_score": 95.0,
+                "by_level": {"critical": 1, "low": 1},
+            }
             mock_scorer_class.return_value = mock_scorer
 
             args = argparse.Namespace(
@@ -526,9 +531,9 @@ class TestCmdBlastRadius:
 
     def test_no_assets_shows_message(self, capsys):
         """Test that no assets shows appropriate message."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
-            mock_store.load_assets.return_value = None
+            mock_store.get_assets.return_value = None
             mock_storage.return_value = mock_store
 
             args = argparse.Namespace(
@@ -547,12 +552,12 @@ class TestCmdBlastRadius:
 
     def test_no_findings_shows_message(self, capsys):
         """Test that no findings shows appropriate message."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             args = argparse.Namespace(
@@ -571,17 +576,17 @@ class TestCmdBlastRadius:
 
     def test_blast_radius_table_output(self, capsys):
         """Test blast radius with table output."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.BlastRadiusCalculator") as mock_calc_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.blast_radius.BlastRadiusCalculator") as mock_calc_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -620,17 +625,17 @@ class TestCmdBlastRadius:
 
     def test_blast_radius_json_output(self, capsys):
         """Test blast radius with JSON output."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.BlastRadiusCalculator") as mock_calc_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.blast_radius.BlastRadiusCalculator") as mock_calc_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -666,9 +671,9 @@ class TestCmdBlastRadius:
 
     def test_blast_radius_single_finding(self, capsys):
         """Test blast radius for a single finding."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class, \
-             patch("stance.cli_analytics.BlastRadiusCalculator") as mock_calc_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.blast_radius.BlastRadiusCalculator") as mock_calc_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
@@ -677,8 +682,8 @@ class TestCmdBlastRadius:
             mock_findings = MagicMock()
             mock_findings.findings = [mock_finding]
             mock_findings.get_by_id.return_value = mock_finding
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -726,8 +731,8 @@ class TestCmdBlastRadius:
 
     def test_blast_radius_finding_not_found(self, capsys):
         """Test blast radius for non-existent finding."""
-        with patch("stance.cli_analytics.get_storage") as mock_storage, \
-             patch("stance.cli_analytics.AssetGraph") as mock_graph_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
@@ -735,8 +740,8 @@ class TestCmdBlastRadius:
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
             mock_findings.get_by_id.return_value = None
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -763,7 +768,7 @@ class TestCmdMitre:
 
     def test_technique_lookup(self, capsys):
         """Test looking up a specific MITRE technique."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_technique = MagicMock()
             mock_technique.id = "T1078"
@@ -800,7 +805,7 @@ class TestCmdMitre:
 
     def test_technique_lookup_json(self, capsys):
         """Test looking up a specific MITRE technique with JSON output."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_technique = MagicMock()
             mock_technique.to_dict.return_value = {
@@ -829,7 +834,7 @@ class TestCmdMitre:
 
     def test_technique_not_found(self, capsys):
         """Test looking up non-existent technique."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_mapper.get_technique.return_value = None
             mock_mapper_class.return_value = mock_mapper
@@ -851,14 +856,14 @@ class TestCmdMitre:
 
     def test_mitre_no_findings(self, capsys):
         """Test MITRE mapping with no findings."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             mock_mapper = MagicMock()
             mock_mapper.get_technique.return_value = None
             mock_mapper_class.return_value = mock_mapper
 
             mock_store = MagicMock()
-            mock_store.load_findings.return_value = None
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             args = argparse.Namespace(
@@ -878,13 +883,13 @@ class TestCmdMitre:
 
     def test_mitre_mapping_table_output(self, capsys):
         """Test MITRE mapping with table output."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -916,13 +921,13 @@ class TestCmdMitre:
 
     def test_mitre_mapping_json_output(self, capsys):
         """Test MITRE mapping with JSON output."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -956,13 +961,13 @@ class TestCmdMitre:
 
     def test_mitre_coverage_summary(self, capsys):
         """Test MITRE coverage summary."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -999,15 +1004,15 @@ class TestCmdMitre:
 
     def test_mitre_single_finding(self, capsys):
         """Test MITRE mapping for a single finding."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_finding = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [mock_finding]
             mock_findings.get_by_id.return_value = mock_finding
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -1048,14 +1053,14 @@ class TestCmdMitre:
 
     def test_mitre_finding_not_found(self, capsys):
         """Test MITRE mapping for non-existent finding."""
-        with patch("stance.cli_analytics.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.cli_analytics.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
             mock_findings.get_by_id.return_value = None
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock

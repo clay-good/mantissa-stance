@@ -8,12 +8,15 @@ collectors, regions, accounts, schedules, and policies.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class CloudProvider(Enum):
@@ -454,8 +457,12 @@ class ConfigurationManager:
         for ext in [".json", ".yaml", ".yml"]:
             path = os.path.join(self.config_dir, f"{name}{ext}")
             if os.path.exists(path):
-                os.remove(path)
-                return True
+                try:
+                    os.remove(path)
+                    return True
+                except OSError as e:
+                    logger.error(f"Failed to delete configuration '{name}': {e}")
+                    return False
         return False
 
     def get_default(self) -> ScanConfiguration:

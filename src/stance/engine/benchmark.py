@@ -166,14 +166,14 @@ class BenchmarkCalculator:
             BenchmarkScore for the benchmark
         """
         # Get policies mapped to this benchmark
-        benchmark_policies = policies.filter_by_benchmark(benchmark_id)
+        benchmark_policies = policies.filter_by_framework(benchmark_id)
 
         # Build control status map
         control_statuses: dict[str, ControlStatus] = {}
 
         for policy in benchmark_policies:
-            for mapping in policy.benchmark:
-                if not self._benchmark_matches(mapping.benchmark, benchmark_id):
+            for mapping in policy.compliance:
+                if not self._benchmark_matches(mapping.framework, benchmark_id):
                     continue
 
                 control_id = mapping.control
@@ -232,8 +232,8 @@ class BenchmarkCalculator:
         # Extract version if present
         version = ""
         for policy in benchmark_policies:
-            for mapping in policy.benchmark:
-                if self._benchmark_matches(mapping.benchmark, benchmark_id):
+            for mapping in policy.compliance:
+                if self._benchmark_matches(mapping.framework, benchmark_id):
                     if mapping.version:
                         version = mapping.version
                         break
@@ -275,9 +275,9 @@ class BenchmarkCalculator:
         control_name = control_id
 
         for policy in policies:
-            for mapping in policy.benchmark:
+            for mapping in policy.compliance:
                 if (
-                    self._benchmark_matches(mapping.benchmark, benchmark_id)
+                    self._benchmark_matches(mapping.framework, benchmark_id)
                     and mapping.control == control_id
                 ):
                     control_policies.append(policy)
@@ -327,10 +327,10 @@ class BenchmarkCalculator:
         benchmarks: set[str] = set()
 
         for policy in policies:
-            for mapping in policy.benchmark:
-                if mapping.benchmark:
+            for mapping in policy.compliance:
+                if mapping.framework:
                     # Normalize benchmark ID
-                    benchmark_id = mapping.benchmark.lower().replace(" ", "-")
+                    benchmark_id = mapping.framework.lower().replace(" ", "-")
                     # Only include CIS benchmarks
                     if benchmark_id.startswith("cis-"):
                         benchmarks.add(benchmark_id)

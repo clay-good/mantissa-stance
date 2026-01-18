@@ -322,7 +322,7 @@ class ExpirationAlertRule:
 
     def get_priority_for_days(self, days: int) -> AlertPriority:
         """Get the appropriate priority for days until expiration."""
-        for threshold, priority in sorted(self.priority_by_days.items(), reverse=True):
+        for threshold, priority in sorted(self.priority_by_days.items()):
             if days <= threshold:
                 return priority
         return AlertPriority.LOW
@@ -525,7 +525,7 @@ class ExpirationAlerter:
         generated_alerts: List[ExpirationAlert] = []
         now = datetime.utcnow()
 
-        for secret in inventory.secrets:
+        for secret in inventory.items:
             for rule in self.rules:
                 if not rule.enabled:
                     continue
@@ -537,7 +537,7 @@ class ExpirationAlerter:
                     continue
 
                 # Check cooldown
-                cooldown_key = f"{secret.secret_id}:{rule.rule_id}"
+                cooldown_key = f"{secret.id}:{rule.rule_id}"
                 last_alert = self.last_alert_times.get(cooldown_key)
                 if last_alert and (now - last_alert).total_seconds() < rule.cooldown_hours * 3600:
                     continue
@@ -608,7 +608,7 @@ class ExpirationAlerter:
             alert_id=alert_id,
             alert_type=alert_type,
             priority=priority,
-            secret_id=secret.secret_id,
+            secret_id=secret.id,
             secret_name=secret.name,
             secret_type=secret.secret_type,
             source=secret.source,
@@ -657,7 +657,7 @@ class ExpirationAlerter:
             alert_id=alert_id,
             alert_type=AlertType.ROTATION_OVERDUE,
             priority=priority,
-            secret_id=secret.secret_id,
+            secret_id=secret.id,
             secret_name=secret.name,
             secret_type=secret.secret_type,
             source=secret.source,
@@ -699,7 +699,7 @@ class ExpirationAlerter:
             alert_id=alert_id,
             alert_type=AlertType.KEY_AGE_CRITICAL,
             priority=priority,
-            secret_id=secret.secret_id,
+            secret_id=secret.id,
             secret_name=secret.name,
             secret_type=secret.secret_type,
             source=secret.source,
@@ -721,7 +721,7 @@ class ExpirationAlerter:
         threshold: int,
     ) -> str:
         """Generate a unique alert ID for deduplication."""
-        content = f"{secret.secret_id}:{rule.rule_id}:{threshold}"
+        content = f"{secret.id}:{rule.rule_id}:{threshold}"
         return f"alert-{hashlib.md5(content.encode()).hexdigest()[:12]}"
 
     def _send_alert(self, alert: ExpirationAlert) -> None:
@@ -924,7 +924,7 @@ class ExpirationAlerter:
         window_end = now + timedelta(days=days_window)
 
         expiring_soon = []
-        for secret in inventory.secrets:
+        for secret in inventory.items:
             if secret.metadata and secret.metadata.expires_at:
                 if now <= secret.metadata.expires_at <= window_end:
                     expiring_soon.append(secret)
@@ -939,7 +939,7 @@ class ExpirationAlerter:
                 title=f"Bulk Expiration Warning: {len(expiring_soon)} secrets",
                 message=f"{len(expiring_soon)} secrets will expire within the next {days_window} days",
                 days_until_event=days_window,
-                related_secret_ids=[s.secret_id for s in expiring_soon],
+                related_secret_ids=[s.id for s in expiring_soon],
                 details={
                     "secret_names": [s.name for s in expiring_soon],
                     "window_days": days_window,

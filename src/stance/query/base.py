@@ -366,9 +366,140 @@ FINDINGS_SCHEMA = TableSchema(
 )
 
 
+# =============================================================================
+# ASM (Attack Surface Management) Schemas
+# =============================================================================
+
+ASM_EXTERNAL_ASSETS_SCHEMA = TableSchema(
+    table_name="asm_external_assets",
+    description="External assets discovered through ASM reconnaissance",
+    columns=[
+        {"name": "id", "type": "STRING", "description": "Unique asset identifier (hash of domain+ip+port)"},
+        {"name": "scan_id", "type": "STRING", "description": "ASM scan identifier"},
+        {"name": "domain", "type": "STRING", "description": "Discovered domain/subdomain"},
+        {"name": "ip_address", "type": "STRING", "description": "Resolved IP address"},
+        {"name": "port", "type": "INTEGER", "description": "Open port number"},
+        {"name": "protocol", "type": "STRING", "description": "Protocol (tcp, udp)"},
+        {"name": "service", "type": "STRING", "description": "Detected service name"},
+        {"name": "technology_stack", "type": "JSON", "description": "Detected technologies as JSON array"},
+        {"name": "cloud_provider", "type": "STRING", "description": "Detected cloud provider (aws, gcp, azure)"},
+        {"name": "cloud_region", "type": "STRING", "description": "Inferred cloud region"},
+        {"name": "first_seen", "type": "TIMESTAMP", "description": "When asset was first discovered"},
+        {"name": "last_seen", "type": "TIMESTAMP", "description": "When asset was last seen"},
+        {"name": "certificate_subject", "type": "STRING", "description": "TLS certificate subject"},
+        {"name": "certificate_issuer", "type": "STRING", "description": "TLS certificate issuer"},
+        {"name": "certificate_expiry", "type": "TIMESTAMP", "description": "TLS certificate expiration date"},
+        {"name": "certificate_fingerprint", "type": "STRING", "description": "TLS certificate SHA256 fingerprint"},
+        {"name": "is_self_signed", "type": "BOOLEAN", "description": "Whether certificate is self-signed"},
+        {"name": "risk_score", "type": "FLOAT", "description": "Calculated risk score (0.0-10.0)"},
+        {"name": "raw_data", "type": "JSON", "description": "Full discovery data as JSON"},
+    ],
+)
+
+ASM_SCANS_SCHEMA = TableSchema(
+    table_name="asm_scans",
+    description="ASM scan execution metadata",
+    columns=[
+        {"name": "scan_id", "type": "STRING", "description": "Unique scan identifier"},
+        {"name": "started_at", "type": "TIMESTAMP", "description": "Scan start time"},
+        {"name": "completed_at", "type": "TIMESTAMP", "description": "Scan completion time"},
+        {"name": "status", "type": "STRING", "description": "Scan status (pending, running, completed, failed)"},
+        {"name": "scan_mode", "type": "STRING", "description": "Scan mode (passive, active, full)"},
+        {"name": "target_domains", "type": "JSON", "description": "Target domains as JSON array"},
+        {"name": "assets_discovered", "type": "INTEGER", "description": "Number of assets discovered"},
+        {"name": "findings_generated", "type": "INTEGER", "description": "Number of findings generated"},
+        {"name": "duration_seconds", "type": "FLOAT", "description": "Scan duration in seconds"},
+        {"name": "errors", "type": "JSON", "description": "Scan errors as JSON array"},
+    ],
+)
+
+
+# =============================================================================
+# ASM Correlation Views (logical schemas)
+# =============================================================================
+
+V_UNIFIED_ASSETS_SCHEMA = TableSchema(
+    table_name="v_unified_assets",
+    description="Unified view of CSPM assets joined with ASM external assets",
+    columns=[
+        # CSPM asset fields
+        {"name": "asset_id", "type": "STRING", "description": "Internal asset ID"},
+        {"name": "cloud_provider", "type": "STRING", "description": "Cloud provider"},
+        {"name": "account_id", "type": "STRING", "description": "Cloud account ID"},
+        {"name": "region", "type": "STRING", "description": "Cloud region"},
+        {"name": "resource_type", "type": "STRING", "description": "Resource type"},
+        {"name": "name", "type": "STRING", "description": "Resource name"},
+        {"name": "public_ip", "type": "STRING", "description": "Public IP (if any)"},
+        # ASM enrichment fields
+        {"name": "external_domain", "type": "STRING", "description": "Matched external domain"},
+        {"name": "external_risk_score", "type": "FLOAT", "description": "External risk score"},
+        {"name": "external_services", "type": "JSON", "description": "Externally detected services"},
+        {"name": "certificate_status", "type": "STRING", "description": "Certificate health status"},
+        {"name": "correlation_confidence", "type": "FLOAT", "description": "Match confidence (0.0-1.0)"},
+        {"name": "is_externally_exposed", "type": "BOOLEAN", "description": "Whether asset is externally visible"},
+    ],
+)
+
+V_SHADOW_IT_SCHEMA = TableSchema(
+    table_name="v_shadow_it",
+    description="External assets without corresponding CSPM inventory match",
+    columns=[
+        {"name": "id", "type": "STRING", "description": "External asset ID"},
+        {"name": "domain", "type": "STRING", "description": "Domain name"},
+        {"name": "ip_address", "type": "STRING", "description": "IP address"},
+        {"name": "port", "type": "INTEGER", "description": "Port number"},
+        {"name": "service", "type": "STRING", "description": "Detected service"},
+        {"name": "cloud_provider", "type": "STRING", "description": "Detected cloud provider"},
+        {"name": "risk_score", "type": "FLOAT", "description": "Risk score"},
+        {"name": "first_seen", "type": "TIMESTAMP", "description": "First seen"},
+        {"name": "technology_stack", "type": "JSON", "description": "Detected technologies"},
+        {"name": "certificate_status", "type": "STRING", "description": "Certificate status"},
+        {"name": "discovery_source", "type": "STRING", "description": "How asset was discovered"},
+    ],
+)
+
+V_ATTACK_SURFACE_SCHEMA = TableSchema(
+    table_name="v_attack_surface",
+    description="Complete external attack surface view",
+    columns=[
+        {"name": "domain", "type": "STRING", "description": "Domain name"},
+        {"name": "ip_address", "type": "STRING", "description": "IP address"},
+        {"name": "port", "type": "INTEGER", "description": "Port number"},
+        {"name": "protocol", "type": "STRING", "description": "Protocol"},
+        {"name": "service", "type": "STRING", "description": "Service name"},
+        {"name": "cloud_provider", "type": "STRING", "description": "Cloud provider"},
+        {"name": "risk_score", "type": "FLOAT", "description": "Risk score"},
+        {"name": "has_internal_match", "type": "BOOLEAN", "description": "Matched to CSPM asset"},
+        {"name": "internal_asset_id", "type": "STRING", "description": "Matched internal asset ID"},
+        {"name": "finding_count", "type": "INTEGER", "description": "Number of findings"},
+        {"name": "critical_findings", "type": "INTEGER", "description": "Critical findings count"},
+        {"name": "certificate_days_until_expiry", "type": "INTEGER", "description": "Days until cert expiry"},
+        {"name": "is_shadow_it", "type": "BOOLEAN", "description": "Whether this is shadow IT"},
+    ],
+)
+
+
 def get_common_schemas() -> dict[str, TableSchema]:
     """Get common table schemas for Stance data."""
     return {
         "assets": ASSETS_SCHEMA,
         "findings": FINDINGS_SCHEMA,
     }
+
+
+def get_asm_schemas() -> dict[str, TableSchema]:
+    """Get ASM-specific table schemas."""
+    return {
+        "asm_external_assets": ASM_EXTERNAL_ASSETS_SCHEMA,
+        "asm_scans": ASM_SCANS_SCHEMA,
+        "v_unified_assets": V_UNIFIED_ASSETS_SCHEMA,
+        "v_shadow_it": V_SHADOW_IT_SCHEMA,
+        "v_attack_surface": V_ATTACK_SURFACE_SCHEMA,
+    }
+
+
+def get_all_schemas() -> dict[str, TableSchema]:
+    """Get all table schemas (CSPM + ASM)."""
+    schemas = get_common_schemas()
+    schemas.update(get_asm_schemas())
+    return schemas

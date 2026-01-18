@@ -12,6 +12,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -25,6 +26,7 @@ from stance.auth.models import (
     User,
 )
 
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Exceptions
@@ -275,8 +277,8 @@ class JWTManager:
             # If it's a refresh token, also revoke in store
             if payload.jti in self._refresh_tokens:
                 self._refresh_tokens[payload.jti].revoke()
-        except Exception:
-            pass  # Invalid token, nothing to revoke
+        except Exception as e:
+            logger.debug("Error revoking token (may be invalid): %s", e)
 
     def revoke_all_user_tokens(self, user_id: str) -> int:
         """

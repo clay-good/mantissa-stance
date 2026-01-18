@@ -17,6 +17,45 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from stance.storage import StorageBackend, get_storage
+from stance.web.handlers import (
+    AggregationHandler,
+    AlertHandler,
+    AnalyticsHandler,
+    AssetHandler,
+    AuthHandler,
+    AutomationHandler,
+    CloudHandler,
+    CollectorsHandler,
+    ComplianceHandler,
+    ConfigHandler,
+    CorrelationHandler,
+    DashboardHandler,
+    DetectionHandler,
+    DocsHandler,
+    EngineHandler,
+    ExceptionsHandler,
+    ExportHandler,
+    FindingsHandler,
+    HandlerRegistry,
+    HandlerResponse,
+    IacHandler,
+    LlmHandler,
+    NotificationsHandler,
+    ObservabilityHandler,
+    PluginsHandler,
+    PolicyHandler,
+    QueryHandler,
+    ReportHandler,
+    SbomHandler,
+    ScanHandler,
+    ScannerHandler,
+    SchedulingHandler,
+    StateHandler,
+    StorageHandler,
+    TrendsHandler,
+    VisualizationHandler,
+    WorkflowHandler,
+)
 
 
 class StanceRequestHandler(SimpleHTTPRequestHandler):
@@ -29,10 +68,73 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
     # Reference to storage backend (set by StanceServer)
     storage: StorageBackend | None = None
 
+    # Handler registry for modular routing
+    _handler_registry: HandlerRegistry | None = None
+
     def __init__(self, *args, **kwargs):
         # Set the directory for static files
         self.static_dir = os.path.join(os.path.dirname(__file__), "static")
+        # Initialize handler registry if not already done
+        self._init_handler_registry()
         super().__init__(*args, directory=self.static_dir, **kwargs)
+
+    def _init_handler_registry(self) -> None:
+        """Initialize the handler registry with all modular handlers."""
+        if StanceRequestHandler._handler_registry is not None:
+            return
+
+        registry = HandlerRegistry(
+            storage=StanceRequestHandler.storage,
+            request_handler=self,
+        )
+
+        # Register all handlers with their base paths
+        # Tier 1: Core handlers
+        registry.register_handler("/api/findings/", FindingsHandler)
+        registry.register_handler("/api/assets/", AssetHandler)
+        registry.register_handler("/api/compliance/", ComplianceHandler)
+        registry.register_handler("/api/policies/", PolicyHandler)
+
+        # Tier 2: Feature handlers
+        registry.register_handler("/api/auth/", AuthHandler)
+        registry.register_handler("/api/viz/", VisualizationHandler)
+        registry.register_handler("/api/workflow/", WorkflowHandler)
+        registry.register_handler("/api/scan/", ScanHandler)
+        registry.register_handler("/api/query/", QueryHandler)
+        registry.register_handler("/api/config/", ConfigHandler)
+        registry.register_handler("/api/dashboards/", DashboardHandler)
+        registry.register_handler("/api/reporting/", ReportHandler)
+        registry.register_handler("/api/alerting/", AlertHandler)
+        registry.register_handler("/api/storage/", StorageHandler)
+        registry.register_handler("/api/analytics/", AnalyticsHandler)
+
+        # Tier 3: Management handlers (Phase 5)
+        registry.register_handler("/api/notifications/", NotificationsHandler)
+        registry.register_handler("/api/exceptions/", ExceptionsHandler)
+        registry.register_handler("/api/plugins/", PluginsHandler)
+        registry.register_handler("/api/correlation/", CorrelationHandler)
+        registry.register_handler("/api/trends/", TrendsHandler)
+
+        # Tier 4: Infrastructure handlers (Phase 6)
+        registry.register_handler("/api/automation/", AutomationHandler)
+        registry.register_handler("/api/observability/", ObservabilityHandler)
+        registry.register_handler("/api/collectors/", CollectorsHandler)
+        registry.register_handler("/api/cloud/", CloudHandler)
+        registry.register_handler("/api/state/", StateHandler)
+
+        # Tier 5: Domain-specific handlers (Phase 7)
+        registry.register_handler("/api/sbom/", SbomHandler)
+        registry.register_handler("/api/docs/", DocsHandler)
+        registry.register_handler("/api/scanner/", ScannerHandler)
+        registry.register_handler("/api/iac/", IacHandler)
+        registry.register_handler("/api/detection/", DetectionHandler)
+        registry.register_handler("/api/scheduling/", SchedulingHandler)
+        registry.register_handler("/api/export/", ExportHandler)
+        registry.register_handler("/api/llm/", LlmHandler)
+        registry.register_handler("/api/engine/", EngineHandler)
+        registry.register_handler("/api/aggregation/", AggregationHandler)
+
+        StanceRequestHandler._handler_registry = registry
 
     def do_GET(self):
         """Handle GET requests."""
@@ -59,6 +161,14 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         # Parse query parameters
         params = parse_qs(query_string)
 
+        # Try handler registry first (modular handlers)
+        if self._handler_registry is not None:
+            response = self._handler_registry.handle(path, params, method="GET")
+            if response is not None:
+                self._send_handler_response(response)
+                return
+
+        # Fall back to legacy if/elif routing
         # Route to appropriate handler
         try:
             if path == "/api/summary":
@@ -942,11 +1052,30 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         """Handle POST requests."""
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        params = parse_qs(parsed.query)
 
         # Read request body
         content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length) if content_length > 0 else b""
+        body_bytes = self.rfile.read(content_length) if content_length > 0 else b""
+
+        # Try handler registry first (modular handlers)
+        if self._handler_registry is not None:
+            # Parse body as JSON for handlers
+            body_dict = None
+            if body_bytes:
+                try:
+                    body_dict = json.loads(body_bytes.decode("utf-8"))
+                except json.JSONDecodeError:
+                    pass
+            response = self._handler_registry.handle(path, params, method="POST", body=body_dict)
+            if response is not None:
+                self._send_handler_response(response)
+                return
+
+        # Fall back to legacy routing
+        body = body_bytes  # Keep original bytes for legacy handlers
 
         try:
             if path == "/api/presets":
@@ -1240,7 +1369,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         if not self.storage:
             return {"error": "No storage configured"}
 
-        from stance.engine import PolicyLoader, ComplianceCalculator
+        from stance.engine import PolicyLoader, BenchmarkCalculator
 
         snapshot_id = self._get_snapshot_id(params)
         if not snapshot_id:
@@ -1252,28 +1381,28 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         loader = PolicyLoader()
         policies = loader.load_all()
 
-        calculator = ComplianceCalculator()
+        calculator = BenchmarkCalculator()
         report = calculator.calculate_scores(policies, findings, assets, snapshot_id)
 
         # Filter by framework if specified
         framework = params.get("framework", [None])[0]
-        frameworks = report.frameworks
+        benchmarks = report.benchmarks
         if framework:
-            frameworks = [f for f in frameworks if f.framework_id == framework]
+            benchmarks = [b for b in benchmarks if b.benchmark_id == framework]
 
         return {
             "overall_score": report.overall_score,
             "frameworks": [
                 {
-                    "framework_id": f.framework_id,
-                    "framework_name": f.framework_name,
-                    "version": f.version,
-                    "score_percentage": f.score_percentage,
-                    "controls_passed": f.controls_passed,
-                    "controls_failed": f.controls_failed,
-                    "controls_total": f.controls_total,
+                    "framework_id": b.benchmark_id,
+                    "framework_name": b.benchmark_name,
+                    "version": b.version,
+                    "score_percentage": b.score_percentage,
+                    "controls_passed": b.controls_passed,
+                    "controls_failed": b.controls_failed,
+                    "controls_total": b.controls_total,
                 }
-                for f in frameworks
+                for b in benchmarks
             ],
         }
 
@@ -1320,17 +1449,17 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             assets_by_region[region] = assets_by_region.get(region, 0) + 1
 
         # Get compliance scores
-        from stance.engine import PolicyLoader, ComplianceCalculator
+        from stance.engine import PolicyLoader, BenchmarkCalculator
         try:
             loader = PolicyLoader()
             policies = loader.load_all()
-            calculator = ComplianceCalculator()
+            calculator = BenchmarkCalculator()
             report = calculator.calculate_scores(policies, findings, assets, snapshot_id)
             compliance_scores = {
                 "overall": report.overall_score,
                 "frameworks": {
-                    f.framework_id: f.score_percentage
-                    for f in report.frameworks
+                    b.benchmark_id: b.score_percentage
+                    for b in report.benchmarks
                 },
             }
         except Exception:
@@ -1507,7 +1636,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             return {"error": "No storage configured"}
 
         from urllib.parse import unquote
-        from stance.engine import PolicyLoader, ComplianceCalculator
+        from stance.engine import PolicyLoader, BenchmarkCalculator
 
         framework = unquote(framework)
 
@@ -1521,28 +1650,28 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         loader = PolicyLoader()
         policies = loader.load_all()
 
-        calculator = ComplianceCalculator()
+        calculator = BenchmarkCalculator()
         report = calculator.calculate_scores(policies, findings, assets, snapshot_id)
 
-        # Find the framework
-        target_framework = None
-        for f in report.frameworks:
-            if f.framework_id == framework:
-                target_framework = f
+        # Find the benchmark/framework
+        target_benchmark = None
+        for b in report.benchmarks:
+            if b.benchmark_id == framework:
+                target_benchmark = b
                 break
 
-        if not target_framework:
+        if not target_benchmark:
             return {"error": f"Framework not found: {framework}"}
 
         return {
             "framework": {
-                "id": target_framework.framework_id,
-                "name": target_framework.framework_name,
-                "version": target_framework.version,
-                "score_percentage": target_framework.score_percentage,
-                "controls_passed": target_framework.controls_passed,
-                "controls_failed": target_framework.controls_failed,
-                "controls_total": target_framework.controls_total,
+                "id": target_benchmark.benchmark_id,
+                "name": target_benchmark.benchmark_name,
+                "version": target_benchmark.version,
+                "score_percentage": target_benchmark.score_percentage,
+                "controls_passed": target_benchmark.controls_passed,
+                "controls_failed": target_benchmark.controls_failed,
+                "controls_total": target_benchmark.controls_total,
             },
             "controls": [
                 {
@@ -1553,7 +1682,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                     "resources_compliant": c.resources_compliant,
                     "resources_non_compliant": c.resources_non_compliant,
                 }
-                for c in target_framework.control_statuses
+                for c in target_benchmark.control_statuses
             ],
         }
 
@@ -2555,16 +2684,16 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
         try:
             if cloud == "aws":
-                from stance.dspm.access import CloudTrailAccessAnalyzer, AccessConfig
-                config = AccessConfig(stale_days=stale_days, lookback_days=lookback_days)
+                from stance.dspm.access import CloudTrailAccessAnalyzer, AccessReviewConfig
+                config = AccessReviewConfig(stale_days=stale_days, lookback_days=lookback_days)
                 analyzer = CloudTrailAccessAnalyzer(config)
             elif cloud == "gcp":
-                from stance.dspm.access import GCPAuditLogAnalyzer, AccessConfig
-                config = AccessConfig(stale_days=stale_days, lookback_days=lookback_days)
+                from stance.dspm.access import GCPAuditLogAnalyzer, AccessReviewConfig
+                config = AccessReviewConfig(stale_days=stale_days, lookback_days=lookback_days)
                 analyzer = GCPAuditLogAnalyzer(config)
             elif cloud == "azure":
-                from stance.dspm.access import AzureActivityLogAnalyzer, AccessConfig
-                config = AccessConfig(stale_days=stale_days, lookback_days=lookback_days)
+                from stance.dspm.access import AzureActivityLogAnalyzer, AccessReviewConfig
+                config = AccessReviewConfig(stale_days=stale_days, lookback_days=lookback_days)
                 analyzer = AzureActivityLogAnalyzer(config)
             else:
                 return {"error": f"Unknown cloud provider: {cloud}"}
@@ -2613,16 +2742,16 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
         try:
             if cloud == "aws":
-                from stance.dspm.cost import S3CostAnalyzer, CostConfig
-                config = CostConfig(cold_days=cold_days)
+                from stance.dspm.cost import S3CostAnalyzer, CostAnalysisConfig
+                config = CostAnalysisConfig(cold_data_days=cold_days)
                 analyzer = S3CostAnalyzer(config)
             elif cloud == "gcp":
-                from stance.dspm.cost import GCSCostAnalyzer, CostConfig
-                config = CostConfig(cold_days=cold_days)
+                from stance.dspm.cost import GCSCostAnalyzer, CostAnalysisConfig
+                config = CostAnalysisConfig(cold_data_days=cold_days)
                 analyzer = GCSCostAnalyzer(config)
             elif cloud == "azure":
-                from stance.dspm.cost import AzureBlobCostAnalyzer, CostConfig
-                config = CostConfig(cold_days=cold_days)
+                from stance.dspm.cost import AzureBlobCostAnalyzer, CostAnalysisConfig
+                config = CostAnalysisConfig(cold_data_days=cold_days)
                 analyzer = AzureBlobCostAnalyzer(config)
             else:
                 return {"error": f"Unknown cloud provider: {cloud}"}
@@ -2896,12 +3025,11 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         resource_type = params.get("type", [None])[0]
 
         try:
-            from stance.exposure.inventory import PublicAssetInventory, InventoryConfig
+            from stance.exposure.inventory import PublicAssetInventory, ExposureConfig
 
-            config = InventoryConfig(
-                cloud_provider=cloud,
-                region=region,
-                resource_type=resource_type,
+            config = ExposureConfig(
+                cloud_providers=[cloud] if cloud else [],
+                regions=[region] if region else [],
             )
             inventory = PublicAssetInventory(config)
             result = inventory.discover()
@@ -2947,9 +3075,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             from stance.exposure.certificates import CertificateMonitor, CertificateConfig
 
             config = CertificateConfig(
-                cloud_provider=cloud,
-                domain_filter=domain,
-                expiring_within_days=expiring_within,
+                cloud_providers=[cloud] if cloud else [],
+                warning_threshold_days=expiring_within,
             )
             monitor = CertificateMonitor(config)
             result = monitor.analyze()
@@ -3002,8 +3129,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             from stance.exposure.dns import DNSInventory, DNSConfig
 
             config = DNSConfig(
-                zone_filter=zone,
-                cloud_provider=cloud,
+                cloud_providers=[cloud] if cloud else [],
             )
             inventory = DNSInventory(config)
             result = inventory.analyze()
@@ -3051,12 +3177,9 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         classification = params.get("classification", [None])[0]
 
         try:
-            from stance.exposure.sensitive import SensitiveDataExposureAnalyzer, ExposureConfig
+            from stance.exposure.sensitive import SensitiveDataExposureAnalyzer, SensitiveExposureConfig
 
-            config = ExposureConfig(
-                cloud_provider=cloud,
-                classification_filter=classification,
-            )
+            config = SensitiveExposureConfig()
             analyzer = SensitiveDataExposureAnalyzer(config)
             result = analyzer.analyze()
 
@@ -3124,8 +3247,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
             # Load data from storage
             storage = get_storage()
-            assets = storage.load_assets()
-            findings_data = storage.load_findings()
+            assets = storage.get_assets()
+            findings_data = storage.get_findings()
 
             if not assets or not assets.assets:
                 return {"error": "No assets found. Run 'stance scan' first."}
@@ -3212,8 +3335,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
             # Load data from storage
             storage = get_storage()
-            assets = storage.load_assets()
-            findings_data = storage.load_findings()
+            assets = storage.get_assets()
+            findings_data = storage.get_findings()
 
             if not assets or not assets.assets:
                 return {"error": "No assets found. Run 'stance scan' first."}
@@ -3289,8 +3412,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
             # Load data from storage
             storage = get_storage()
-            assets = storage.load_assets()
-            findings_data = storage.load_findings()
+            assets = storage.get_assets()
+            findings_data = storage.get_findings()
 
             if not assets or not assets.assets:
                 return {"error": "No assets found. Run 'stance scan' first."}
@@ -3382,7 +3505,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
             # Load findings
             storage = get_storage()
-            findings_data = storage.load_findings()
+            findings_data = storage.get_findings()
 
             if not findings_data or not findings_data.findings:
                 return {"error": "No findings found. Run 'stance scan' first."}
@@ -3491,7 +3614,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
             # Load findings
             storage = get_storage()
-            findings_data = storage.load_findings()
+            findings_data = storage.get_findings()
 
             if not findings_data or not findings_data.findings:
                 return {
@@ -4027,7 +4150,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
         # Load findings from storage
         storage = get_storage()
-        findings_data = storage.load_findings()
+        findings_data = storage.get_findings()
 
         if not findings_data:
             return {
@@ -4125,7 +4248,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
         # Load assets from storage
         storage = get_storage()
-        assets_data = storage.load_assets()
+        assets_data = storage.get_assets()
 
         if not assets_data or not assets_data.assets:
             return {
@@ -4696,7 +4819,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
     def _get_sample_aggregation_data(self):
         """Get sample aggregation data for demos."""
         from stance.aggregation import CloudAccount
-        from stance.models.finding import Finding, Severity
+        from stance.models.finding import Finding, Severity, FindingType, FindingStatus
 
         now = datetime.utcnow()
 
@@ -4730,6 +4853,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                     title="S3 bucket without encryption",
                     description="S3 bucket does not have encryption enabled",
                     severity=Severity.HIGH,
+                    finding_type=FindingType.MISCONFIGURATION,
+                    status=FindingStatus.OPEN,
                     rule_id="aws-s3-001",
                     asset_id="arn:aws:s3:::my-bucket",
                     first_seen=now,
@@ -4740,6 +4865,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                     title="Public S3 bucket detected",
                     description="S3 bucket allows public access",
                     severity=Severity.CRITICAL,
+                    finding_type=FindingType.MISCONFIGURATION,
+                    status=FindingStatus.OPEN,
                     rule_id="aws-s3-002",
                     asset_id="arn:aws:s3:::public-bucket",
                     first_seen=now,
@@ -4752,6 +4879,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                     title="GCS bucket without encryption",
                     description="Cloud Storage bucket does not have encryption",
                     severity=Severity.HIGH,
+                    finding_type=FindingType.MISCONFIGURATION,
+                    status=FindingStatus.OPEN,
                     rule_id="gcp-storage-001",
                     asset_id="//storage.googleapis.com/projects/my-gcp-project/buckets/my-bucket",
                     first_seen=now,
@@ -4764,6 +4893,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                     title="Storage account without encryption",
                     description="Azure storage account does not have encryption",
                     severity=Severity.HIGH,
+                    finding_type=FindingType.MISCONFIGURATION,
+                    status=FindingStatus.OPEN,
                     rule_id="azure-storage-001",
                     asset_id="/subscriptions/azure-sub-001/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/mystorageaccount",
                     first_seen=now,
@@ -5180,6 +5311,17 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
+
+    def _send_handler_response(self, response: HandlerResponse):
+        """Send response from a modular handler."""
+        self.send_response(response.status.value)
+        self.send_header("Content-Type", response.content_type)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        for header_name, header_value in response.headers.items():
+            self.send_header(header_name, header_value)
+        self.end_headers()
+        if response.data is not None:
+            self.wfile.write(response.to_json().encode("utf-8"))
 
     def _send_error(self, code: int, message: str):
         """Send error response."""
@@ -10366,7 +10508,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                 "ExpressionEvaluator": True,
                 "PolicyLoader": True,
                 "PolicyEvaluator": True,
-                "ComplianceCalculator": True,
+                "BenchmarkCalculator": True,
             },
             "capabilities": {
                 "expression_evaluation": True,
@@ -16312,10 +16454,10 @@ tags:
             category_filter = params.get("category", ["all"])[0]
             licenses = []
 
-            for spdx_id, lic in analyzer.license_db.items():
+            for lic in analyzer.list_known_licenses():
                 if category_filter == "all" or lic.category.value == category_filter:
                     licenses.append({
-                        "spdx_id": spdx_id,
+                        "spdx_id": lic.spdx_id,
                         "name": lic.name,
                         "category": lic.category.value,
                         "risk": lic.risk.value,

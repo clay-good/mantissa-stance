@@ -244,8 +244,8 @@ class AthenaQueryEngine(QueryEngine):
                 # Cancel the query
                 try:
                     client.stop_query_execution(QueryExecutionId=query_id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to stop query execution: %s", e)
                 raise QueryExecutionError(
                     f"Query timed out after {timeout_seconds} seconds"
                 )

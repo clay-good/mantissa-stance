@@ -205,11 +205,7 @@ class UserManager:
         self._validate_password(password)
 
         # Create credentials
-        credentials = UserCredentials(
-            max_login_attempts=self.config.max_login_attempts,
-            lockout_duration_minutes=self.config.lockout_duration_minutes,
-        )
-        credentials.set_password(password)
+        credentials = UserCredentials.create(password)
 
         # Create user
         user = User(
@@ -219,7 +215,7 @@ class UserManager:
             display_name=display_name or username,
             credentials=credentials,
             roles=roles or {UserRole.VIEWER},
-            status=UserStatus.PENDING_VERIFICATION if self.config.email_verification_required else UserStatus.ACTIVE,
+            status=UserStatus.PENDING if self.config.email_verification_required else UserStatus.ACTIVE,
             tenant_id=tenant_id,
             metadata=metadata or {},
         )
@@ -271,8 +267,7 @@ class UserManager:
         # Check password history
         if user_id and user_id in self._password_history:
             history = self._password_history[user_id]
-            test_creds = UserCredentials()
-            test_creds.set_password(password)
+            test_creds = UserCredentials.create(password)
             if test_creds.password_hash in history:
                 errors.append("Password was recently used")
 
@@ -314,7 +309,7 @@ class UserManager:
         if user.status == UserStatus.SUSPENDED:
             raise AccountLockedError("Account is suspended")
 
-        if user.status == UserStatus.PENDING_VERIFICATION:
+        if user.status == UserStatus.PENDING:
             raise AccountLockedError("Email verification required")
 
         # Check lockout
@@ -325,14 +320,16 @@ class UserManager:
 
         # Verify password
         if not user.credentials.verify_password(password):
-            user.credentials.record_failed_attempt()
+            user.credentials.record_failed_login(
+                lockout_threshold=self.config.max_login_attempts,
+                lockout_duration=self.config.lockout_duration_minutes * 60,
+            )
             raise InvalidCredentialsError("Invalid credentials")
 
         # Clear failed attempts on success
-        user.credentials.failed_attempts = 0
-        user.credentials.lockout_until = None
+        user.credentials.reset_failed_logins()
         user.last_login_at = datetime.utcnow()
-        user.last_login_ip = ip_address
+        user.metadata["last_login_ip"] = ip_address
 
         return user
 
@@ -504,10 +501,8 @@ class UserManager:
         reset.used = True
 
         # Update password
-        user.credentials.set_password(new_password)
-        user.credentials.password_changed_at = datetime.utcnow()
-        user.credentials.failed_attempts = 0
-        user.credentials.lockout_until = None
+        user.credentials.update_password(new_password)
+        user.credentials.reset_failed_logins()
 
         # Update password history
         history = self._password_history.get(user.id, [])
@@ -552,8 +547,7 @@ class UserManager:
         self._validate_password(new_password, user_id)
 
         # Update password
-        user.credentials.set_password(new_password)
-        user.credentials.password_changed_at = datetime.utcnow()
+        user.credentials.update_password(new_password)
 
         # Update password history
         history = self._password_history.get(user_id, [])
@@ -855,7 +849,7 @@ class UserManager:
             "role_counts": role_counts,
             "pending_verifications": sum(
                 1 for u in self._users.values()
-                if u.status == UserStatus.PENDING_VERIFICATION
+                if u.status == UserStatus.PENDING
             ),
         }
 

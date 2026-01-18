@@ -7,6 +7,7 @@ Provides high-level plugin lifecycle management and coordination.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 from pathlib import Path
@@ -27,6 +28,8 @@ from stance.plugins.interfaces import (
 )
 from stance.plugins.registry import PluginRegistry, get_registry
 from stance.plugins.loader import PluginLoader
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=Plugin)
 
@@ -83,8 +86,8 @@ class PluginManager:
                 with open(self._config_path, "r") as f:
                     data = json.load(f)
                     self._configs = data.get("plugins", {})
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load plugin config from {self._config_path}: {e}")
 
     def _save_config(self) -> None:
         """Save plugin configuration to file."""
@@ -92,8 +95,8 @@ class PluginManager:
             self._config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._config_path, "w") as f:
                 json.dump({"plugins": self._configs}, f, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to save plugin config to {self._config_path}: {e}")
 
     def discover_and_load(self) -> list[PluginInfo]:
         """
@@ -113,15 +116,15 @@ class PluginManager:
                     config = self._configs.get(plugin_name, {})
                     info = self._loader.load_plugin_from_file(path, config)
                     results.append(info)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to load plugin from {path}: {e}")
 
             # Load from entry points
             try:
                 ep_results = self._loader.load_from_entry_points()
                 results.extend(ep_results)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to load plugins from entry points: {e}")
 
             return results
 
@@ -197,7 +200,8 @@ class PluginManager:
                     return self._loader.load_plugin_from_file(module_path, config)
                 else:
                     return self._loader.load_plugin_from_module(module_path, config)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to reload plugin {plugin_name}: {e}")
                 return None
 
     def configure_plugin(

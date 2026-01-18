@@ -140,8 +140,8 @@ class SynapseQueryEngine(QueryEngine):
         if self._connection:
             try:
                 self._connection.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Error closing Synapse connection: %s", e)
         self._connection = None
         self._connected = False
         logger.info("Disconnected from Synapse")
@@ -249,8 +249,8 @@ class SynapseQueryEngine(QueryEngine):
             row = cursor.fetchone()
             if row and row[1]:
                 return int(row[1])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Error getting affected row count: %s", e)
         return 0
 
     def get_table_schema(self, table_name: str) -> TableSchema:

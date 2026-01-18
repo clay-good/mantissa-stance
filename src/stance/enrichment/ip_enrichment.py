@@ -273,7 +273,7 @@ class IPEnricher(AssetEnricher):
         # Use ip-api.com (free tier, no API key needed)
         # In production, use a proper GeoIP service
         try:
-            url = f"http://ip-api.com/json/{ip}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query"
+            url = f"https://ip-api.com/json/{ip}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query"
             request = Request(url, headers={"User-Agent": "mantissa-stance/1.0"})
 
             with urlopen(request, timeout=5) as response:

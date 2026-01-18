@@ -182,9 +182,11 @@ def calculate_security_score(
     if total_assets == 0:
         total_assets = 1
 
-    # Calculate weighted finding score
+    # Calculate weighted finding score (only count numeric values, skip nested dicts)
     weighted_sum = 0.0
     for severity, count in findings.items():
+        if not isinstance(count, (int, float)):
+            continue  # Skip nested dicts like 'by_category'
         weight = weights.get(severity.lower(), 1.0)
         weighted_sum += count * weight
 
@@ -456,8 +458,8 @@ class SecurityMetrics(MetricsAggregator):
         assets = data.get("assets", {})
         history = data.get("history", [])
 
-        # Total findings
-        total = findings.get("total", sum(findings.values()))
+        # Total findings (only sum numeric values, skip nested dicts)
+        total = findings.get("total", sum(v for v in findings.values() if isinstance(v, (int, float))))
         self.metrics["total_findings"].value = MetricValue(float(total))
         self.add_value("total_findings", float(total))
         self.metrics["total_findings"].trend = self.get_trend("total_findings", float(total))

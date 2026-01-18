@@ -420,8 +420,8 @@ def _ciem_privesc(args: argparse.Namespace) -> int:
         calc = EffectivePermissionsCalculator(provider=provider)
         permissions_map = {}
         for identity in identities:
-            attached_policies = identity.properties.get("attached_policies", [])
-            attached = [p for p in policies if p.properties.get("arn") in attached_policies]
+            attached_policies = identity.raw_config.get("attached_policies", [])
+            attached = [p for p in policies if p.raw_config.get("arn") in attached_policies]
             access = calc.calculate_effective_permissions(identity, attached)
             permissions_map[identity.id] = [
                 f"{p.service}:{p.action}"

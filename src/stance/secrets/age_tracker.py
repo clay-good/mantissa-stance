@@ -388,13 +388,13 @@ class SecretAgeTracker:
         """
         report = SecretAgeReport(
             report_id=f"age-report-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}",
-            total_secrets=len(inventory.secrets),
+            total_secrets=len(inventory.items),
         )
 
         secret_ages: List[SecretAge] = []
         age_values: List[int] = []
 
-        for item in inventory.secrets:
+        for item in inventory.items:
             secret_age = self._analyze_secret_age(item)
             secret_ages.append(secret_age)
 
@@ -447,7 +447,7 @@ class SecretAgeTracker:
         thresholds = self.type_thresholds.get_thresholds(item.secret_type)
 
         secret_age = SecretAge(
-            secret_id=item.secret_id,
+            secret_id=item.id,
             secret_name=item.name,
             secret_type=item.secret_type,
             source=item.source,
@@ -676,12 +676,12 @@ class SecretAgeTracker:
         """Analyze rotation history for secrets with history data."""
         histories = []
 
-        for item in inventory.secrets:
+        for item in inventory.items:
             if not item.metadata or not item.metadata.rotation_history:
                 continue
 
             history = RotationHistory(
-                secret_id=item.secret_id,
+                secret_id=item.id,
                 secret_name=item.name,
                 rotation_dates=sorted(item.metadata.rotation_history),
             )
@@ -817,7 +817,7 @@ class SecretAgeTracker:
         """Get all secrets with a specific age status."""
         result = []
 
-        for item in inventory.secrets:
+        for item in inventory.items:
             secret_age = self._analyze_secret_age(item)
             if secret_age.age_status == status:
                 result.append(item)
@@ -836,7 +836,7 @@ class SecretAgeTracker:
         """
         result = []
 
-        for item in inventory.secrets:
+        for item in inventory.items:
             secret_age = self._analyze_secret_age(item)
             if secret_age.days_since_rotation >= days_threshold:
                 result.append((item, secret_age.days_since_rotation))
@@ -858,7 +858,7 @@ class SecretAgeTracker:
         """
         result = []
 
-        for item in inventory.secrets:
+        for item in inventory.items:
             secret_age = self._analyze_secret_age(item)
             if 0 <= secret_age.days_until_expiration <= days_threshold:
                 result.append((item, secret_age.days_until_expiration))
@@ -898,7 +898,7 @@ class SecretAgeTracker:
         not_applicable = 0
         violations = []
 
-        for item in inventory.secrets:
+        for item in inventory.items:
             secret_age = self._analyze_secret_age(item)
 
             if item.secret_type in max_rotation_days:
@@ -912,7 +912,7 @@ class SecretAgeTracker:
                 else:
                     non_compliant += 1
                     violations.append({
-                        "secret_id": item.secret_id,
+                        "secret_id": item.id,
                         "secret_name": item.name,
                         "secret_type": item.secret_type.value,
                         "days_since_rotation": days_since,

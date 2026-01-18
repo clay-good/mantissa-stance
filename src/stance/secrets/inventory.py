@@ -29,18 +29,25 @@ class SecretType(Enum):
     # Database Credentials
     DATABASE_PASSWORD = "database_password"
     DATABASE_CONNECTION_STRING = "database_connection_string"
+    MYSQL_PASSWORD = "mysql_password"
+    POSTGRESQL_PASSWORD = "postgresql_password"
+    MONGODB_PASSWORD = "mongodb_password"
+    REDIS_PASSWORD = "redis_password"
 
     # API Keys and Tokens
     API_KEY = "api_key"
     API_TOKEN = "api_token"
     BEARER_TOKEN = "bearer_token"
     JWT_TOKEN = "jwt_token"
+    JWT_SECRET = "jwt_secret"
     OAUTH_CLIENT_SECRET = "oauth_client_secret"
+    OAUTH_TOKEN = "oauth_token"
     OAUTH_REFRESH_TOKEN = "oauth_refresh_token"
 
     # Certificates and Keys
     TLS_CERTIFICATE = "tls_certificate"
     TLS_PRIVATE_KEY = "tls_private_key"
+    SSL_CERTIFICATE = "ssl_certificate"
     SSH_PRIVATE_KEY = "ssh_private_key"
     SSH_PUBLIC_KEY = "ssh_public_key"
     PGP_PRIVATE_KEY = "pgp_private_key"
@@ -55,7 +62,13 @@ class SecretType(Enum):
     SLACK_TOKEN = "slack_token"
     STRIPE_KEY = "stripe_key"
     SENDGRID_KEY = "sendgrid_key"
+    SENDGRID_API_KEY = "sendgrid_api_key"
     TWILIO_KEY = "twilio_key"
+    TWILIO_AUTH_TOKEN = "twilio_auth_token"
+
+    # Infrastructure
+    SMTP_PASSWORD = "smtp_password"
+    LDAP_PASSWORD = "ldap_password"
 
     # Generic
     PASSWORD = "password"
@@ -94,6 +107,7 @@ class SecretSource(Enum):
     ENVIRONMENT_VARIABLE = "environment_variable"
     CONFIG_FILE = "config_file"
     SOURCE_CODE = "source_code"
+    CODE_REPOSITORY = "code_repository"
 
     # Unknown
     UNKNOWN = "unknown"
@@ -139,6 +153,7 @@ class SecretMetadata:
     rotation_schedule: str | None = None  # Cron expression
     rotation_lambda_arn: str | None = None  # AWS Secrets Manager
     next_rotation_date: datetime | None = None
+    rotation_history: list[datetime] = field(default_factory=list)
 
     # Policy and compliance
     rotation_policy_id: str | None = None
@@ -165,6 +180,7 @@ class SecretMetadata:
             "rotation_enabled": self.rotation_enabled,
             "rotation_schedule": self.rotation_schedule,
             "next_rotation_date": self.next_rotation_date.isoformat() if self.next_rotation_date else None,
+            "rotation_history": [dt.isoformat() for dt in self.rotation_history],
             "rotation_policy_id": self.rotation_policy_id,
             "compliance_frameworks": self.compliance_frameworks,
             "tags": self.tags,
@@ -200,7 +216,7 @@ class SecretInventoryItem:
     @property
     def age_days(self) -> int | None:
         """Get age in days since creation."""
-        if not self.metadata.created_at:
+        if not self.metadata or not self.metadata.created_at:
             return None
         now = datetime.now(timezone.utc)
         delta = now - self.metadata.created_at.replace(tzinfo=timezone.utc)
@@ -209,6 +225,8 @@ class SecretInventoryItem:
     @property
     def days_since_rotation(self) -> int | None:
         """Get days since last rotation."""
+        if not self.metadata:
+            return None
         rotation_date = self.metadata.last_rotated_at or self.metadata.created_at
         if not rotation_date:
             return None
@@ -219,7 +237,7 @@ class SecretInventoryItem:
     @property
     def days_until_expiration(self) -> int | None:
         """Get days until expiration (negative if expired)."""
-        if not self.metadata.expires_at:
+        if not self.metadata or not self.metadata.expires_at:
             return None
         now = datetime.now(timezone.utc)
         delta = self.metadata.expires_at.replace(tzinfo=timezone.utc) - now
@@ -228,7 +246,7 @@ class SecretInventoryItem:
     @property
     def is_expired(self) -> bool:
         """Check if secret is expired."""
-        if not self.metadata.expires_at:
+        if not self.metadata or not self.metadata.expires_at:
             return False
         now = datetime.now(timezone.utc)
         return self.metadata.expires_at.replace(tzinfo=timezone.utc) < now

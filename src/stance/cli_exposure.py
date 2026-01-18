@@ -68,7 +68,8 @@ def _cmd_exposure_inventory(args: argparse.Namespace) -> int:
     try:
         inventory = PublicAssetInventory()
 
-        print("Scanning for publicly accessible assets...")
+        if output_format != "json":
+            print("Scanning for publicly accessible assets...")
         result = inventory.discover(
             cloud_provider=cloud,
             region=region,
@@ -157,12 +158,13 @@ def _cmd_exposure_certificates(args: argparse.Namespace) -> int:
 
     try:
         config = CertificateConfig(
-            warning_days=expiring_within,
-            critical_days=7,
+            warning_threshold_days=expiring_within,
+            critical_threshold_days=7,
         )
         monitor = CertificateMonitor(config)
 
-        print("Analyzing certificates...")
+        if output_format != "json":
+            print("Analyzing certificates...")
         result = monitor.analyze(
             cloud_provider=cloud,
             domain_filter=domain,
@@ -273,7 +275,8 @@ def _cmd_exposure_dns(args: argparse.Namespace) -> int:
     try:
         inventory = DNSInventory()
 
-        print("Analyzing DNS records...")
+        if output_format != "json":
+            print("Analyzing DNS records...")
         result = inventory.analyze(
             zone=zone,
             cloud_provider=cloud,
@@ -379,7 +382,8 @@ def _cmd_exposure_sensitive(args: argparse.Namespace) -> int:
     try:
         analyzer = SensitiveDataExposureAnalyzer()
 
-        print("Analyzing sensitive data exposure...")
+        if output_format != "json":
+            print("Analyzing sensitive data exposure...")
         result = analyzer.analyze(
             cloud_provider=cloud,
             classification_filter=classification,

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import logging
 import os
 import sys
 from pathlib import Path
@@ -21,6 +22,8 @@ from stance.plugins.base import (
     PluginMetadata,
 )
 from stance.plugins.registry import PluginRegistry, get_registry
+
+logger = logging.getLogger(__name__)
 
 
 class PluginLoader:
@@ -316,13 +319,11 @@ class PluginLoader:
                             module_path=f"{ep.value} (entry point)",
                         )
                         results.append(info)
-                except Exception:
-                    # Skip entry points that fail to load
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to load plugin entry point %s: %s", ep.name, e)
 
         except ImportError:
-            # importlib.metadata not available
-            pass
+            logger.debug("importlib.metadata not available for entry point discovery")
 
         return results
 

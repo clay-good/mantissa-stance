@@ -55,12 +55,20 @@ def cmd_scan(args: argparse.Namespace) -> int:
     # Build step list based on configuration
     secrets_only = getattr(args, "secrets_only", False)
     enable_secrets = getattr(args, "secrets", False) or secrets_only
+    include_asm = getattr(args, "include_asm", False)
+    asm_domains = getattr(args, "asm_domains", None)
+    asm_mode = getattr(args, "asm_mode", "passive")
+    asm_correlate = getattr(args, "asm_correlate", True)
 
     steps = ["Collection"]
     if not secrets_only:
         steps.append("Policy Evaluation")
     if enable_secrets:
         steps.append("Secrets Detection")
+    if include_asm:
+        steps.append("ASM Scan")
+        if asm_correlate:
+            steps.append("CSPM-ASM Correlation")
     steps.append("Storage")
 
     try:
@@ -169,7 +177,127 @@ def cmd_scan(args: argparse.Namespace) -> int:
             tracker.complete_step(step_index)
             step_index += 1
 
-        # Step 5: Storage
+        # Step: ASM Scan (if enabled)
+        asm_assets_count = 0
+        asm_findings_count = 0
+        shadow_it_count = 0
+        if include_asm:
+            from stance.asm import (
+                ASMConfiguration,
+                ASMScanMode,
+                ExternalAssetCollection,
+            )
+            from stance.asm.collectors import (
+                CertTransparencyCollector,
+                PassiveDNSCollector,
+                CloudIPRangeCollector,
+                TechnologyFingerprinter,
+            )
+            from stance.asm.evaluator import ASMPolicyEvaluator
+            from stance.asm.correlation import ASMCSPMCorrelator, detect_shadow_it
+            from stance.asm.storage import ASMStorageAdapter, generate_scan_id
+
+            tracker.start_step(step_index, status="Running ASM scan")
+
+            # Validate ASM domains are provided
+            if not asm_domains:
+                tracker.update_step(status="ASM skipped: no domains specified")
+                tracker.complete_step(step_index)
+                step_index += 1
+            else:
+                # Create ASM configuration
+                asm_config = ASMConfiguration(
+                    target_domains=asm_domains,
+                    scan_mode=ASMScanMode(asm_mode),
+                    enable_cert_transparency=True,
+                    enable_dns_enumeration=True,
+                    enable_cloud_ip_detection=True,
+                    enable_technology_fingerprinting=True,
+                )
+
+                # Run passive collectors
+                all_asm_assets = ExternalAssetCollection([])
+
+                # Certificate Transparency
+                try:
+                    ct_collector = CertTransparencyCollector(asm_domains, asm_config)
+                    ct_assets = ct_collector.collect()
+                    all_asm_assets = all_asm_assets.merge(ct_assets)
+                    tracker.update_step(status=f"CT: found {len(ct_assets)} subdomains")
+                except Exception as e:
+                    logger.warning(f"CT collector failed: {e}")
+
+                # Passive DNS
+                try:
+                    dns_collector = PassiveDNSCollector(asm_domains, asm_config)
+                    dns_assets = dns_collector.collect()
+                    all_asm_assets = all_asm_assets.merge(dns_assets)
+                    tracker.update_step(status=f"DNS: resolved {len(dns_assets)} records")
+                except Exception as e:
+                    logger.warning(f"DNS collector failed: {e}")
+
+                # Cloud IP enrichment
+                try:
+                    cloud_collector = CloudIPRangeCollector(asm_config)
+                    all_asm_assets = cloud_collector.enrich_assets(all_asm_assets)
+                except Exception as e:
+                    logger.warning(f"Cloud IP enrichment failed: {e}")
+
+                # Technology fingerprinting
+                try:
+                    tech_fingerprinter = TechnologyFingerprinter(asm_config)
+                    for asset in all_asm_assets:
+                        if asset.port in (80, 443, 8080, 8443):
+                            tech_fingerprinter.fingerprint(asset.domain, asset.port)
+                except Exception as e:
+                    logger.warning(f"Technology fingerprinting failed: {e}")
+
+                asm_assets_count = len(all_asm_assets)
+                tracker.update_step(status=f"Discovered {asm_assets_count} external assets")
+
+                # Evaluate ASM policies
+                try:
+                    asm_evaluator = ASMPolicyEvaluator()
+                    asm_findings, asm_eval_result = asm_evaluator.evaluate(all_asm_assets)
+                    asm_findings_count = len(asm_findings)
+                    findings = findings.merge(asm_findings)
+                except Exception as e:
+                    logger.warning(f"ASM policy evaluation failed: {e}")
+
+                # Store ASM results
+                try:
+                    asm_storage = ASMStorageAdapter(storage.backend if hasattr(storage, 'backend') else None)
+                    asm_scan_id = generate_scan_id()
+                    asm_storage.store_external_assets(all_asm_assets, asm_scan_id)
+                except Exception as e:
+                    logger.warning(f"ASM storage failed: {e}")
+
+                tracker.complete_step(step_index)
+                step_index += 1
+
+                # CSPM-ASM Correlation (if enabled)
+                if asm_correlate and len(all_asm_assets) > 0:
+                    tracker.start_step(step_index, status="Correlating ASM with CSPM")
+
+                    try:
+                        correlator = ASMCSPMCorrelator(all_asm_assets, assets)
+                        correlation_result = correlator.correlate()
+
+                        # Detect shadow IT
+                        shadow_it_assets = detect_shadow_it(all_asm_assets, assets)
+                        shadow_it_count = len(shadow_it_assets)
+
+                        tracker.update_step(
+                            status=f"Matched {len(correlation_result.matched_assets)} assets, "
+                                   f"{shadow_it_count} shadow IT"
+                        )
+                    except Exception as e:
+                        logger.warning(f"CSPM-ASM correlation failed: {e}")
+
+                    tracker.complete_step(step_index)
+                    step_index += 1
+
+        # Step: Storage
         tracker.set_phase(ProgressPhase.STORING)
         tracker.start_step(step_index, status="Storing findings")
 
@@ -192,6 +320,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 "secrets_detected": secrets_count if enable_secrets else None,
                 "duration_seconds": eval_result.duration_seconds if eval_result else 0,
             }
+            if include_asm:
+                summary["asm"] = {
+                    "external_assets": asm_assets_count,
+                    "asm_findings": asm_findings_count,
+                    "shadow_it": shadow_it_count,
+                    "domains_scanned": asm_domains or [],
+                }
             print(json.dumps(summary, indent=2))
         elif args.output != "quiet" and not show_progress:
             # Only print summary if progress wasn't shown (quiet or non-table output)
@@ -203,6 +338,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 print(f"  Policies evaluated: {eval_result.policies_evaluated}")
             if enable_secrets:
                 print(f"  Secrets detected: {secrets_count}")
+            if include_asm and asm_assets_count > 0:
+                print(f"  ASM external assets: {asm_assets_count}")
+                print(f"  ASM findings: {asm_findings_count}")
+                if shadow_it_count > 0:
+                    print(f"  Shadow IT detected: {shadow_it_count}")
             print(f"  Findings generated: {len(findings)}")
 
             severity_counts = findings.count_by_severity_dict()

@@ -7,6 +7,7 @@ and policy evaluations with support for terminal and callback-based output.
 
 from __future__ import annotations
 
+import logging
 import sys
 import threading
 import time
@@ -15,6 +16,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable
+
+logger = logging.getLogger(__name__)
 
 
 class ProgressPhase(Enum):
@@ -499,8 +502,8 @@ class ProgressTracker:
         for renderer in self._renderers:
             try:
                 renderer.render(self._progress)
-            except Exception:
-                pass  # Don't let rendering errors affect scan
+            except Exception as e:
+                logger.debug("Rendering error: %s", e, exc_info=True)
 
     def _render_throttled(self) -> None:
         """Render with throttling."""
@@ -514,8 +517,8 @@ class ProgressTracker:
         for renderer in self._renderers:
             try:
                 renderer.finish(self._progress)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Finish rendering error: %s", e, exc_info=True)
 
 
 def create_progress_tracker(

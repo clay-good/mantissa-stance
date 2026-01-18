@@ -33,6 +33,7 @@ Mantissa Stance provides comprehensive cloud security visibility across AWS, GCP
 | **Secrets Detection** | 28 secret patterns + entropy analysis |
 | **Attack Path Analysis** | Identify exploitable paths through your environment |
 | **CIS Benchmarks** | CIS AWS, GCP, and Azure benchmark scoring |
+| **ASM** | Attack Surface Management - discover external-facing assets |
 
 ## Installation
 
@@ -203,6 +204,32 @@ Built-in policy mappings for CIS security benchmarks:
 - CIS GCP Foundations Benchmark v1.3
 - CIS Azure Foundations Benchmark v1.5
 
+### Attack Surface Management (ASM)
+
+Discover and monitor external-facing assets using an outside-in approach:
+
+```bash
+# Standalone ASM scan
+stance asm scan --domains example.com
+
+# Integrated CSPM + ASM scan
+stance scan --include-asm --asm-domains example.com
+
+# View ASM inventory
+stance asm inventory --latest
+
+# Detect drift between scans
+stance asm drift
+```
+
+**ASM Collectors:**
+- Certificate Transparency monitoring
+- Passive DNS reconnaissance
+- Cloud IP range correlation
+- Technology fingerprinting
+- Port scanning (opt-in active mode)
+- Subdomain enumeration (opt-in active mode)
+
 ## Architecture
 
 ```
@@ -337,6 +364,9 @@ stance llm generate-policy "ensure all RDS instances have encryption enabled"
 | `stance vuln scan` | Container vulnerability scanning |
 | `stance alert` | Send findings to Slack, PagerDuty, Jira, Email |
 | `stance notify` | Alias for alert command |
+| `stance asm scan` | Run Attack Surface Management scan |
+| `stance asm inventory` | View discovered external assets |
+| `stance asm drift` | Detect changes in attack surface |
 
 ### AI-Powered Commands (Optional)
 
@@ -428,6 +458,34 @@ The following are intentionally not included:
 - **WAF**: Separate product category
 - **ML-Based Anomaly Detection**: Complexity vs value tradeoff
 - **Multi-Tenant SaaS**: Self-hosted focus
+
+## Security Considerations
+
+### Input Validation
+- All user-provided configuration names and paths are validated
+- Path traversal protection on file operations
+- Parameter bounds checking on API endpoints
+- SQL injection prevention in query engine
+
+### Authentication & Authorization
+- Cloud credentials use standard SDK credential chains
+- Web dashboard binds to localhost only (no authentication required)
+- OAuth2 support for ServiceNow integration with secure token handling
+
+### Network Security
+- All external API calls use HTTPS
+- Configurable timeouts on network operations
+- Rate limiting on cloud API calls
+
+### Dependency Security
+- Minimal dependencies (core cloud SDKs only)
+- Optional dependencies fail securely (httpx for ServiceNow)
+- No telemetry or phone-home functionality
+
+### Data Handling
+- LLM data sanitization available to redact PII
+- Local storage uses SQLite (encrypted at rest via OS)
+- No secrets stored in plaintext
 
 ## Documentation
 

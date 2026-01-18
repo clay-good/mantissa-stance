@@ -32,6 +32,12 @@ class AttackPathType(Enum):
     CRYPTO_MINING = "crypto_mining"
     IDENTITY_THEFT = "identity_theft"
 
+    # ASM-specific attack path types
+    ASM_EXTERNAL_TO_INTERNAL = "asm_external_to_internal"
+    ASM_SHADOW_IT_EXPOSURE = "asm_shadow_it_exposure"
+    ASM_CERTIFICATE_COMPROMISE = "asm_certificate_compromise"
+    ASM_EXPOSED_SERVICE = "asm_exposed_service"
+
 
 @dataclass
 class AttackPathStep:
@@ -151,6 +157,39 @@ class AttackPathAnalyzer:
         "azure_virtual_machine",
         "azure_function_app",
         "azure_app_service",
+        # ASM external asset types (discovered via reconnaissance)
+        "asm_external_asset",
+        "external_asset",
+    }
+
+    # ASM-specific high-risk ports
+    ASM_CRITICAL_PORTS = {
+        22,    # SSH
+        23,    # Telnet
+        3389,  # RDP
+        3306,  # MySQL
+        5432,  # PostgreSQL
+        1433,  # MSSQL
+        27017, # MongoDB
+        6379,  # Redis
+        9200,  # Elasticsearch
+        5900,  # VNC
+    }
+
+    # ASM-specific high-risk services
+    ASM_CRITICAL_SERVICES = {
+        "ssh",
+        "telnet",
+        "rdp",
+        "mysql",
+        "postgresql",
+        "mssql",
+        "mongodb",
+        "redis",
+        "elasticsearch",
+        "vnc",
+        "ftp",
+        "smb",
     }
 
     # Credential and secrets storage types
@@ -266,6 +305,12 @@ class AttackPathAnalyzer:
 
         # Find identity theft paths
         paths.extend(self._find_identity_theft_paths())
+
+        # ASM-specific attack paths
+        paths.extend(self._find_asm_external_to_internal_paths())
+        paths.extend(self._find_asm_shadow_it_paths())
+        paths.extend(self._find_asm_certificate_compromise_paths())
+        paths.extend(self._find_asm_exposed_service_paths())
 
         # Sort by severity
         severity_order = {
@@ -999,3 +1044,335 @@ class AttackPathAnalyzer:
                 return True
 
         return False
+
+    # =========================================================================
+    # ASM-Specific Attack Path Methods
+    # =========================================================================
+
+    def _find_asm_external_to_internal_paths(self) -> list[AttackPath]:
+        """
+        Find paths from ASM-discovered external assets to internal resources.
+
+        Identifies attack paths where an attacker could use externally-discovered
+        assets to pivot into internal cloud infrastructure.
+
+        Returns:
+            List of ASM external-to-internal attack paths
+        """
+        paths: list[AttackPath] = []
+
+        # Get ASM external assets that are entry points
+        asm_entry_points = [
+            node
+            for node in self._graph.get_nodes()
+            if node.asset.resource_type in ("asm_external_asset", "external_asset")
+        ]
+
+        if not asm_entry_points:
+            return paths
+
+        # Find sensitive internal targets
+        sensitive_targets = [
+            node
+            for node in self._graph.get_nodes()
+            if node.asset.resource_type in self.SENSITIVE_TYPES
+        ]
+
+        path_id = 0
+        for entry in asm_entry_points:
+            # Get ASM-specific metadata
+            asm_config = entry.asset.raw_config
+            port = asm_config.get("port", 0)
+            service = asm_config.get("service", "")
+            risk_score = asm_config.get("risk_score", 0.0)
+            domain = asm_config.get("domain", entry.asset.name)
+
+            # Skip low-risk entry points
+            if risk_score < 5.0 and port not in self.ASM_CRITICAL_PORTS:
+                continue
+
+            for target in sensitive_targets:
+                # Check for network path or correlation
+                path = self._graph.find_path(entry.id, target.id, max_depth=5)
+                if path and len(path) > 1:
+                    steps = self._build_steps(path)
+                    steps[0].action = f"Exploit external service ({service} on port {port})"
+                    steps[-1].action = "Access sensitive internal resource"
+
+                    # Determine severity based on service and target
+                    severity = Severity.HIGH
+                    if port in self.ASM_CRITICAL_PORTS or service in self.ASM_CRITICAL_SERVICES:
+                        severity = Severity.CRITICAL
+
+                    attack_path = AttackPath(
+                        id=f"asm-ext-int-{path_id}",
+                        path_type=AttackPathType.ASM_EXTERNAL_TO_INTERNAL,
+                        steps=steps,
+                        severity=severity,
+                        description=(
+                            f"Attack path from external asset '{domain}' "
+                            f"({service}:{port}) to internal resource '{target.asset.name}'"
+                        ),
+                        mitigation=(
+                            f"Restrict access to {service} service. "
+                            "Implement network segmentation. "
+                            "Use VPN or bastion host for administrative access. "
+                            "Enable multi-factor authentication."
+                        ),
+                    )
+                    paths.append(attack_path)
+                    path_id += 1
+
+        return paths
+
+    def _find_asm_shadow_it_paths(self) -> list[AttackPath]:
+        """
+        Find attack paths involving shadow IT (unmanaged external assets).
+
+        Shadow IT assets are often less secured and can be used as entry points.
+
+        Returns:
+            List of shadow IT attack paths
+        """
+        paths: list[AttackPath] = []
+
+        # Get shadow IT assets (external assets not correlated with CSPM)
+        shadow_it_assets = [
+            node
+            for node in self._graph.get_nodes()
+            if node.asset.resource_type in ("asm_external_asset", "external_asset")
+            and node.asset.raw_config.get("is_shadow_it", False)
+        ]
+
+        if not shadow_it_assets:
+            return paths
+
+        path_id = 0
+        for shadow_asset in shadow_it_assets:
+            asm_config = shadow_asset.asset.raw_config
+            domain = asm_config.get("domain", shadow_asset.asset.name)
+            service = asm_config.get("service", "unknown")
+            risk_score = asm_config.get("risk_score", 5.0)
+
+            # Find potential internal targets reachable from shadow IT
+            reachable_targets: list[AssetNode] = []
+            for node in self._graph.get_nodes():
+                if node.id == shadow_asset.id:
+                    continue
+                if node.asset.resource_type in self.SENSITIVE_TYPES:
+                    path = self._graph.find_path(shadow_asset.id, node.id, max_depth=4)
+                    if path:
+                        reachable_targets.append(node)
+
+            if reachable_targets:
+                steps = [
+                    self._create_step(
+                        shadow_asset,
+                        f"Compromise unmanaged shadow IT asset ({service})"
+                    ),
+                ]
+                for target in reachable_targets[:2]:  # Limit for readability
+                    steps.append(
+                        self._create_step(target, "Pivot to internal resource")
+                    )
+
+                attack_path = AttackPath(
+                    id=f"asm-shadow-{path_id}",
+                    path_type=AttackPathType.ASM_SHADOW_IT_EXPOSURE,
+                    steps=steps,
+                    severity=Severity.CRITICAL if risk_score >= 7.0 else Severity.HIGH,
+                    description=(
+                        f"Shadow IT '{domain}' provides attack path to "
+                        f"{len(reachable_targets)} internal resource(s)"
+                    ),
+                    mitigation=(
+                        "Investigate and either decommission or formally manage "
+                        "this shadow IT asset. Add to inventory and apply "
+                        "security controls. Monitor for unauthorized changes."
+                    ),
+                )
+                paths.append(attack_path)
+                path_id += 1
+
+        return paths
+
+    def _find_asm_certificate_compromise_paths(self) -> list[AttackPath]:
+        """
+        Find attack paths involving certificate vulnerabilities.
+
+        Expired, self-signed, or weak certificates can enable MITM attacks.
+
+        Returns:
+            List of certificate compromise attack paths
+        """
+        paths: list[AttackPath] = []
+
+        # Get assets with certificate issues
+        cert_issue_assets = []
+        for node in self._graph.get_nodes():
+            if node.asset.resource_type not in ("asm_external_asset", "external_asset"):
+                continue
+
+            asm_config = node.asset.raw_config
+            cert_info = asm_config.get("certificate_info", {})
+            if not cert_info:
+                continue
+
+            is_expired = cert_info.get("is_expired", False)
+            is_self_signed = cert_info.get("is_self_signed", False)
+            days_until_expiry = cert_info.get("days_until_expiry", 365)
+
+            if is_expired or is_self_signed or days_until_expiry < 7:
+                cert_issue_assets.append((node, cert_info))
+
+        path_id = 0
+        for node, cert_info in cert_issue_assets:
+            asm_config = node.asset.raw_config
+            domain = asm_config.get("domain", node.asset.name)
+            is_expired = cert_info.get("is_expired", False)
+            is_self_signed = cert_info.get("is_self_signed", False)
+
+            issue_type = "expired" if is_expired else (
+                "self-signed" if is_self_signed else "expiring soon"
+            )
+
+            steps = [
+                AttackPathStep(
+                    asset_id=node.id,
+                    asset_name=domain,
+                    resource_type="asm_external_asset",
+                    action=f"Exploit {issue_type} certificate for MITM attack",
+                    risk_level="critical" if is_expired else "high",
+                ),
+            ]
+
+            # Find assets that trust this certificate
+            trusting_assets = self._find_trusting_assets(node)
+            for trusting in trusting_assets[:2]:
+                steps.append(
+                    self._create_step(trusting, "Intercept traffic to internal service")
+                )
+
+            severity = Severity.CRITICAL if is_expired else Severity.HIGH
+
+            attack_path = AttackPath(
+                id=f"asm-cert-{path_id}",
+                path_type=AttackPathType.ASM_CERTIFICATE_COMPROMISE,
+                steps=steps,
+                severity=severity,
+                description=(
+                    f"Man-in-the-middle attack via {issue_type} certificate on '{domain}'"
+                ),
+                mitigation=(
+                    "Renew certificate immediately. "
+                    "Implement certificate monitoring and auto-renewal. "
+                    "Use certificates from trusted CAs only."
+                ),
+            )
+            paths.append(attack_path)
+            path_id += 1
+
+        return paths
+
+    def _find_asm_exposed_service_paths(self) -> list[AttackPath]:
+        """
+        Find attack paths through exposed dangerous services.
+
+        Identifies critical services (databases, admin panels, etc.) exposed
+        to the internet that could be exploited.
+
+        Returns:
+            List of exposed service attack paths
+        """
+        paths: list[AttackPath] = []
+
+        # Get assets with critical services exposed
+        exposed_critical = []
+        for node in self._graph.get_nodes():
+            if node.asset.resource_type not in ("asm_external_asset", "external_asset"):
+                continue
+
+            asm_config = node.asset.raw_config
+            port = asm_config.get("port", 0)
+            service = asm_config.get("service", "").lower()
+
+            if port in self.ASM_CRITICAL_PORTS or service in self.ASM_CRITICAL_SERVICES:
+                exposed_critical.append(node)
+
+        path_id = 0
+        for node in exposed_critical:
+            asm_config = node.asset.raw_config
+            domain = asm_config.get("domain", node.asset.name)
+            port = asm_config.get("port", 0)
+            service = asm_config.get("service", "unknown")
+
+            # Find what an attacker could access after compromising this service
+            reachable: list[AssetNode] = []
+            for target in self._graph.get_nodes():
+                if target.id == node.id:
+                    continue
+                path = self._graph.find_path(node.id, target.id, max_depth=3)
+                if path and target.asset.resource_type in (
+                    self.SENSITIVE_TYPES | self.CREDENTIAL_TYPES
+                ):
+                    reachable.append(target)
+
+            steps = [
+                AttackPathStep(
+                    asset_id=node.id,
+                    asset_name=domain,
+                    resource_type="asm_external_asset",
+                    action=f"Attack exposed {service} service on port {port}",
+                    risk_level="critical",
+                ),
+            ]
+
+            if reachable:
+                steps.append(
+                    self._create_step(
+                        reachable[0],
+                        f"Access {len(reachable)} internal resource(s)"
+                    )
+                )
+
+            attack_path = AttackPath(
+                id=f"asm-exposed-{path_id}",
+                path_type=AttackPathType.ASM_EXPOSED_SERVICE,
+                steps=steps,
+                severity=Severity.CRITICAL,
+                description=(
+                    f"Critical service '{service}' exposed on '{domain}:{port}'"
+                ),
+                mitigation=(
+                    f"Immediately restrict access to {service} service. "
+                    "Place behind VPN or firewall. "
+                    "Require authentication and encryption. "
+                    "Implement network segmentation."
+                ),
+            )
+            paths.append(attack_path)
+            path_id += 1
+
+        return paths
+
+    def _find_trusting_assets(self, cert_node: AssetNode) -> list[AssetNode]:
+        """Find assets that might trust a certificate."""
+        trusting: list[AssetNode] = []
+
+        # Look for assets in the same domain/network
+        cert_config = cert_node.asset.raw_config
+        cert_domain = cert_config.get("domain", "")
+
+        for node in self._graph.get_nodes():
+            if node.id == cert_node.id:
+                continue
+
+            # Check for network relationship
+            if any(
+                rel.target_id == node.id
+                for rel in cert_node.outbound
+                if rel.relationship_type == RelationshipType.NETWORK_CONNECTED
+            ):
+                trusting.append(node)
+
+        return trusting

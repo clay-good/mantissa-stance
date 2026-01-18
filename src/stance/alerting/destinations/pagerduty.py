@@ -186,7 +186,13 @@ class PagerDutyDestination(BaseDestination):
 
         with urllib.request.urlopen(request, timeout=30) as response:
             if response.status not in (200, 201, 202):
-                raise Exception(f"PagerDuty returned status {response.status}")
+                raise urllib.error.HTTPError(
+                    PAGERDUTY_EVENTS_API,
+                    response.status,
+                    f"PagerDuty returned status {response.status}",
+                    response.headers,
+                    None,
+                )
 
     def _map_severity(self, severity: Severity) -> str:
         """Map Stance severity to PagerDuty severity."""

@@ -7,6 +7,7 @@ accessing plugins.
 
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Any, TypeVar
 
@@ -16,6 +17,8 @@ from stance.plugins.base import (
     PluginInfo,
     PluginError,
 )
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=Plugin)
 
@@ -101,8 +104,8 @@ class PluginRegistry:
             if plugin_name in self._instances:
                 try:
                     self._instances[plugin_name].shutdown()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Error shutting down plugin %s: %s", plugin_name, e)
                 del self._instances[plugin_name]
 
             del self._plugins[plugin_name]
@@ -265,7 +268,8 @@ class PluginRegistry:
                 try:
                     instance.shutdown()
                     instance.initialize(config)
-                except Exception:
+                except Exception as e:
+                    logger.error("Failed to reconfigure plugin: %s", e)
                     return False
 
             info.config = config
@@ -275,11 +279,11 @@ class PluginRegistry:
         """Clear all registered plugins."""
         with self._lock:
             # Shutdown all instances
-            for instance in self._instances.values():
+            for name, instance in self._instances.items():
                 try:
                     instance.shutdown()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Error shutting down plugin %s: %s", name, e)
 
             self._plugins.clear()
             self._instances.clear()

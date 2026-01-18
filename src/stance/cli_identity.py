@@ -86,7 +86,8 @@ def _cmd_identity_who_can_access(args: argparse.Namespace) -> int:
             print(f"Error: Unknown cloud provider: {cloud}")
             return 1
 
-        print(f"Analyzing who can access {resource}...")
+        if output_format != "json":
+            print(f"Analyzing who can access {resource}...")
         result = mapper.who_can_access(resource)
 
         # Output results
@@ -156,7 +157,8 @@ def _cmd_identity_exposure(args: argparse.Namespace) -> int:
     try:
         analyzer = PrincipalExposureAnalyzer()
 
-        print(f"Analyzing sensitive data exposure for {principal}...")
+        if output_format != "json":
+            print(f"Analyzing sensitive data exposure for {principal}...")
         result = analyzer.analyze_principal_exposure(principal)
 
         # Output results
@@ -242,7 +244,8 @@ def _cmd_identity_overprivileged(args: argparse.Namespace) -> int:
             lookback_days=days,
         )
 
-        print(f"Analyzing over-privileged access for {cloud}...")
+        if output_format != "json":
+            print(f"Analyzing over-privileged access for {cloud}...")
         result = analyzer.analyze()
 
         # Output results

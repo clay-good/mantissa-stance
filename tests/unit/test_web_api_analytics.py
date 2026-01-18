@@ -29,9 +29,9 @@ class TestAnalyticsAttackPathsAPI:
         handler = MagicMock(spec=StanceRequestHandler)
         handler.storage = MagicMock()
 
-        with patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
-            mock_store.load_assets.return_value = None
+            mock_store.get_assets.return_value = None
             mock_storage.return_value = mock_store
 
             result = StanceRequestHandler._analytics_attack_paths(handler, {})
@@ -45,15 +45,15 @@ class TestAnalyticsAttackPathsAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.AttackPathAnalyzer") as mock_analyzer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.attack_paths.AttackPathAnalyzer") as mock_analyzer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -86,16 +86,16 @@ class TestAnalyticsAttackPathsAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.AttackPathAnalyzer") as mock_analyzer_class, \
-             patch("stance.web.server.AttackPathType") as mock_type:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.attack_paths.AttackPathAnalyzer") as mock_analyzer_class, \
+             patch("stance.analytics.attack_paths.AttackPathType") as mock_type:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -124,15 +124,15 @@ class TestAnalyticsAttackPathsAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.AttackPathAnalyzer") as mock_analyzer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.attack_paths.AttackPathAnalyzer") as mock_analyzer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -169,9 +169,9 @@ class TestAnalyticsRiskScoreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
-            mock_store.load_assets.return_value = None
+            mock_store.get_assets.return_value = None
             mock_storage.return_value = mock_store
 
             result = StanceRequestHandler._analytics_risk_score(handler, {})
@@ -185,15 +185,15 @@ class TestAnalyticsRiskScoreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -227,17 +227,17 @@ class TestAnalyticsRiskScoreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_asset = MagicMock()
             mock_assets.assets = [mock_asset]
             mock_assets.get_by_id.return_value = mock_asset
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -271,15 +271,15 @@ class TestAnalyticsRiskScoreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
             mock_assets.get_by_id.return_value = None
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -299,15 +299,15 @@ class TestAnalyticsRiskScoreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.RiskScorer") as mock_scorer_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.risk_scoring.RiskScorer") as mock_scorer_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -346,9 +346,9 @@ class TestAnalyticsBlastRadiusAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
-            mock_store.load_assets.return_value = None
+            mock_store.get_assets.return_value = None
             mock_storage.return_value = mock_store
 
             result = StanceRequestHandler._analytics_blast_radius(handler, {})
@@ -362,12 +362,12 @@ class TestAnalyticsBlastRadiusAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.storage.get_storage") as mock_storage:
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = None
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             result = StanceRequestHandler._analytics_blast_radius(handler, {})
@@ -381,17 +381,17 @@ class TestAnalyticsBlastRadiusAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.BlastRadiusCalculator") as mock_calc_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.blast_radius.BlastRadiusCalculator") as mock_calc_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
             mock_assets.assets = [MagicMock()]
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -430,9 +430,9 @@ class TestAnalyticsBlastRadiusAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class, \
-             patch("stance.web.server.BlastRadiusCalculator") as mock_calc_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class, \
+             patch("stance.analytics.blast_radius.BlastRadiusCalculator") as mock_calc_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
@@ -441,8 +441,8 @@ class TestAnalyticsBlastRadiusAPI:
             mock_findings = MagicMock()
             mock_findings.findings = [mock_finding]
             mock_findings.get_by_id.return_value = mock_finding
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -481,8 +481,8 @@ class TestAnalyticsBlastRadiusAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.get_storage") as mock_storage, \
-             patch("stance.web.server.AssetGraph") as mock_graph_class:
+        with patch("stance.storage.get_storage") as mock_storage, \
+             patch("stance.analytics.asset_graph.AssetGraph") as mock_graph_class:
             # Setup storage mock
             mock_store = MagicMock()
             mock_assets = MagicMock()
@@ -490,8 +490,8 @@ class TestAnalyticsBlastRadiusAPI:
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
             mock_findings.get_by_id.return_value = None
-            mock_store.load_assets.return_value = mock_assets
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_assets.return_value = mock_assets
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup graph mock
@@ -515,13 +515,13 @@ class TestAnalyticsMitreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             mock_mapper = MagicMock()
             mock_mapper_class.return_value = mock_mapper
 
             mock_store = MagicMock()
-            mock_store.load_findings.return_value = None
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             result = StanceRequestHandler._analytics_mitre(handler, {})
@@ -535,13 +535,13 @@ class TestAnalyticsMitreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -575,15 +575,15 @@ class TestAnalyticsMitreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_finding = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [mock_finding]
             mock_findings.get_by_id.return_value = mock_finding
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -611,14 +611,14 @@ class TestAnalyticsMitreAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
             mock_findings.get_by_id.return_value = None
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup mapper mock
@@ -653,7 +653,7 @@ class TestAnalyticsMitreTechniqueAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_technique = MagicMock()
             mock_technique.id = "T1078"
@@ -687,7 +687,7 @@ class TestAnalyticsMitreTechniqueAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class:
             mock_mapper = MagicMock()
             mock_mapper.get_technique.return_value = None
             mock_mapper_class.return_value = mock_mapper
@@ -709,13 +709,13 @@ class TestAnalyticsMitreCoverageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             mock_mapper = MagicMock()
             mock_mapper_class.return_value = mock_mapper
 
             mock_store = MagicMock()
-            mock_store.load_findings.return_value = None
+            mock_store.get_findings.return_value = None
             mock_storage.return_value = mock_store
 
             result = StanceRequestHandler._analytics_mitre_coverage(handler, {})
@@ -730,14 +730,14 @@ class TestAnalyticsMitreCoverageAPI:
 
         handler = MagicMock(spec=StanceRequestHandler)
 
-        with patch("stance.web.server.MitreAttackMapper") as mock_mapper_class, \
-             patch("stance.web.server.MitreTactic") as mock_tactic_class, \
-             patch("stance.web.server.get_storage") as mock_storage:
+        with patch("stance.analytics.mitre_attack.MitreAttackMapper") as mock_mapper_class, \
+             patch("stance.analytics.mitre_attack.MitreTactic") as mock_tactic_class, \
+             patch("stance.storage.get_storage") as mock_storage:
             # Setup storage mock
             mock_store = MagicMock()
             mock_findings = MagicMock()
             mock_findings.findings = [MagicMock()]
-            mock_store.load_findings.return_value = mock_findings
+            mock_store.get_findings.return_value = mock_findings
             mock_storage.return_value = mock_store
 
             # Setup tactic class
