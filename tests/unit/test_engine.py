@@ -201,6 +201,105 @@ class TestExpressionEvaluator:
         """Test null literal handling."""
         assert evaluator.evaluate("resource.missing == null", sample_context)
 
+    def test_expression_none_comparison_numeric_operators(self, evaluator):
+        """Test that numeric comparisons with None return False instead of TypeError."""
+        context = {
+            "resource": {
+                "password_reuse_prevention": None,
+                "max_password_age": None,
+                "lifecycle_rules_count": None,
+            }
+        }
+
+        # All these should return False, not raise TypeError
+        assert not evaluator.evaluate(
+            "resource.password_reuse_prevention >= 12", context
+        )
+        assert not evaluator.evaluate("resource.max_password_age <= 90", context)
+        assert not evaluator.evaluate("resource.lifecycle_rules_count >= 1", context)
+        assert not evaluator.evaluate("resource.password_reuse_prevention > 0", context)
+        assert not evaluator.evaluate("resource.max_password_age < 100", context)
+
+    def test_expression_none_comparison_missing_field(self, evaluator):
+        """Test that missing fields (which return None) work with numeric operators."""
+        context = {"resource": {}}
+
+        # Missing fields return None, should not raise TypeError
+        assert not evaluator.evaluate("resource.missing_field >= 10", context)
+        assert not evaluator.evaluate("resource.missing_field <= 10", context)
+        assert not evaluator.evaluate("resource.missing_field > 10", context)
+        assert not evaluator.evaluate("resource.missing_field < 10", context)
+
+    def test_expression_none_with_in_operator(self, evaluator):
+        """Test that 'in' operator handles None gracefully."""
+        context = {"resource": {"items": None, "valid_items": [1, 2, 3]}}
+
+        # 'in' with None collection should return False
+        assert not evaluator.evaluate("5 in resource.items", context)
+        # 'not_in' with None collection should return True
+        assert evaluator.evaluate("5 not_in resource.items", context)
+
+    def test_expression_none_with_contains_operator(self, evaluator):
+        """Test that 'contains' operator handles None gracefully."""
+        context = {"resource": {"name": None, "valid_name": "test-bucket"}}
+
+        # 'contains' with None should return False
+        assert not evaluator.evaluate("resource.name contains 'test'", context)
+
+    def test_expression_exists_with_none(self, evaluator):
+        """Test 'exists' correctly identifies None as non-existent."""
+        context = {"resource": {"null_field": None, "valid_field": "value"}}
+
+        assert not evaluator.evaluate("resource.null_field exists", context)
+        assert evaluator.evaluate("resource.null_field not_exists", context)
+        assert evaluator.evaluate("resource.valid_field exists", context)
+
+    def test_expression_and_or_aliases(self, evaluator, sample_context):
+        """Test && and || as aliases for 'and' and 'or'."""
+        # Test && alias for 'and'
+        assert evaluator.evaluate(
+            "resource.encryption.enabled == true && resource.public_access == false",
+            sample_context,
+        )
+        assert not evaluator.evaluate(
+            "resource.encryption.enabled == true && resource.public_access == true",
+            sample_context,
+        )
+
+        # Test || alias for 'or'
+        assert evaluator.evaluate(
+            "resource.public_access == true || resource.encryption.enabled == true",
+            sample_context,
+        )
+        assert not evaluator.evaluate(
+            "resource.public_access == true || resource.name == 'other'",
+            sample_context,
+        )
+
+    def test_expression_list_literal(self, evaluator):
+        """Test list literal support in expressions."""
+        context = {"resource": {"registry": "gcr.io", "tag": "v1.0"}}
+
+        # Test 'in' with list literal
+        assert evaluator.evaluate(
+            "resource.registry in ['gcr.io', 'docker.io', 'ecr.aws']",
+            context,
+        )
+        assert not evaluator.evaluate(
+            "resource.registry in ['quay.io', 'harbor.io']",
+            context,
+        )
+
+        # Test empty list
+        assert not evaluator.evaluate("resource.registry in []", context)
+
+    def test_expression_list_literal_with_numbers(self, evaluator):
+        """Test list literals with numeric values."""
+        context = {"resource": {"port": 443}}
+
+        assert evaluator.evaluate("resource.port in [80, 443, 8080]", context)
+        assert not evaluator.evaluate("resource.port in [22, 3389]", context)
+
 
 class TestPolicyLoader:
     """Tests for the PolicyLoader class."""
@@ -296,6 +395,60 @@ references:
         errors = loader.validate_policy(invalid_policy)
 
         assert len(errors) > 0
+
+    def test_policy_loader_multi_document_yaml_rejected(self, tmp_path):
+        """Test that multi-document YAML files are rejected with clear error."""
+        multi_doc_content = """
+id: policy-001
+name: First Policy
+description: First policy in multi-doc file
+enabled: true
+severity: high
+resource_type: aws_s3_bucket
+check:
+  type: expression
+  expression: "resource.encryption.enabled == true"
+---
+id: policy-002
+name: Second Policy
+description: Second policy - this should cause an error
+enabled: true
+severity: medium
+resource_type: aws_ec2_instance
+check:
+  type: expression
+  expression: "resource.public_ip == false"
+"""
+        policy_path = tmp_path / "multi_doc.yaml"
+        policy_path.write_text(multi_doc_content)
+
+        loader = PolicyLoader(policy_dirs=[str(tmp_path)])
+
+        with pytest.raises(PolicyLoadError) as exc_info:
+            loader.load_policy(str(policy_path))
+
+        assert "single document" in str(exc_info.value).lower()
+
+    def test_policy_loader_single_document_with_separator_ok(self, tmp_path):
+        """Test that a single document starting with --- is OK."""
+        single_doc_content = """---
+id: policy-001
+name: Single Policy
+description: Single policy with optional document start marker
+enabled: true
+severity: high
+resource_type: aws_s3_bucket
+check:
+  type: expression
+  expression: "resource.encryption.enabled == true"
+"""
+        policy_path = tmp_path / "single_doc.yaml"
+        policy_path.write_text(single_doc_content)
+
+        loader = PolicyLoader(policy_dirs=[str(tmp_path)])
+        policy = loader.load_policy(str(policy_path))
+
+        assert policy.id == "policy-001"
 
 
 class TestPolicyEvaluator:

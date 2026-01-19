@@ -1,0 +1,55 @@
+id: asm-exp-006
+name: Admin panel detected on public asset
+description: 'Detects administrative interfaces (admin, dashboard, portal paths
+
+  or admin-related subdomains) exposed to the public internet.
+
+  Admin panels should be protected or restricted to internal networks.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'not (resource.domain contains "admin" or
+
+    resource.domain contains "dashboard" or
+
+    resource.domain contains "portal" or
+
+    resource.domain contains "manage" or
+
+    resource.domain contains "console" or
+
+    resource.domain contains "cpanel" or
+
+    resource.domain contains "whm")
+
+    '
+remediation:
+  guidance: '1. Move admin interfaces to internal-only networks
+
+    2. Restrict access by IP address or VPN
+
+    3. Implement strong authentication (MFA required)
+
+    4. Use non-standard URLs for admin interfaces
+
+    5. Monitor and alert on failed login attempts
+
+    6. Implement account lockout policies
+
+    7. Consider using separate admin domains not linked to main site
+
+    '
+  automation_supported: false
+tags:
+- admin
+- exposure
+- dashboard
+- portal
+- network
+- asm
+references:
+- https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/02-Test_Application_Platform_Configuration

@@ -1,0 +1,41 @@
+id: asm-exp-005
+name: Elasticsearch exposed to internet
+description: 'Detects Elasticsearch (port 9200) exposed to the public internet.
+
+  Unsecured Elasticsearch instances have led to numerous data breaches
+
+  exposing billions of records.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: resource.port not_in [9200, 9300]
+remediation:
+  guidance: '1. Restrict Elasticsearch access to internal networks only
+
+    2. Enable X-Pack Security or Search Guard
+
+    3. Configure authentication for all requests
+
+    4. Use TLS for all Elasticsearch communications
+
+    5. Disable anonymous access
+
+    6. Place Elasticsearch in private subnets
+
+    7. Use a reverse proxy with authentication for remote access
+
+    '
+  automation_supported: false
+tags:
+- elasticsearch
+- exposure
+- port-9200
+- network
+- data-exposure
+- asm
+references:
+- https://www.elastic.co/guide/en/elasticsearch/reference/current/security-minimal-setup.html

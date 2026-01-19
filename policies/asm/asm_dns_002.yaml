@@ -1,0 +1,39 @@
+id: asm-dns-002
+name: Subdomain takeover vulnerability
+description: 'Detects subdomains vulnerable to takeover attacks. This occurs when
+
+  a DNS record points to a service that can be claimed by an attacker,
+
+  such as unclaimed cloud resources, expired SaaS tenants, or
+
+  deprovisioned CDN endpoints.
+
+  '
+enabled: true
+severity: critical
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.raw_data.takeover_vulnerable != true
+
+    '
+remediation:
+  guidance: "CRITICAL: Subdomain takeover allows attackers to serve malicious content\n\
+    from your domain, enabling phishing, cookie theft, and reputation damage.\n\n\
+    1. Immediately verify the vulnerability\n2. If the target service is still needed:\n\
+    \   - Re-claim the resource (S3 bucket, GitHub Pages, etc.)\n3. If the service\
+    \ is no longer needed:\n   - Remove the DNS record immediately\n4. Do NOT wait\
+    \ - attackers actively scan for these vulnerabilities\n5. Audit all DNS records\
+    \ for similar issues\n6. Implement monitoring for new dangling records\n\nCommon\
+    \ vulnerable services:\n- AWS S3 buckets\n- Azure App Services\n- GitHub Pages\n\
+    - Heroku apps\n- CloudFront distributions\n- Shopify stores\n"
+  automation_supported: false
+tags:
+- dns
+- subdomain-takeover
+- critical
+- vulnerability
+- asm
+references:
+- https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover
+- https://github.com/EdOverflow/can-i-take-over-xyz

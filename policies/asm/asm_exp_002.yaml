@@ -1,0 +1,45 @@
+id: asm-exp-002
+name: RDP exposed to internet
+description: 'Detects RDP (port 3389) services exposed to the public internet.
+
+  RDP is a frequent target for ransomware attacks and brute force
+
+  credential stuffing. Never expose RDP directly to the internet.
+
+  '
+enabled: true
+severity: critical
+resource_type: external_asset
+check:
+  type: expression
+  expression: resource.port != 3389
+remediation:
+  guidance: 'CRITICAL: RDP exposed to the internet is a major security risk.
+
+
+    1. Immediately restrict RDP access to specific IP addresses
+
+    2. Deploy a VPN solution for remote access
+
+    3. Consider Azure Bastion, AWS Systems Manager, or similar
+
+    4. Enable Network Level Authentication (NLA)
+
+    5. Implement multi-factor authentication
+
+    6. Monitor for brute force attempts
+
+    7. Keep systems patched (especially RDP vulnerabilities)
+
+    '
+  automation_supported: false
+tags:
+- rdp
+- exposure
+- port-3389
+- network
+- critical
+- asm
+references:
+- https://docs.microsoft.com/en-us/windows-server/remote/remote-desktop-services/rds-best-practices
+- https://www.cisa.gov/news-events/alerts/2019/05/14/remediating-rdp-vulnerabilities

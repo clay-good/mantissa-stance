@@ -1,0 +1,36 @@
+id: asm-shadow-001
+name: Asset not in CSPM inventory
+description: 'Detects externally discovered assets that are not present in the
+
+  internal CSPM inventory. These shadow IT assets represent unknown
+
+  or unmanaged infrastructure that may not comply with security policies.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.raw_data.cspm_matched == true or
+
+    resource.raw_data.correlation_checked != true
+
+    '
+remediation:
+  guidance: "1. Investigate the discovered asset to determine:\n   - Who created it\
+    \ and why\n   - What data or services it exposes\n   - Whether it follows security\
+    \ policies\n2. If the asset is legitimate:\n   - Add it to your CSPM inventory\n\
+    \   - Ensure proper security controls are applied\n   - Document the owner and\
+    \ purpose\n3. If the asset is unauthorized:\n   - Determine if it should be decommissioned\n\
+    \   - Transfer to managed infrastructure if needed\n   - Address with the team\
+    \ that created it\n4. Update asset management processes to prevent recurrence\n"
+  automation_supported: false
+tags:
+- shadow-it
+- inventory
+- unmanaged
+- cspm
+- asm
+references:
+- https://www.gartner.com/en/information-technology/glossary/shadow-it

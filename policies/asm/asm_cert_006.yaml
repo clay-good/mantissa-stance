@@ -1,0 +1,41 @@
+id: asm-cert-006
+name: Certificate SAN mismatch with domain
+description: 'Detects certificates where the Subject Alternative Names (SANs)
+
+  do not include the domain being accessed. This can cause
+
+  browser security warnings.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.certificate_info not_exists or
+
+    resource.domain in resource.certificate_info.san_domains
+
+    '
+remediation:
+  guidance: '1. Request a new certificate that includes all required domains
+
+    2. Ensure the domain is listed in Subject Alternative Names (SANs)
+
+    3. For wildcard certificates, verify the wildcard matches the subdomain level
+
+    4. Note: *.example.com does NOT match sub.sub.example.com
+
+    5. Install the corrected certificate
+
+    '
+  automation_supported: false
+tags:
+- certificate
+- ssl
+- tls
+- san
+- mismatch
+- asm
+references:
+- https://www.digicert.com/faq/public-trust-and-certificates/what-is-a-san-ssl-certificate

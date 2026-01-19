@@ -1,0 +1,32 @@
+id: asm-dns-005
+name: Wildcard DNS may hide assets
+description: 'Detects domains with wildcard DNS configured (*.domain.com).
+
+  While useful for some scenarios, wildcard DNS can mask the true
+
+  attack surface by resolving any subdomain.
+
+  '
+enabled: true
+severity: low
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.raw_data.wildcard_detected != true
+
+    '
+remediation:
+  guidance: "1. Evaluate if wildcard DNS is necessary for your use case\n2. If wildcard\
+    \ is required:\n   - Document the business justification\n   - Ensure all services\
+    \ behind the wildcard are monitored\n   - Implement proper access controls\n3.\
+    \ If wildcard is not required:\n   - Replace with specific DNS records\n   - This\
+    \ provides better visibility into your attack surface\n4. Consider using a wildcard\
+    \ only for specific services (e.g., CDN)\n"
+  automation_supported: false
+tags:
+- dns
+- wildcard
+- visibility
+- asm
+references:
+- https://www.cloudflare.com/learning/dns/dns-records/dns-wildcard-record/

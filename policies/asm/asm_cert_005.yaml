@@ -1,0 +1,47 @@
+id: asm-cert-005
+name: Self-signed certificate detected
+description: 'Detects self-signed certificates on publicly accessible services.
+
+  Self-signed certificates cause browser warnings and cannot be
+
+  verified by trusted certificate authorities.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.certificate_info not_exists or
+
+    resource.certificate_info.is_self_signed != true
+
+    '
+remediation:
+  guidance: '1. Obtain a certificate from a trusted certificate authority
+
+    2. For public services, use a well-known CA (Let''s Encrypt, DigiCert, etc.)
+
+    3. For internal services, consider an internal PKI or private CA
+
+    4. Replace the self-signed certificate with the trusted certificate
+
+    5. Ensure the full certificate chain is installed
+
+
+    Note: Self-signed certificates may be acceptable for:
+
+    - Development environments
+
+    - Internal-only services with proper trust configuration
+
+    '
+  automation_supported: false
+tags:
+- certificate
+- ssl
+- tls
+- self-signed
+- asm
+references:
+- https://letsencrypt.org/getting-started/

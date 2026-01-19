@@ -1,0 +1,47 @@
+id: asm-cert-002
+name: Certificate expired
+description: 'Detects SSL/TLS certificates that have already expired.
+
+  Expired certificates cause browsers to display security warnings
+
+  and may prevent users from accessing the service entirely.
+
+  '
+enabled: true
+severity: critical
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.certificate_info not_exists or
+
+    resource.certificate_info.days_until_expiry >= 0
+
+    '
+remediation:
+  guidance: 'URGENT: This certificate has expired and is actively causing issues.
+
+
+    1. Immediately generate a new certificate
+
+    2. If using Let''s Encrypt, run: certbot renew --force-renewal
+
+    3. If using AWS ACM, request a new certificate
+
+    4. Deploy the new certificate to all affected servers
+
+    5. Verify HTTPS is working without warnings
+
+    6. Set up monitoring to prevent future expirations
+
+    '
+  automation_supported: false
+tags:
+- certificate
+- ssl
+- tls
+- expired
+- critical
+- asm
+references:
+- https://letsencrypt.org/docs/
+- https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html

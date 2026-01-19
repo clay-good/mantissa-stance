@@ -1,0 +1,38 @@
+id: asm-exp-001
+name: SSH exposed to internet
+description: 'Detects SSH (port 22) services exposed to the public internet.
+
+  SSH services should be protected by VPN, bastion hosts, or
+
+  IP allowlisting to prevent brute force attacks.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: resource.port != 22
+remediation:
+  guidance: '1. Place SSH behind a VPN or bastion host
+
+    2. Use SSH key authentication instead of passwords
+
+    3. Configure fail2ban or similar brute force protection
+
+    4. Restrict access using security group or firewall rules
+
+    5. Consider using AWS Systems Manager Session Manager or similar
+
+    6. If direct access is required, implement IP allowlisting
+
+    '
+  automation_supported: false
+tags:
+- ssh
+- exposure
+- port-22
+- network
+- asm
+references:
+- https://www.ssh.com/academy/ssh/security

@@ -50,6 +50,9 @@ class TokenType(Enum):
     # Grouping
     LPAREN = auto()
     RPAREN = auto()
+    LBRACKET = auto()  # [
+    RBRACKET = auto()  # ]
+    COMMA = auto()  # ,
 
     # End of expression
     EOF = auto()
@@ -108,6 +111,13 @@ class ExistsNode(ASTNode):
 
     path: str
     negate: bool = False
+
+
+@dataclass
+class ListNode(ASTNode):
+    """List literal node."""
+
+    items: list[ASTNode]
 
 
 class ExpressionError(Exception):
@@ -303,6 +313,23 @@ class ExpressionEvaluator:
             elif char == ")":
                 tokens.append(Token(TokenType.RPAREN, ")", pos))
                 pos += 1
+            elif char == "[":
+                tokens.append(Token(TokenType.LBRACKET, "[", pos))
+                pos += 1
+            elif char == "]":
+                tokens.append(Token(TokenType.RBRACKET, "]", pos))
+                pos += 1
+            elif char == ",":
+                tokens.append(Token(TokenType.COMMA, ",", pos))
+                pos += 1
+
+            # && and || as aliases for and/or
+            elif char == "&" and pos + 1 < length and expression[pos + 1] == "&":
+                tokens.append(Token(TokenType.AND, "and", pos))
+                pos += 2
+            elif char == "|" and pos + 1 < length and expression[pos + 1] == "|":
+                tokens.append(Token(TokenType.OR, "or", pos))
+                pos += 2
 
             # Identifier or keyword
             elif char.isalpha() or char == "_":
@@ -464,6 +491,29 @@ class ExpressionEvaluator:
             self._advance()
             return PathNode(token.value)
 
+        # List literal [item1, item2, ...]
+        if token.token_type == TokenType.LBRACKET:
+            self._advance()
+            items: list[ASTNode] = []
+
+            # Handle empty list
+            if self._current().token_type == TokenType.RBRACKET:
+                self._advance()
+                return ListNode(items)
+
+            # Parse first item
+            items.append(self._parse_primary())
+
+            # Parse remaining items
+            while self._current().token_type == TokenType.COMMA:
+                self._advance()
+                items.append(self._parse_primary())
+
+            if self._current().token_type != TokenType.RBRACKET:
+                raise ExpressionError("Expected closing bracket", self._current().position)
+            self._advance()
+            return ListNode(items)
+
         raise ExpressionError(f"Unexpected token: {token.value}", token.position)
 
     def _eval_node(self, node: ASTNode, context: dict[str, Any]) -> Any:
@@ -482,6 +532,9 @@ class ExpressionEvaluator:
 
         if isinstance(node, PathNode):
             return self._get_path_value(node.path, context)
+
+        if isinstance(node, ListNode):
+            return [self._eval_node(item, context) for item in node.items]
 
         if isinstance(node, ExistsNode):
             try:

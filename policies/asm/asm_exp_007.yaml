@@ -1,0 +1,61 @@
+id: asm-exp-007
+name: Development or staging environment exposed
+description: 'Detects development, staging, or test environments exposed to the
+
+  public internet. These environments often have weaker security
+
+  controls and may contain sensitive test data.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'not (resource.domain contains "dev" or
+
+    resource.domain contains "staging" or
+
+    resource.domain contains "stage" or
+
+    resource.domain contains "test" or
+
+    resource.domain contains "uat" or
+
+    resource.domain contains "qa" or
+
+    resource.domain contains "sandbox" or
+
+    resource.domain contains "demo" or
+
+    resource.domain contains "beta" or
+
+    resource.domain contains "preprod")
+
+    '
+remediation:
+  guidance: '1. Restrict non-production environments to internal access only
+
+    2. Use VPN or IP allowlisting for developer access
+
+    3. Implement authentication on all non-production environments
+
+    4. Use robots.txt to prevent search engine indexing
+
+    5. Ensure test data does not contain real customer information
+
+    6. Apply the same security patches as production
+
+    7. Monitor non-production environments for unauthorized access
+
+    '
+  automation_supported: false
+tags:
+- development
+- staging
+- test
+- exposure
+- non-production
+- asm
+references:
+- https://owasp.org/www-project-web-security-testing-guide/

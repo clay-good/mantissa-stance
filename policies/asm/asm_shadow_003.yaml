@@ -1,0 +1,34 @@
+id: asm-shadow-003
+name: New subdomain detected since last scan
+description: 'Detects new subdomains that were not present in previous scans.
+
+  New subdomains may represent new services that need security review,
+
+  or potentially unauthorized deployments.
+
+  '
+enabled: true
+severity: info
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.first_seen != resource.last_seen or
+
+    resource.raw_data.is_new_asset != true
+
+    '
+remediation:
+  guidance: "1. This is an informational finding for new asset awareness\n2. Verify\
+    \ the new subdomain is expected:\n   - Check with development and infrastructure\
+    \ teams\n   - Review deployment logs and tickets\n3. Ensure the new service:\n\
+    \   - Has proper security controls\n   - Is included in vulnerability scanning\n\
+    \   - Has appropriate access controls\n   - Is documented in asset inventory\n\
+    4. Set up monitoring for the new asset\n"
+  automation_supported: false
+tags:
+- subdomain
+- new-asset
+- change-detection
+- asm
+references:
+- https://owasp.org/www-project-web-security-testing-guide/

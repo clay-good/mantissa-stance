@@ -1,0 +1,35 @@
+id: asm-dns-004
+name: Missing DMARC record
+description: 'Detects domains without a DMARC (Domain-based Message Authentication)
+
+  record. DMARC builds on SPF and DKIM to provide email authentication
+
+  and reporting.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.raw_data.records not_exists or
+
+    resource.raw_data.dmarc_record exists
+
+    '
+remediation:
+  guidance: "1. Ensure SPF and DKIM are configured first\n2. Create a DMARC record\
+    \ at _dmarc.yourdomain.com:\n   v=DMARC1; p=none; rua=mailto:dmarc-reports@yourdomain.com\n\
+    3. Start with p=none (monitoring only)\n4. Review reports and fix issues\n5. Move\
+    \ to p=quarantine then p=reject\n6. Consider DMARC reporting services for large\
+    \ volumes\n"
+  automation_supported: false
+tags:
+- dns
+- dmarc
+- email
+- spoofing
+- asm
+references:
+- https://dmarc.org/overview/
+- https://tools.ietf.org/html/rfc7489

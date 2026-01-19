@@ -1,0 +1,46 @@
+id: asm-cert-001
+name: Certificate expiring within 30 days
+description: 'Detects SSL/TLS certificates that will expire within the next 30 days.
+
+  Expired or expiring certificates can cause service disruptions and
+
+  browser security warnings that erode user trust.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.certificate_info not_exists or
+
+    resource.certificate_info.days_until_expiry >= 30 or
+
+    resource.certificate_info.days_until_expiry < 0
+
+    '
+remediation:
+  guidance: '1. Identify the certificate authority (CA) that issued the certificate
+
+    2. Generate a new certificate signing request (CSR)
+
+    3. Submit the CSR to your CA for renewal
+
+    4. Install the renewed certificate on the server
+
+    5. Verify the new certificate is active and valid
+
+    6. Consider using automated certificate management (e.g., Let''s Encrypt, AWS
+    ACM)
+
+    '
+  automation_supported: false
+tags:
+- certificate
+- ssl
+- tls
+- expiration
+- asm
+references:
+- https://letsencrypt.org/docs/
+- https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html

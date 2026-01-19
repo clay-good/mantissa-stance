@@ -1,0 +1,38 @@
+id: asm-shadow-002
+name: Asset in unexpected cloud provider
+description: 'Detects assets hosted by a cloud provider that is not part of
+
+  the organization''s approved infrastructure. This may indicate
+
+  shadow IT or unauthorized cloud usage.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.cloud_provider not_exists or
+
+    resource.raw_data.expected_cloud_providers not_exists or
+
+    resource.cloud_provider in resource.raw_data.expected_cloud_providers
+
+    '
+remediation:
+  guidance: "1. Identify who deployed the asset in the unexpected cloud provider\n\
+    2. Determine the business justification for using this provider\n3. Evaluate security\
+    \ implications:\n   - Does the provider meet security requirements?\n   - Is data\
+    \ properly protected?\n   - Are compliance requirements met?\n4. Options:\n  \
+    \ - Migrate to an approved cloud provider\n   - Add the provider to the approved\
+    \ list with proper controls\n   - Decommission if not needed\n5. Update cloud\
+    \ governance policies as needed\n"
+  automation_supported: false
+tags:
+- shadow-it
+- cloud-provider
+- unexpected
+- governance
+- asm
+references:
+- https://www.cisecurity.org/controls

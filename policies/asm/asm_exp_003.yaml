@@ -1,0 +1,46 @@
+id: asm-exp-003
+name: Database port exposed to internet
+description: 'Detects database services (MySQL 3306, PostgreSQL 5432, MongoDB 27017)
+
+  exposed to the public internet. Databases should never be directly
+
+  accessible from the internet.
+
+  '
+enabled: true
+severity: critical
+resource_type: external_asset
+check:
+  type: expression
+  expression: resource.port not_in [3306, 5432, 27017, 1521, 1433]
+remediation:
+  guidance: 'CRITICAL: Database services should never be exposed to the internet.
+
+
+    1. Immediately restrict database access to internal networks only
+
+    2. Place databases in private subnets
+
+    3. Use security groups to allow access only from application servers
+
+    4. If remote access is needed, use SSH tunneling or VPN
+
+    5. Ensure database authentication is enabled and strong
+
+    6. Enable TLS/SSL for database connections
+
+    7. Audit and rotate database credentials
+
+    '
+  automation_supported: false
+tags:
+- database
+- exposure
+- mysql
+- postgresql
+- mongodb
+- network
+- critical
+- asm
+references:
+- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html

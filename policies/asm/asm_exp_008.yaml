@@ -1,0 +1,43 @@
+id: asm-exp-008
+name: Unencrypted HTTP service on standard port
+description: 'Detects services running plain HTTP (unencrypted) on port 80.
+
+  All web traffic should be encrypted using HTTPS to protect
+
+  data in transit.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'not (resource.port == 80 and
+
+    resource.protocol == "http")
+
+    '
+remediation:
+  guidance: '1. Obtain an SSL/TLS certificate (Let''s Encrypt is free)
+
+    2. Configure the web server for HTTPS on port 443
+
+    3. Implement HTTP to HTTPS redirect
+
+    4. Enable HSTS (HTTP Strict Transport Security)
+
+    5. Update all internal links to use HTTPS
+
+    6. Test for mixed content issues
+
+    '
+  automation_supported: false
+tags:
+- http
+- unencrypted
+- exposure
+- tls
+- asm
+references:
+- https://letsencrypt.org/getting-started/
+- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security

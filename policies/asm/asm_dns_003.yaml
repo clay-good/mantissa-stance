@@ -1,0 +1,35 @@
+id: asm-dns-003
+name: Missing SPF record
+description: 'Detects domains without an SPF (Sender Policy Framework) record.
+
+  SPF helps prevent email spoofing by specifying which servers are
+
+  authorized to send email for your domain.
+
+  '
+enabled: true
+severity: medium
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.raw_data.records not_exists or
+
+    resource.raw_data.spf_record exists
+
+    '
+remediation:
+  guidance: "1. Identify all servers that send email for your domain\n2. Create an\
+    \ SPF record in DNS:\n   v=spf1 include:_spf.google.com include:amazonses.com\
+    \ -all\n3. Start with ~all (softfail) for testing\n4. Move to -all (hardfail)\
+    \ after verification\n5. Keep SPF record under 10 DNS lookups\n6. Test using online\
+    \ SPF validators\n"
+  automation_supported: false
+tags:
+- dns
+- spf
+- email
+- spoofing
+- asm
+references:
+- https://www.cloudflare.com/learning/dns/dns-records/dns-spf-record/
+- https://tools.ietf.org/html/rfc7208

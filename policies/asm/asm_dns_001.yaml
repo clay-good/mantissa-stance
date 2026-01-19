@@ -1,0 +1,33 @@
+id: asm-dns-001
+name: Dangling CNAME record detected
+description: 'Detects DNS CNAME records pointing to non-existent resources.
+
+  Dangling DNS records can lead to subdomain takeover attacks where
+
+  an attacker claims the orphaned resource.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.raw_data.is_dangling != true
+
+    '
+remediation:
+  guidance: "1. Identify what the CNAME was originally pointing to\n2. If the target\
+    \ resource is no longer needed:\n   - Remove the CNAME record from DNS\n3. If\
+    \ the target resource should exist:\n   - Re-create the resource with the same\
+    \ name\n   - Or update the CNAME to point to the correct resource\n4. Document\
+    \ the reason for the change\n5. Audit other DNS records for similar issues\n"
+  automation_supported: false
+tags:
+- dns
+- cname
+- dangling
+- takeover
+- asm
+references:
+- https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover
+- https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeovers

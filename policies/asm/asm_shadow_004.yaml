@@ -1,0 +1,34 @@
+id: asm-shadow-004
+name: Service running on non-standard port
+description: 'Detects services running on non-standard ports. While sometimes
+
+  intentional, this can indicate misconfiguration or attempts
+
+  to evade security controls.
+
+  '
+enabled: true
+severity: low
+resource_type: external_asset
+check:
+  type: expression
+  expression: "resource.port not_exists or\nresource.service not_exists or\nnot ((resource.service\
+    \ == \"http\" and resource.port != 80) or\n     (resource.service == \"https\"\
+    \ and resource.port not_in [443, 8443]) or\n     (resource.service == \"ssh\"\
+    \ and resource.port != 22) or\n     (resource.service == \"mysql\" and resource.port\
+    \ != 3306) or\n     (resource.service == \"postgresql\" and resource.port != 5432))\n"
+remediation:
+  guidance: "1. Verify the non-standard port is intentional\n2. Common reasons for\
+    \ non-standard ports:\n   - Security by obscurity (not recommended as sole control)\n\
+    \   - Running multiple services on same host\n   - Container or development environments\n\
+    3. If intentional:\n   - Document the reason\n   - Ensure firewall rules are appropriate\n\
+    \   - Update monitoring to cover the non-standard port\n4. If unintentional:\n\
+    \   - Reconfigure to use standard ports\n   - Update documentation and monitoring\n"
+  automation_supported: false
+tags:
+- port
+- non-standard
+- configuration
+- asm
+references:
+- https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml

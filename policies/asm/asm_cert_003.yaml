@@ -1,0 +1,41 @@
+id: asm-cert-003
+name: Certificate uses weak algorithm
+description: 'Detects certificates using weak cryptographic algorithms such as
+
+  SHA-1 or MD5. These algorithms are considered cryptographically
+
+  broken and should not be used for SSL/TLS certificates.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: "resource.certificate_info not_exists or\n(not (resource.certificate_info.signature_algorithm\
+    \ contains \"sha1\") and\n not (resource.certificate_info.signature_algorithm\
+    \ contains \"md5\"))\n"
+remediation:
+  guidance: '1. Request a new certificate with SHA-256 or stronger signature algorithm
+
+    2. Most modern CAs use SHA-256 by default
+
+    3. If using an internal CA, ensure it is configured for SHA-256
+
+    4. Replace the weak certificate with the new SHA-256 certificate
+
+    5. Verify the new certificate signature algorithm
+
+    '
+  automation_supported: false
+tags:
+- certificate
+- ssl
+- tls
+- weak-algorithm
+- sha1
+- md5
+- asm
+references:
+- https://www.ssl.com/article/sha-256-signature-algorithm/
+- https://nvd.nist.gov/vuln/detail/CVE-2019-0009

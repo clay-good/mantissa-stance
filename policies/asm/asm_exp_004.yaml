@@ -1,0 +1,45 @@
+id: asm-exp-004
+name: Redis exposed to internet
+description: 'Detects Redis (port 6379) exposed to the public internet.
+
+  Redis without authentication has been the target of numerous
+
+  cryptomining and ransomware attacks.
+
+  '
+enabled: true
+severity: critical
+resource_type: external_asset
+check:
+  type: expression
+  expression: resource.port != 6379
+remediation:
+  guidance: 'CRITICAL: Redis exposed to the internet is extremely dangerous.
+
+
+    1. Immediately bind Redis to localhost or private IP only
+
+    2. Enable Redis authentication (requirepass)
+
+    3. Rename dangerous commands (FLUSHALL, CONFIG, DEBUG)
+
+    4. Place Redis in a private subnet
+
+    5. Use TLS for Redis connections
+
+    6. Monitor for unauthorized access attempts
+
+    7. Consider using Redis ACLs (Redis 6+)
+
+    '
+  automation_supported: false
+tags:
+- redis
+- exposure
+- port-6379
+- network
+- critical
+- asm
+references:
+- https://redis.io/topics/security
+- https://blog.trendmicro.com/trendlabs-security-intelligence/more-than-8000-unsecured-redis-instances-found-in-the-cloud/

@@ -1,0 +1,38 @@
+id: asm-cert-004
+name: Certificate key size insufficient
+description: 'Detects certificates with RSA key sizes smaller than 2048 bits.
+
+  Keys smaller than 2048 bits are considered weak and may be
+
+  vulnerable to factorization attacks.
+
+  '
+enabled: true
+severity: high
+resource_type: external_asset
+check:
+  type: expression
+  expression: 'resource.certificate_info not_exists or
+
+    resource.certificate_info.key_algorithm != "RSA" or
+
+    resource.certificate_info.key_size >= 2048
+
+    '
+remediation:
+  guidance: "1. Generate a new private key with at least 2048-bit RSA or 256-bit ECDSA\n\
+    2. Create a new CSR with the stronger key\n3. Submit CSR to your certificate authority\n\
+    4. Install the new certificate with the stronger key\n5. Recommended key sizes:\n\
+    \   - RSA: 2048 bits minimum, 4096 bits preferred\n   - ECDSA: 256 bits (P-256)\
+    \ or 384 bits (P-384)\n"
+  automation_supported: false
+tags:
+- certificate
+- ssl
+- tls
+- key-size
+- weak-key
+- asm
+references:
+- https://www.keylength.com/en/4/
+- https://nvd.nist.gov/vuln/detail/CVE-2017-14100
