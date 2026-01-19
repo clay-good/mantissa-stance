@@ -115,9 +115,19 @@ class PolicyLoader:
             return self._dict_to_policy(data, path)
 
         except FileNotFoundError:
-            raise PolicyLoadError(f"File not found", path)
+            raise PolicyLoadError("File not found", path)
+        except PolicyLoadError:
+            # Re-raise PolicyLoadError with path context
+            raise
         except Exception as e:
-            raise PolicyLoadError(str(e), path)
+            # Handle YAML parsing errors and other exceptions
+            error_msg = str(e)
+            # Provide more context for common YAML errors
+            if "expected a single document" in error_msg.lower():
+                error_msg = f"{error_msg} - policy files should contain only one YAML document (remove any '---' separators)"
+            elif "could not determine a constructor" in error_msg.lower():
+                error_msg = f"{error_msg} - check for unquoted special characters in expressions"
+            raise PolicyLoadError(error_msg, path)
 
     def validate_policy(self, policy: Policy) -> list[str]:
         """
@@ -182,17 +192,30 @@ class PolicyLoader:
         Parse YAML content into dictionary.
 
         Uses pyyaml if available, falls back to simple parser.
+        Handles multi-document YAML files by only parsing the first document.
 
         Args:
             content: YAML content string
 
         Returns:
             Parsed dictionary
+
+        Raises:
+            PolicyLoadError: If content contains multiple documents
         """
         try:
             import yaml
 
-            return yaml.safe_load(content) or {}
+            # Check for multiple documents (--- separator)
+            # This is a common issue where policy files accidentally contain
+            # multiple YAML documents
+            documents = list(yaml.safe_load_all(content))
+            if len(documents) > 1:
+                raise PolicyLoadError(
+                    f"expected a single document in the stream, "
+                    f"but found {len(documents)} documents"
+                )
+            return documents[0] if documents else {}
         except ImportError:
             return self._simple_yaml_parse(content)
 

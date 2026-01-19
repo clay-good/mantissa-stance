@@ -543,6 +543,13 @@ class ExpressionEvaluator:
 
         Returns:
             Comparison result
+
+        Note:
+            For numeric comparisons (>, <, >=, <=), if either operand is None,
+            the comparison returns False. This handles cases where AWS resource
+            fields are legitimately missing (e.g., IAM password policy fields,
+            S3 lifecycle rules). Use the 'exists' operator to explicitly check
+            for field presence before numeric comparisons.
         """
         try:
             if operator == "==":
@@ -550,30 +557,45 @@ class ExpressionEvaluator:
             elif operator == "!=":
                 return left != right
             elif operator == ">":
+                # Handle None comparisons - return False if either operand is None
+                if left is None or right is None:
+                    return False
                 return left > right
             elif operator == "<":
+                if left is None or right is None:
+                    return False
                 return left < right
             elif operator == ">=":
+                if left is None or right is None:
+                    return False
                 return left >= right
             elif operator == "<=":
+                if left is None or right is None:
+                    return False
                 return left <= right
             elif operator == "in":
+                if right is None:
+                    return False
                 if isinstance(right, (list, tuple, set)):
                     return left in right
                 elif isinstance(right, str):
-                    return str(left) in right
+                    return str(left) in right if left is not None else False
                 return False
             elif operator == "not_in":
+                if right is None:
+                    return True
                 if isinstance(right, (list, tuple, set)):
                     return left not in right
                 elif isinstance(right, str):
-                    return str(left) not in right
+                    return str(left) not in right if left is not None else True
                 return True
             elif operator == "contains":
+                if left is None:
+                    return False
                 if isinstance(left, (list, tuple, set)):
                     return right in left
                 elif isinstance(left, str):
-                    return str(right) in left
+                    return str(right) in left if right is not None else False
                 return False
             elif operator == "starts_with":
                 if isinstance(left, str) and isinstance(right, str):
