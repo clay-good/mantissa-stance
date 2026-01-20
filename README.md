@@ -123,6 +123,40 @@ stance report --benchmark cis-aws --format html --output cis-report.html
 stance dashboard
 ```
 
+### Viewing Results & Generating Reports
+
+After a scan completes, you have several options to view and export your results:
+
+```bash
+# View findings directly in CLI
+stance findings                          # All findings
+stance findings --severity critical      # Filter by severity
+stance findings --resource-type aws_s3   # Filter by resource type
+
+# Generate reports in various formats
+stance export generate --export-format html --report-type full_report -o report.html
+stance export generate --export-format json --report-type executive_summary -o summary.json
+stance export generate --export-format csv --report-type findings_detail -o findings.csv
+stance export generate --export-format pdf --report-type compliance_summary -o compliance.pdf
+
+# Generate CIS benchmark reports
+stance report --benchmark cis-aws --format html --output cis-report.html
+
+# View trend analysis (after multiple scans)
+stance reporting analyze --days 30 --format table
+```
+
+**Available Report Types:**
+| Report Type | Description |
+|-------------|-------------|
+| `full_report` | Complete security assessment with all findings |
+| `executive_summary` | High-level overview for stakeholders |
+| `findings_detail` | Detailed breakdown of all findings |
+| `compliance_summary` | Compliance status against frameworks |
+| `asset_inventory` | Complete inventory of discovered assets |
+
+**Available Export Formats:** `json`, `csv`, `html`, `pdf`
+
 ## Features
 
 ### Cloud Asset Inventory
@@ -358,8 +392,10 @@ stance llm generate-policy "ensure all RDS instances have encryption enabled"
 | `stance scan` | Run security assessment |
 | `stance findings` | View and filter findings |
 | `stance assets` | View discovered assets |
+| `stance export generate` | Generate reports (JSON, CSV, HTML, PDF) |
 | `stance query` | Natural language or SQL queries |
 | `stance report` | Generate CIS benchmark reports |
+| `stance reporting analyze` | Trend analysis and security metrics |
 | `stance policies` | Manage security policies |
 | `stance dashboard` | Start web dashboard (localhost:8080) |
 | `stance drift` | Detect configuration drift |

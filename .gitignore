@@ -171,3 +171,9 @@ test-results/
 # --------------------
 .fastembed_cache/
 */.fastembed_cache/
+
+# --------------------
+# Development Files
+# --------------------
+audit.log
+instructions.txt
