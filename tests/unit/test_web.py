@@ -1570,28 +1570,42 @@ class TestDarkModeHTMLFeatures:
         assert ".theme-toggle-btn" in content
 
     def test_index_html_has_dark_mode_css_variables(self) -> None:
-        """Test index.html includes dark mode CSS variables."""
+        """Test dashboard includes dark mode CSS variables (in index.html or stance.css)."""
         import os
         from stance.web import server
 
         static_dir = os.path.join(os.path.dirname(server.__file__), "static")
-        index_path = os.path.join(static_dir, "index.html")
 
+        # Check either the index.html or the linked stance.css file
+        index_path = os.path.join(static_dir, "index.html")
+        css_path = os.path.join(static_dir, "stance.css")
+
+        content = ""
         with open(index_path, "r") as f:
-            content = f.read()
+            content += f.read()
+        if os.path.exists(css_path):
+            with open(css_path, "r") as f:
+                content += f.read()
 
         assert ":root.dark-mode" in content
 
     def test_index_html_has_light_mode_css_class(self) -> None:
-        """Test index.html includes light mode CSS class."""
+        """Test dashboard includes light mode CSS class (in index.html or stance.css)."""
         import os
         from stance.web import server
 
         static_dir = os.path.join(os.path.dirname(server.__file__), "static")
-        index_path = os.path.join(static_dir, "index.html")
 
+        # Check either the index.html or the linked stance.css file
+        index_path = os.path.join(static_dir, "index.html")
+        css_path = os.path.join(static_dir, "stance.css")
+
+        content = ""
         with open(index_path, "r") as f:
-            content = f.read()
+            content += f.read()
+        if os.path.exists(css_path):
+            with open(css_path, "r") as f:
+                content += f.read()
 
         assert ":root:not(.light-mode)" in content
         assert "light-mode" in content

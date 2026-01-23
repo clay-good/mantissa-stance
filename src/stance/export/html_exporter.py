@@ -1,15 +1,15 @@
 """
 HTML export functionality for Mantissa Stance.
 
-Generates styled HTML reports that can be viewed in browsers
-or printed to PDF using browser print functionality.
+Generates styled, interactive HTML reports using the unified
+design system shared with the web dashboard.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from stance.export.base import (
     BaseExporter,
@@ -19,16 +19,39 @@ from stance.export.base import (
     ReportData,
     ReportType,
 )
-from stance.models.finding import Finding, Severity
+from stance.models.finding import Finding, Severity, FindingStatus
+from stance.ui.styles import get_full_stylesheet
+from stance.ui.components import (
+    render_header,
+    render_footer,
+    render_metric_grid,
+    render_tabs,
+    render_tab_content,
+    render_section_header,
+    render_data_table,
+    render_finding_card,
+    render_badge,
+    render_status_badge,
+    render_chart_container,
+    render_severity_bar,
+    render_status_summary,
+    render_progress_bar,
+    render_empty_state,
+)
+from stance.ui.charts import (
+    render_severity_bar_chart,
+    render_donut_chart,
+    render_compliance_gauge,
+)
+from stance.ui.design_tokens import Colors
 
 
 class HTMLExporter(BaseExporter):
     """
-    Exports data to styled HTML format.
+    Exports data to styled, interactive HTML format.
 
-    Generates professional, printable HTML reports with embedded
-    CSS styling. Reports can be printed to PDF using browser
-    print functionality.
+    Uses the unified Mantissa Stance design system for consistent
+    visual appearance with the web dashboard.
     """
 
     @property
@@ -57,6 +80,8 @@ class HTMLExporter(BaseExporter):
                 content = self._generate_findings_report(data, options)
             elif options.report_type == ReportType.COMPLIANCE_SUMMARY:
                 content = self._generate_compliance_report(data, options)
+            elif options.report_type == ReportType.ASSET_INVENTORY:
+                content = self._generate_asset_inventory(data, options)
             else:
                 content = self._generate_full_report(data, options)
 
@@ -79,164 +104,163 @@ class HTMLExporter(BaseExporter):
                 error=str(e),
             )
 
-    def _get_base_styles(self) -> str:
-        """Return base CSS styles for reports."""
+    def _get_tab_scripts(self) -> str:
+        """Return JavaScript for tab functionality."""
         return """
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-
-            body {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
-                color: #1a1a1a;
-                background: #ffffff;
-                padding: 2rem;
-                max-width: 1200px;
-                margin: 0 auto;
+        <script>
+            function showTab(tabId) {
+                // Hide all tab contents
+                document.querySelectorAll('.stance-tab-content').forEach(el => {
+                    el.classList.remove('stance-tab-content--active');
+                });
+                // Remove active from all tabs
+                document.querySelectorAll('.stance-tabs__tab').forEach(el => {
+                    el.classList.remove('stance-tabs__tab--active');
+                    el.setAttribute('aria-selected', 'false');
+                });
+                // Show selected tab content
+                const tabContent = document.getElementById(tabId);
+                if (tabContent) {
+                    tabContent.classList.add('stance-tab-content--active');
+                }
+                // Mark tab as active
+                const activeTab = document.querySelector(`[onclick="showTab('${tabId}')"]`);
+                if (activeTab) {
+                    activeTab.classList.add('stance-tabs__tab--active');
+                    activeTab.setAttribute('aria-selected', 'true');
+                }
             }
 
-            @media print {
-                body { padding: 0; }
-                .no-print { display: none; }
-                .page-break { page-break-before: always; }
-            }
-
-            h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
-            h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.5rem; }
-            h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.75rem; }
-
-            .header { margin-bottom: 2rem; }
-            .header p { color: #666; font-size: 0.875rem; }
-
-            .summary-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 1rem;
-                margin: 1.5rem 0;
-            }
-
-            .summary-card {
-                background: #f5f5f5;
-                padding: 1rem;
-                border-radius: 4px;
-            }
-
-            .summary-card .value {
-                font-size: 2rem;
-                font-weight: 700;
-                color: #1a1a1a;
-            }
-
-            .summary-card .label {
-                font-size: 0.875rem;
-                color: #666;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 1rem 0;
-                font-size: 0.875rem;
-            }
-
-            th, td {
-                text-align: left;
-                padding: 0.75rem;
-                border-bottom: 1px solid #e0e0e0;
-            }
-
-            th {
-                background: #f5f5f5;
-                font-weight: 600;
-            }
-
-            tr:hover { background: #fafafa; }
-
-            .severity-critical { color: #1a1a1a; font-weight: 700; }
-            .severity-high { color: #4a4a4a; font-weight: 600; }
-            .severity-medium { color: #666; }
-            .severity-low { color: #888; }
-            .severity-info { color: #aaa; }
-
-            .badge {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                font-size: 0.75rem;
-                font-weight: 500;
-                border-radius: 2px;
-                text-transform: uppercase;
-            }
-
-            .badge-critical { background: #1a1a1a; color: #fff; }
-            .badge-high { background: #4a4a4a; color: #fff; }
-            .badge-medium { background: #888; color: #fff; }
-            .badge-low { background: #ccc; color: #333; }
-            .badge-info { background: #eee; color: #666; }
-
-            .status-open { color: #1a1a1a; }
-            .status-resolved { color: #666; }
-            .status-suppressed { color: #999; }
-
-            .score-bar {
-                background: #e0e0e0;
-                height: 8px;
-                border-radius: 4px;
-                overflow: hidden;
-            }
-
-            .score-fill {
-                background: #1a1a1a;
-                height: 100%;
-            }
-
-            .finding-card {
-                border: 1px solid #e0e0e0;
-                margin: 1rem 0;
-                padding: 1rem;
-            }
-
-            .finding-card .title {
-                font-weight: 600;
-                margin-bottom: 0.5rem;
-            }
-
-            .finding-card .meta {
-                font-size: 0.875rem;
-                color: #666;
-            }
-
-            .finding-card .description {
-                margin-top: 0.75rem;
-                font-size: 0.875rem;
-            }
-
-            .footer {
-                margin-top: 3rem;
-                padding-top: 1rem;
-                border-top: 1px solid #e0e0e0;
-                font-size: 0.75rem;
-                color: #999;
-            }
-        </style>
+            // Initialize first tab as active on load
+            document.addEventListener('DOMContentLoaded', function() {
+                const firstTab = document.querySelector('.stance-tabs__tab');
+                if (firstTab) {
+                    const tabId = firstTab.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    showTab(tabId);
+                }
+            });
+        </script>
         """
 
-    def _generate_header(self, options: ExportOptions, generated_at: datetime) -> str:
-        """Generate report header."""
-        return f"""
-        <div class="header">
-            <h1>{self._escape_html(options.title)}</h1>
-            <p>Generated: {generated_at.strftime('%Y-%m-%d %H:%M UTC')}</p>
-            <p>Author: {self._escape_html(options.author)}</p>
-        </div>
-        """
+    def _generate_html_document(
+        self,
+        title: str,
+        body_content: str,
+        include_tabs: bool = False,
+    ) -> str:
+        """Generate complete HTML document with design system styles."""
+        scripts = self._get_tab_scripts() if include_tabs else ""
 
-    def _generate_footer(self) -> str:
-        """Generate report footer."""
-        return """
-        <div class="footer">
-            <p>Generated by Mantissa Stance - Cloud Security Posture Management</p>
-        </div>
-        """
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Mantissa Stance">
+    <title>{self._escape_html(title)}</title>
+    <style>
+{get_full_stylesheet()}
+    </style>
+</head>
+<body>
+    <div class="stance-container">
+        {body_content}
+    </div>
+    {scripts}
+</body>
+</html>"""
+
+    def _get_summary_metrics(self, data: ReportData) -> List[Dict[str, Any]]:
+        """Get summary metrics for cards."""
+        findings = data.get_findings_list()
+        assets = data.get_assets_list()
+        severity_counts = data.get_finding_counts_by_severity()
+        compliance_score = data.get_overall_compliance_score()
+
+        return [
+            {"value": len(assets), "label": "Assets Scanned"},
+            {"value": len(findings), "label": "Total Findings"},
+            {"value": severity_counts.get("critical", 0), "label": "Critical", "variant": "critical"},
+            {"value": severity_counts.get("high", 0), "label": "High", "variant": "high"},
+            {"value": severity_counts.get("medium", 0), "label": "Medium", "variant": "medium"},
+            {"value": f"{compliance_score:.0f}%", "label": "Compliance", "variant": "success"},
+        ]
+
+    def _get_status_counts(self, findings: List[Finding]) -> Dict[str, int]:
+        """Count findings by status."""
+        counts = {"open": 0, "resolved": 0, "suppressed": 0, "false_positive": 0}
+        for f in findings:
+            status_key = f.status.value if hasattr(f.status, "value") else str(f.status)
+            if status_key in counts:
+                counts[status_key] += 1
+        return counts
+
+    def _render_findings_table(
+        self,
+        findings: List[Finding],
+        limit: Optional[int] = None,
+    ) -> str:
+        """Render a findings table."""
+        if not findings:
+            return render_empty_state(message="No findings to display")
+
+        sorted_findings = sorted(findings, key=lambda f: self._severity_order(f.severity))
+        if limit:
+            sorted_findings = sorted_findings[:limit]
+
+        columns = [
+            {"key": "severity", "label": "Severity", "width": "100px"},
+            {"key": "finding", "label": "Finding"},
+            {"key": "asset", "label": "Asset", "width": "200px"},
+            {"key": "status", "label": "Status", "width": "130px"},
+        ]
+
+        rows = []
+        for f in sorted_findings:
+            sev = f.severity.value
+            status = f.status.value if hasattr(f.status, "value") else str(f.status)
+
+            rows.append({
+                "severity": render_badge(sev, sev),
+                "finding": f"""
+                    <div class="stance-table__title">{self._escape_html(f.title)}</div>
+                    <div class="stance-table__subtitle">{self._escape_html(f.rule_id or 'N/A')}</div>
+                """,
+                "asset": self._escape_html(self._truncate(f.asset_id, 45)),
+                "status": render_status_badge(status),
+            })
+
+        return render_data_table(columns, rows)
+
+    def _render_finding_cards(
+        self,
+        findings: List[Finding],
+        severity_filter: Optional[str] = None,
+    ) -> str:
+        """Render finding detail cards."""
+        if severity_filter:
+            findings = [f for f in findings if f.severity.value == severity_filter]
+
+        if not findings:
+            msg = f"No {severity_filter} findings" if severity_filter else "No findings"
+            return render_empty_state(message=msg)
+
+        sorted_findings = sorted(findings, key=lambda f: self._severity_order(f.severity))
+
+        cards = []
+        for f in sorted_findings:
+            cards.append(render_finding_card(
+                title=f.title,
+                description=f.description,
+                severity=f.severity.value,
+                status=f.status.value if hasattr(f.status, "value") else str(f.status),
+                rule_id=f.rule_id,
+                asset_id=f.asset_id,
+                first_seen=f.first_seen,
+                remediation=f.remediation_guidance,
+            ))
+
+        return "".join(cards)
 
     def _generate_executive_summary(
         self,
@@ -245,154 +269,119 @@ class HTMLExporter(BaseExporter):
     ) -> str:
         """Generate executive summary HTML."""
         findings = data.get_findings_list()
-        assets = data.get_assets_list()
         severity_counts = data.get_finding_counts_by_severity()
-        compliance_score = data.get_overall_compliance_score()
+        status_counts = self._get_status_counts(findings)
+        critical_high = [f for f in findings if f.severity.value in ["critical", "high"]]
 
-        # Calculate key metrics
-        internet_facing = len([a for a in assets if a.is_internet_facing()])
-        critical_high = severity_counts.get("critical", 0) + severity_counts.get("high", 0)
+        body = f"""
+        {render_header(
+            title=options.title,
+            subtitle="Executive Summary",
+            generated_at=data.generated_at,
+            author=options.author,
+        )}
 
-        summary_cards = f"""
-        <div class="summary-grid">
-            <div class="summary-card">
-                <div class="value">{len(assets)}</div>
-                <div class="label">Total Assets</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{internet_facing}</div>
-                <div class="label">Internet Facing</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{len(findings)}</div>
-                <div class="label">Total Findings</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{critical_high}</div>
-                <div class="label">Critical/High</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{compliance_score:.0f}%</div>
-                <div class="label">Compliance Score</div>
-            </div>
-        </div>
+        {render_metric_grid(self._get_summary_metrics(data))}
+
+        {render_chart_container(
+            "Findings by Severity",
+            render_severity_bar(severity_counts)
+        )}
+
+        {render_chart_container(
+            "Findings by Status",
+            render_status_summary(status_counts)
+        )}
+
+        <section class="stance-section">
+            {render_section_header("Priority Findings", count=len(critical_high))}
+            {self._render_findings_table(critical_high, limit=20)}
+        </section>
+
+        {render_footer("This report contains confidential security information.")}
         """
 
-        # Severity breakdown table
-        severity_table = """
-        <h2>Findings by Severity</h2>
-        <table>
-            <thead>
-                <tr><th>Severity</th><th>Count</th><th>Percentage</th></tr>
-            </thead>
-            <tbody>
-        """
-        total = len(findings) or 1
-        for sev in ["critical", "high", "medium", "low", "info"]:
-            count = severity_counts.get(sev, 0)
-            pct = (count / total) * 100
-            severity_table += f"""
-                <tr>
-                    <td><span class="badge badge-{sev}">{sev}</span></td>
-                    <td>{count}</td>
-                    <td>{pct:.1f}%</td>
-                </tr>
-            """
-        severity_table += "</tbody></table>"
-
-        # Compliance scores
-        compliance_section = ""
-        if data.compliance_scores:
-            compliance_section = "<h2>Compliance Scores</h2>"
-            for framework, fw_data in data.compliance_scores.items():
-                score = fw_data.get("score", 0)
-                compliance_section += f"""
-                <div style="margin: 0.5rem 0;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>{self._escape_html(framework)}</span>
-                        <span>{score:.0f}%</span>
-                    </div>
-                    <div class="score-bar">
-                        <div class="score-fill" style="width: {score}%;"></div>
-                    </div>
-                </div>
-                """
-
-        return f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <title>{self._escape_html(options.title)} - Executive Summary</title>
-            {self._get_base_styles()}
-        </head>
-        <body>
-            {self._generate_header(options, data.generated_at)}
-            <h2>Executive Summary</h2>
-            {summary_cards}
-            {severity_table}
-            {compliance_section}
-            {self._generate_footer()}
-        </body>
-        </html>
-        """
+        return self._generate_html_document(
+            title=f"{options.title} - Executive Summary",
+            body_content=body,
+        )
 
     def _generate_findings_report(
         self,
         data: ReportData,
         options: ExportOptions,
     ) -> str:
-        """Generate findings detail HTML."""
+        """Generate detailed findings report HTML."""
         findings = self._filter_findings(
             data.get_findings_list(),
             options.severity_filter,
         )
+        severity_counts = data.get_finding_counts_by_severity()
+        status_counts = self._get_status_counts(findings)
 
-        # Group by severity
-        by_severity: dict[str, list[Finding]] = {}
-        for f in findings:
-            sev = f.severity.value
-            if sev not in by_severity:
-                by_severity[sev] = []
-            by_severity[sev].append(f)
+        tabs = [
+            {"id": "all-findings", "label": "All Findings", "count": len(findings)},
+            {"id": "critical", "label": "Critical", "count": severity_counts.get("critical", 0)},
+            {"id": "high", "label": "High", "count": severity_counts.get("high", 0)},
+            {"id": "medium", "label": "Medium", "count": severity_counts.get("medium", 0)},
+            {"id": "low", "label": "Low", "count": severity_counts.get("low", 0)},
+        ]
 
-        findings_html = ""
-        for sev in ["critical", "high", "medium", "low", "info"]:
-            if sev not in by_severity:
-                continue
+        body = f"""
+        {render_header(
+            title=options.title,
+            subtitle="Findings Detail Report",
+            generated_at=data.generated_at,
+            author=options.author,
+        )}
 
-            findings_html += f'<h2 class="page-break"><span class="badge badge-{sev}">{sev.upper()}</span> Findings ({len(by_severity[sev])})</h2>'
+        {render_metric_grid(self._get_summary_metrics(data))}
 
-            for finding in by_severity[sev]:
-                findings_html += f"""
-                <div class="finding-card">
-                    <div class="title">{self._escape_html(finding.title)}</div>
-                    <div class="meta">
-                        Asset: {self._escape_html(finding.asset_id)} |
-                        Rule: {self._escape_html(finding.rule_id or 'N/A')} |
-                        Status: <span class="status-{finding.status.value}">{finding.status.value}</span>
-                    </div>
-                    <div class="description">{self._escape_html(finding.description)}</div>
-                </div>
-                """
+        {render_chart_container(
+            "Findings by Severity",
+            render_severity_bar(severity_counts)
+        )}
 
-        return f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <title>{self._escape_html(options.title)} - Findings Detail</title>
-            {self._get_base_styles()}
-        </head>
-        <body>
-            {self._generate_header(options, data.generated_at)}
-            <h2>Findings Report</h2>
-            <p>Total Findings: {len(findings)}</p>
-            {findings_html}
-            {self._generate_footer()}
-        </body>
-        </html>
+        {render_chart_container(
+            "Findings by Status",
+            render_status_summary(status_counts)
+        )}
+
+        {render_tabs(tabs, active_tab="all-findings")}
+
+        {render_tab_content("all-findings", f'''
+            {render_section_header("All Findings", count=len(findings))}
+            {self._render_finding_cards(findings)}
+        ''', is_active=True)}
+
+        {render_tab_content("critical", f'''
+            {render_section_header("Critical Findings", count=severity_counts.get("critical", 0))}
+            {self._render_finding_cards(findings, "critical")}
+        ''')}
+
+        {render_tab_content("high", f'''
+            {render_section_header("High Severity Findings", count=severity_counts.get("high", 0))}
+            {self._render_finding_cards(findings, "high")}
+        ''')}
+
+        {render_tab_content("medium", f'''
+            {render_section_header("Medium Severity Findings", count=severity_counts.get("medium", 0))}
+            {self._render_finding_cards(findings, "medium")}
+        ''')}
+
+        {render_tab_content("low", f'''
+            {render_section_header("Low Severity Findings", count=severity_counts.get("low", 0))}
+            {self._render_finding_cards(findings, "low")}
+        ''')}
+
+        {render_footer("This report contains confidential security information.")}
         """
+
+        return self._generate_html_document(
+            title=f"{options.title} - Findings Detail",
+            body_content=body,
+            include_tabs=True,
+        )
 
     def _generate_compliance_report(
         self,
@@ -400,9 +389,11 @@ class HTMLExporter(BaseExporter):
         options: ExportOptions,
     ) -> str:
         """Generate compliance summary HTML."""
+        compliance_score = data.get_overall_compliance_score()
         frameworks = options.frameworks or list(data.compliance_scores.keys())
 
-        compliance_html = ""
+        # Build framework sections
+        framework_sections = []
         for framework in frameworks:
             if framework not in data.compliance_scores:
                 continue
@@ -411,70 +402,150 @@ class HTMLExporter(BaseExporter):
             score = fw_data.get("score", 0)
             controls = fw_data.get("controls", [])
 
-            compliance_html += f"""
-            <h2 class="page-break">{self._escape_html(framework)}</h2>
-            <div class="summary-grid">
-                <div class="summary-card">
-                    <div class="value">{score:.0f}%</div>
-                    <div class="label">Overall Score</div>
-                </div>
-                <div class="summary-card">
-                    <div class="value">{len([c for c in controls if c.get('status') == 'pass'])}</div>
-                    <div class="label">Passing Controls</div>
-                </div>
-                <div class="summary-card">
-                    <div class="value">{len([c for c in controls if c.get('status') == 'fail'])}</div>
-                    <div class="label">Failing Controls</div>
-                </div>
-            </div>
-            """
-
+            # Build controls table if available
+            controls_html = ""
             if controls:
-                compliance_html += """
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Control</th>
-                            <th>Name</th>
-                            <th>Status</th>
-                            <th>Resources</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                """
+                columns = [
+                    {"key": "control_id", "label": "Control ID", "width": "120px"},
+                    {"key": "control_name", "label": "Control Name"},
+                    {"key": "status", "label": "Status", "width": "100px"},
+                    {"key": "resources", "label": "Resources", "width": "100px"},
+                ]
+
+                rows = []
                 for control in controls:
                     status = control.get("status", "unknown")
-                    status_class = "severity-low" if status == "pass" else "severity-critical"
                     evaluated = control.get("resources_evaluated", 0)
                     compliant = control.get("resources_compliant", 0)
 
-                    compliance_html += f"""
-                    <tr>
-                        <td>{self._escape_html(control.get('control_id', ''))}</td>
-                        <td>{self._escape_html(control.get('control_name', ''))}</td>
-                        <td class="{status_class}">{status.upper()}</td>
-                        <td>{compliant}/{evaluated}</td>
-                    </tr>
-                    """
-                compliance_html += "</tbody></table>"
+                    rows.append({
+                        "control_id": self._escape_html(control.get("control_id", "")),
+                        "control_name": self._escape_html(control.get("control_name", "")),
+                        "status": render_badge(status.upper(), "success" if status == "pass" else "critical"),
+                        "resources": f"{compliant}/{evaluated}",
+                    })
 
-        return f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <title>{self._escape_html(options.title)} - Compliance Report</title>
-            {self._get_base_styles()}
-        </head>
-        <body>
-            {self._generate_header(options, data.generated_at)}
-            <h2>Compliance Summary</h2>
-            <p>Overall Score: {data.get_overall_compliance_score():.0f}%</p>
-            {compliance_html}
-            {self._generate_footer()}
-        </body>
-        </html>
+                controls_html = render_data_table(columns, rows)
+
+            framework_sections.append(f"""
+            <div class="stance-chart">
+                <h3 class="stance-chart__title">{self._escape_html(framework)}</h3>
+                <div style="margin: 16px 0;">
+                    {render_progress_bar(score, label=framework)}
+                </div>
+                {controls_html}
+            </div>
+            """)
+
+        body = f"""
+        {render_header(
+            title=options.title,
+            subtitle="Compliance Report",
+            generated_at=data.generated_at,
+            author=options.author,
+        )}
+
+        <div class="stance-summary-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="stance-card stance-card--summary">
+                {render_compliance_gauge(compliance_score, label="Overall Score")}
+            </div>
+            <div class="stance-card stance-card--summary">
+                <div class="stance-card__value">{len(frameworks)}</div>
+                <div class="stance-card__label">Frameworks Evaluated</div>
+            </div>
+            <div class="stance-card stance-card--summary stance-card--success">
+                <div class="stance-card__value">{compliance_score:.0f}%</div>
+                <div class="stance-card__label">Average Compliance</div>
+            </div>
+        </div>
+
+        {render_section_header("Framework Compliance")}
+        {"".join(framework_sections) if framework_sections else render_empty_state("No compliance data available")}
+
+        {render_footer("This report contains confidential security information.")}
         """
+
+        return self._generate_html_document(
+            title=f"{options.title} - Compliance Report",
+            body_content=body,
+        )
+
+    def _generate_asset_inventory(
+        self,
+        data: ReportData,
+        options: ExportOptions,
+    ) -> str:
+        """Generate asset inventory HTML."""
+        assets = data.get_assets_list()
+        asset_counts = data.get_asset_counts_by_type()
+
+        # Asset type summary table
+        type_columns = [
+            {"key": "type", "label": "Asset Type"},
+            {"key": "count", "label": "Count", "width": "100px"},
+        ]
+        type_rows = [
+            {"type": self._escape_html(t), "count": c}
+            for t, c in sorted(asset_counts.items(), key=lambda x: -x[1])
+        ]
+
+        # Asset detail table
+        asset_columns = [
+            {"key": "name", "label": "Name"},
+            {"key": "type", "label": "Type", "width": "150px"},
+            {"key": "region", "label": "Region", "width": "120px"},
+            {"key": "exposure", "label": "Exposure", "width": "100px"},
+        ]
+
+        asset_rows = []
+        for asset in assets[:100]:
+            exposure = getattr(asset, "network_exposure", "N/A")
+            asset_rows.append({
+                "name": f'<span style="font-weight: 500">{self._escape_html(asset.name)}</span>',
+                "type": self._escape_html(asset.resource_type),
+                "region": self._escape_html(asset.region),
+                "exposure": self._escape_html(str(exposure)),
+            })
+
+        tabs = [
+            {"id": "summary", "label": "Summary by Type", "count": len(asset_counts)},
+            {"id": "details", "label": "Asset Details", "count": len(assets)},
+        ]
+
+        body = f"""
+        {render_header(
+            title=options.title,
+            subtitle="Asset Inventory",
+            generated_at=data.generated_at,
+            author=options.author,
+        )}
+
+        {render_metric_grid([
+            {"value": len(assets), "label": "Total Assets"},
+            {"value": len(asset_counts), "label": "Asset Types"},
+        ])}
+
+        {render_tabs(tabs, active_tab="summary")}
+
+        {render_tab_content("summary", f'''
+            {render_section_header("Assets by Type", count=len(asset_counts))}
+            {render_data_table(type_columns, type_rows)}
+        ''', is_active=True)}
+
+        {render_tab_content("details", f'''
+            {render_section_header("Asset Details", count=len(assets))}
+            {render_data_table(asset_columns, asset_rows)}
+            {'<p style="margin-top: 16px; color: var(--color-text-secondary);">Showing first 100 assets.</p>' if len(assets) > 100 else ''}
+        ''')}
+
+        {render_footer("This report contains confidential security information.")}
+        """
+
+        return self._generate_html_document(
+            title=f"{options.title} - Asset Inventory",
+            body_content=body,
+            include_tabs=True,
+        )
 
     def _generate_full_report(
         self,
@@ -488,114 +559,104 @@ class HTMLExporter(BaseExporter):
         )
         assets = data.get_assets_list()
         severity_counts = data.get_finding_counts_by_severity()
-        asset_counts = data.get_asset_counts_by_type()
+        status_counts = self._get_status_counts(findings)
 
-        # Summary section
-        summary_html = f"""
-        <h2>Summary</h2>
-        <div class="summary-grid">
-            <div class="summary-card">
-                <div class="value">{len(assets)}</div>
-                <div class="label">Total Assets</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{len(findings)}</div>
-                <div class="label">Total Findings</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{severity_counts.get('critical', 0)}</div>
-                <div class="label">Critical</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{severity_counts.get('high', 0)}</div>
-                <div class="label">High</div>
-            </div>
-            <div class="summary-card">
-                <div class="value">{data.get_overall_compliance_score():.0f}%</div>
-                <div class="label">Compliance</div>
-            </div>
-        </div>
+        critical_high = [f for f in findings if f.severity.value in ["critical", "high"]]
+
+        tabs = [
+            {"id": "overview", "label": "Overview"},
+            {"id": "findings", "label": "Findings", "count": len(findings)},
+            {"id": "by-status", "label": "By Status"},
+            {"id": "assets", "label": "Assets", "count": len(assets)},
+        ]
+
+        # Asset table
+        asset_columns = [
+            {"key": "name", "label": "Name"},
+            {"key": "type", "label": "Type", "width": "150px"},
+            {"key": "region", "label": "Region", "width": "120px"},
+        ]
+        asset_rows = []
+        for asset in assets[:100]:
+            asset_rows.append({
+                "name": f'<span style="font-weight: 500">{self._escape_html(asset.name)}</span>',
+                "type": self._escape_html(asset.resource_type),
+                "region": self._escape_html(asset.region),
+            })
+
+        body = f"""
+        {render_header(
+            title=options.title,
+            subtitle="Security Assessment Report",
+            generated_at=data.generated_at,
+            author=options.author,
+        )}
+
+        {render_metric_grid(self._get_summary_metrics(data))}
+
+        {render_tabs(tabs, active_tab="overview")}
+
+        {render_tab_content("overview", f'''
+            {render_chart_container("Findings by Severity", render_severity_bar(severity_counts))}
+            {render_chart_container("Findings by Status", render_status_summary(status_counts))}
+            {render_section_header("Priority Findings", count=len(critical_high))}
+            {self._render_findings_table(critical_high, limit=10)}
+        ''', is_active=True)}
+
+        {render_tab_content("findings", f'''
+            {render_section_header("All Findings", count=len(findings))}
+            {self._render_findings_table(findings)}
+        ''')}
+
+        {render_tab_content("by-status", f'''
+            {render_section_header("Findings by Status")}
+
+            <h3 style="margin: 24px 0 16px; color: var(--color-status-open);">Open ({status_counts["open"]})</h3>
+            {self._render_findings_table([f for f in findings if f.status.value == "open"])}
+
+            <h3 style="margin: 24px 0 16px; color: var(--color-status-resolved);">Resolved ({status_counts["resolved"]})</h3>
+            {self._render_findings_table([f for f in findings if f.status.value == "resolved"])}
+
+            <h3 style="margin: 24px 0 16px; color: var(--color-status-suppressed);">Suppressed ({status_counts["suppressed"]})</h3>
+            {self._render_findings_table([f for f in findings if f.status.value == "suppressed"])}
+
+            <h3 style="margin: 24px 0 16px; color: var(--color-status-false-positive);">False Positive ({status_counts["false_positive"]})</h3>
+            {self._render_findings_table([f for f in findings if f.status.value == "false_positive"])}
+        ''')}
+
+        {render_tab_content("assets", f'''
+            {render_section_header("Assets Scanned", count=len(assets))}
+            {render_data_table(asset_columns, asset_rows)}
+            {'<p style="margin-top: 16px; color: var(--color-text-secondary);">Showing first 100 assets.</p>' if len(assets) > 100 else ''}
+        ''')}
+
+        {render_footer("This report contains confidential security information.")}
         """
 
-        # Findings table
-        findings_table = """
-        <h2 class="page-break">Findings</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Severity</th>
-                    <th>Title</th>
-                    <th>Asset</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-        for finding in sorted(findings, key=lambda f: self._severity_order(f.severity)):
-            findings_table += f"""
-            <tr>
-                <td><span class="badge badge-{finding.severity.value}">{finding.severity.value}</span></td>
-                <td>{self._escape_html(finding.title)}</td>
-                <td>{self._escape_html(finding.asset_id[:50])}</td>
-                <td class="status-{finding.status.value}">{finding.status.value}</td>
-            </tr>
-            """
-        findings_table += "</tbody></table>"
+        return self._generate_html_document(
+            title=options.title,
+            body_content=body,
+            include_tabs=True,
+        )
 
-        # Assets table
-        assets_table = """
-        <h2 class="page-break">Assets</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Region</th>
-                    <th>Exposure</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-        for asset in assets:
-            assets_table += f"""
-            <tr>
-                <td>{self._escape_html(asset.name)}</td>
-                <td>{self._escape_html(asset.resource_type)}</td>
-                <td>{self._escape_html(asset.region)}</td>
-                <td>{self._escape_html(asset.network_exposure)}</td>
-            </tr>
-            """
-        assets_table += "</tbody></table>"
-
-        return f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <title>{self._escape_html(options.title)}</title>
-            {self._get_base_styles()}
-        </head>
-        <body>
-            {self._generate_header(options, data.generated_at)}
-            {summary_html}
-            {findings_table}
-            {assets_table}
-            {self._generate_footer()}
-        </body>
-        </html>
-        """
-
-    def _escape_html(self, text: str) -> str:
+    def _escape_html(self, text: Any) -> str:
         """Escape HTML special characters."""
-        if not text:
+        if text is None:
             return ""
         return (
-            text.replace("&", "&amp;")
+            str(text)
+            .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace('"', "&quot;")
             .replace("'", "&#39;")
         )
+
+    def _truncate(self, text: str, max_length: int = 50) -> str:
+        """Truncate text with ellipsis."""
+        if not text or len(text) <= max_length:
+            return text
+        return text[:max_length] + "..."
 
     def _severity_order(self, severity: Severity) -> int:
         """Get severity order for sorting."""

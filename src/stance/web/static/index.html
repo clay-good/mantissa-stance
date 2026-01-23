@@ -4,58 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mantissa Stance Dashboard</title>
+    <!-- Unified Design System -->
+    <link rel="stylesheet" href="/stance.css">
     <style>
-        /* Monochrome color scheme - Light mode (default) */
+        /* Legacy variable aliases - map old names to design system */
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f5;
-            --bg-tertiary: #ebebeb;
-            --text-primary: #1a1a1a;
-            --text-secondary: #666666;
-            --text-muted: #999999;
-            --border: #e0e0e0;
-            --accent: #333333;
-            --critical: #1a1a1a;
-            --high: #4a4a4a;
-            --medium: #7a7a7a;
-            --low: #aaaaaa;
-            --info: #cccccc;
-        }
-
-        /* Dark mode colors */
-        :root.dark-mode {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2a2a2a;
-            --bg-tertiary: #3a3a3a;
-            --text-primary: #ffffff;
-            --text-secondary: #aaaaaa;
-            --text-muted: #777777;
-            --border: #3a3a3a;
-            --accent: #ffffff;
-            --critical: #ffffff;
-            --high: #cccccc;
-            --medium: #999999;
-            --low: #666666;
-            --info: #444444;
-        }
-
-        /* System preference dark mode (when no explicit preference set) */
-        @media (prefers-color-scheme: dark) {
-            :root:not(.light-mode) {
-                --bg-primary: #1a1a1a;
-                --bg-secondary: #2a2a2a;
-                --bg-tertiary: #3a3a3a;
-                --text-primary: #ffffff;
-                --text-secondary: #aaaaaa;
-                --text-muted: #777777;
-                --border: #3a3a3a;
-                --accent: #ffffff;
-                --critical: #ffffff;
-                --high: #cccccc;
-                --medium: #999999;
-                --low: #666666;
-                --info: #444444;
-            }
+            --bg-primary: var(--color-bg-primary);
+            --bg-secondary: var(--color-bg-secondary);
+            --bg-tertiary: var(--color-bg-tertiary);
+            --text-primary: var(--color-text-primary);
+            --text-secondary: var(--color-text-secondary);
+            --text-muted: var(--color-text-muted);
+            --border: var(--color-border-default);
+            --accent: var(--color-brand-primary);
+            --critical: var(--color-critical);
+            --high: var(--color-high);
+            --medium: var(--color-medium);
+            --low: var(--color-low);
+            --info: var(--color-info);
         }
 
         /* Reset and base styles */
@@ -192,10 +158,10 @@
             line-height: 1.2;
         }
 
-        .card-value.critical { color: var(--critical); }
-        .card-value.high { color: var(--high); }
-        .card-value.medium { color: var(--medium); }
-        .card-value.low { color: var(--low); }
+        .card-value.critical { color: var(--color-critical); }
+        .card-value.high { color: var(--color-high); }
+        .card-value.medium { color: var(--color-medium); }
+        .card-value.low { color: var(--color-low); }
 
         /* Score display */
         .score {
@@ -204,9 +170,9 @@
             line-height: 1;
         }
 
-        .score.good { color: var(--text-primary); }
-        .score.warning { color: var(--medium); }
-        .score.bad { color: var(--critical); }
+        .score.good { color: var(--color-success); }
+        .score.warning { color: var(--color-warning); }
+        .score.bad { color: var(--color-critical); }
 
         /* Tables */
         .table-container {
@@ -238,45 +204,77 @@
             background: var(--bg-secondary);
         }
 
-        /* Severity badges */
+        /* Severity badges - using design system colors */
         .severity {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            font-size: var(--font-size-xs);
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.025em;
+            border-radius: var(--radius-sm);
         }
 
         .severity.critical {
-            background: var(--critical);
-            color: var(--bg-primary);
+            background: var(--color-critical-bg);
+            color: var(--color-critical);
+            border: 1px solid var(--color-critical-border);
         }
 
         .severity.high {
-            background: var(--high);
-            color: var(--bg-primary);
+            background: var(--color-high-bg);
+            color: var(--color-high);
+            border: 1px solid var(--color-high-border);
         }
 
         .severity.medium {
-            background: var(--medium);
-            color: var(--bg-primary);
+            background: var(--color-medium-bg);
+            color: var(--color-medium);
+            border: 1px solid var(--color-medium-border);
         }
 
         .severity.low {
-            background: var(--low);
-            color: var(--text-primary);
+            background: var(--color-low-bg);
+            color: var(--color-low);
+            border: 1px solid var(--color-low-border);
         }
 
         .severity.info {
-            background: var(--info);
-            color: var(--text-primary);
+            background: var(--color-info-bg);
+            color: var(--color-info);
+            border: 1px solid var(--color-info-border);
         }
 
-        /* Status badges */
+        /* Status badges - using design system colors */
         .status {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: 0.25rem 0.625rem;
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+        }
+
+        .status.open, .status-open {
+            background: var(--color-status-open-bg);
+            color: var(--color-status-open);
+        }
+
+        .status.resolved, .status-resolved {
+            background: var(--color-status-resolved-bg);
+            color: var(--color-status-resolved);
+        }
+
+        .status.suppressed, .status-suppressed {
+            background: var(--color-status-suppressed-bg);
+            color: var(--color-status-suppressed);
+        }
+
+        .status.false_positive, .status-false-positive {
+            background: var(--color-status-false-positive-bg);
+            color: var(--color-status-false-positive);
         }
 
         /* Filters */
@@ -1804,18 +1802,18 @@
     <!-- Screen reader announcements -->
     <div id="aria-live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-    <header role="banner">
-        <h1>Mantissa Stance</h1>
-        <nav role="navigation" aria-label="Main navigation">
-            <button data-view="summary" class="active" aria-pressed="true">Overview</button>
-            <button data-view="findings" aria-pressed="false">Findings</button>
-            <button data-view="assets" aria-pressed="false">Assets</button>
-            <button data-view="compliance" aria-pressed="false">Compliance</button>
-            <button data-view="risk" aria-pressed="false">Risk</button>
-            <button data-view="attack-paths" aria-pressed="false">Attack Paths</button>
-            <button data-view="drift" aria-pressed="false">Drift</button>
-            <button data-view="trends" aria-pressed="false">Trends</button>
-            <button data-view="settings" aria-pressed="false">Settings</button>
+    <header class="stance-header" role="banner">
+        <h1 class="stance-header__title">Mantissa Stance</h1>
+        <nav class="stance-nav" role="navigation" aria-label="Main navigation">
+            <button data-view="summary" class="stance-nav__btn stance-nav__btn--active" aria-pressed="true">Overview</button>
+            <button data-view="findings" class="stance-nav__btn" aria-pressed="false">Findings</button>
+            <button data-view="assets" class="stance-nav__btn" aria-pressed="false">Assets</button>
+            <button data-view="compliance" class="stance-nav__btn" aria-pressed="false">Compliance</button>
+            <button data-view="risk" class="stance-nav__btn" aria-pressed="false">Risk</button>
+            <button data-view="attack-paths" class="stance-nav__btn" aria-pressed="false">Attack Paths</button>
+            <button data-view="drift" class="stance-nav__btn" aria-pressed="false">Drift</button>
+            <button data-view="trends" class="stance-nav__btn" aria-pressed="false">Trends</button>
+            <button data-view="settings" class="stance-nav__btn" aria-pressed="false">Settings</button>
         </nav>
         <div class="search-container" role="search">
             <input type="text" id="search-input" class="search-input" placeholder="Search findings and assets..." autocomplete="off" aria-label="Search findings and assets">
@@ -3251,12 +3249,14 @@
             state.currentView = viewName;
             document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
             document.getElementById(viewName + '-view').classList.add('active');
-            document.querySelectorAll('nav button').forEach(b => {
-                b.classList.remove('active');
+            document.querySelectorAll('.stance-nav__btn').forEach(b => {
+                b.classList.remove('stance-nav__btn--active');
+                b.classList.remove('active'); // Keep for legacy CSS
                 b.setAttribute('aria-pressed', 'false');
             });
-            const activeBtn = document.querySelector(`nav button[data-view="${viewName}"]`);
-            activeBtn.classList.add('active');
+            const activeBtn = document.querySelector(`.stance-nav__btn[data-view="${viewName}"]`);
+            activeBtn.classList.add('stance-nav__btn--active');
+            activeBtn.classList.add('active'); // Keep for legacy CSS
             activeBtn.setAttribute('aria-pressed', 'true');
 
             // Announce view change to screen readers
@@ -3341,7 +3341,7 @@
                     <td><span class="severity ${f.severity}">${f.severity}</span></td>
                     <td class="truncate">${escapeHtml(f.title)}</td>
                     <td>${f.finding_type}</td>
-                    <td class="status">${f.status}</td>
+                    <td><span class="status ${f.status.toLowerCase().replace(' ', '_')}">${f.status}</span></td>
                 </tr>
             `).join('');
         }
@@ -3371,7 +3371,7 @@
                     <td><span class="severity ${f.severity}">${f.severity}</span></td>
                     <td class="truncate">${escapeHtml(f.title)}</td>
                     <td>${f.finding_type}</td>
-                    <td class="status">${f.status}</td>
+                    <td><span class="status ${f.status.toLowerCase().replace(' ', '_')}">${f.status}</span></td>
                     <td class="truncate">${escapeHtml(f.asset_id || '')}</td>
                 </tr>
             `).join('');

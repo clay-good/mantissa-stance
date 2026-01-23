@@ -352,8 +352,8 @@ def _handle_generate(args: argparse.Namespace) -> int:
 
     # Try to get data from storage
     try:
-        from stance.storage import create_storage
-        storage = create_storage()
+        from stance.storage import get_storage
+        storage = get_storage()
         snapshot_id = storage.get_latest_snapshot_id()
         if snapshot_id:
             assets = storage.get_assets(snapshot_id)
