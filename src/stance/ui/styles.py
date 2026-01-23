@@ -756,6 +756,119 @@ def get_component_styles() -> str:
 }
 
 /* ============================================
+   Micro-interactions & Animations
+   ============================================ */
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Animated metric values */
+.stance-card__value {
+    animation: countUp 0.4s ease-out;
+    transition: transform 0.3s ease;
+}
+
+.stance-card:hover .stance-card__value {
+    transform: scale(1.05);
+}
+
+/* Enhanced card hover */
+.stance-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.stance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-border-dark);
+}
+
+/* Enhanced finding card */
+.stance-finding {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stance-finding:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Badge hover effect */
+.stance-badge {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stance-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Tab content animation */
+.stance-tab-content--active {
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Status dot pulse for open issues */
+.stance-status--open .stance-status__dot {
+    animation: pulse 2s infinite;
+}
+
+/* Severity bar segment hover */
+.stance-severity-bar__segment {
+    transition: filter 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.stance-severity-bar__segment:hover {
+    transform: scaleY(1.15);
+    filter: brightness(1.15);
+}
+
+/* Table row transitions */
+.stance-table tr {
+    transition: background-color 0.15s ease;
+}
+
+/* Tab hover */
+.stance-tabs__tab {
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Chart hover */
+.stance-chart {
+    transition: box-shadow 0.2s ease;
+}
+
+.stance-chart:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Progress bar glow */
+.stance-progress__fill--success {
+    box-shadow: 0 0 8px rgba(22, 163, 74, 0.4);
+}
+
+.stance-progress__fill--warning {
+    box-shadow: 0 0 8px rgba(202, 138, 4, 0.4);
+}
+
+.stance-progress__fill--error {
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
+}
+
+/* ============================================
    Responsive Adjustments
    ============================================ */
 
