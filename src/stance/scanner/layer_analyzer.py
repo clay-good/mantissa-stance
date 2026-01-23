@@ -253,6 +253,15 @@ class LayerAnalyzer:
     Requires Docker or Skopeo for image inspection.
     """
 
+    # Valid image reference pattern (Docker image naming conventions)
+    # Allows: registry/namespace/image:tag@sha256:digest
+    # Does NOT allow: shell metacharacters, spaces, newlines
+    IMAGE_REFERENCE_PATTERN = re.compile(
+        r"^[a-zA-Z0-9]"  # Must start with alphanumeric
+        r"[a-zA-Z0-9._\-/:@]*"  # Allowed characters
+        r"$"
+    )
+
     # Known base image patterns
     BASE_IMAGE_PATTERNS = {
         "alpine": r"alpine[:\d.]*",
@@ -318,6 +327,40 @@ class LayerAnalyzer:
         """Check if analyzer tools are available."""
         return bool(self._get_docker_path() or self._get_skopeo_path())
 
+    def _validate_image_reference(self, image_reference: str) -> None:
+        """
+        Validate image reference format for security.
+
+        Args:
+            image_reference: Image reference to validate
+
+        Raises:
+            ValueError: If image reference is invalid or potentially malicious
+        """
+        if not image_reference:
+            raise ValueError("Image reference cannot be empty")
+
+        # Check length (reasonable limit for image references)
+        if len(image_reference) > 512:
+            raise ValueError("Image reference exceeds maximum length")
+
+        # Check for null bytes
+        if "\x00" in image_reference:
+            raise ValueError("Image reference contains invalid characters")
+
+        # Check for newlines (could be used for log injection)
+        if "\n" in image_reference or "\r" in image_reference:
+            raise ValueError("Image reference contains invalid characters")
+
+        # Validate against allowed pattern
+        if not self.IMAGE_REFERENCE_PATTERN.match(image_reference):
+            raise ValueError(
+                f"Invalid image reference format: {image_reference!r}. "
+                "Image references must start with alphanumeric and contain only "
+                "alphanumeric characters, periods, hyphens, underscores, "
+                "forward slashes, colons, and at-signs."
+            )
+
     def analyze(
         self,
         image_reference: str,
@@ -332,7 +375,13 @@ class LayerAnalyzer:
 
         Returns:
             LayerAnalysisResult with layer details
+
+        Raises:
+            ValueError: If image_reference is invalid or potentially malicious
         """
+        # Validate image reference before passing to subprocess
+        self._validate_image_reference(image_reference)
+
         import time
         start_time = time.time()
 

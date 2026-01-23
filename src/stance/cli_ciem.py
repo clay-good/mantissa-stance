@@ -11,9 +11,40 @@ Provides command-line interface for:
 import argparse
 import json
 import logging
+import os
+import secrets
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _is_production_environment() -> bool:
+    """Check if running in a production environment."""
+    return any([
+        os.environ.get("STANCE_ENV", "").lower() == "production",
+        os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+        os.environ.get("ENV", "").lower() == "production",
+        os.environ.get("ENVIRONMENT", "").lower() == "production",
+    ])
+
+
+def _sanitize_ciem_error(error: Exception, context: str) -> str:
+    """
+    Sanitize an error message for CIEM CLI output.
+
+    Args:
+        error: The exception to sanitize
+        context: Short description of what operation failed
+
+    Returns:
+        Safe error message for user display
+    """
+    error_id = secrets.token_hex(8)
+    logger.error("CIEM error [%s] during %s: %s", error_id, context, error, exc_info=True)
+
+    if _is_production_environment():
+        return f"An error occurred during {context} (ref: {error_id})"
+    return f"{type(error).__name__} during {context}: {error}"
 
 
 def add_ciem_parser(subparsers: Any) -> None:
@@ -250,8 +281,7 @@ def _ciem_permissions(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:
-        logger.error(f"Error calculating permissions: {e}")
-        print(f"Error: {e}")
+        print(f"Error: {_sanitize_ciem_error(e, 'permission calculation')}")
         return 1
 
 
@@ -319,8 +349,7 @@ def _ciem_overprivileged(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:
-        logger.error(f"Error detecting overprivileged: {e}")
-        print(f"Error: {e}")
+        print(f"Error: {_sanitize_ciem_error(e, 'overprivileged detection')}")
         return 1
 
 
@@ -381,8 +410,7 @@ def _ciem_trust(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:
-        logger.error(f"Error analyzing trust: {e}")
-        print(f"Error: {e}")
+        print(f"Error: {_sanitize_ciem_error(e, 'trust analysis')}")
         return 1
 
 
@@ -462,8 +490,7 @@ def _ciem_privesc(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:
-        logger.error(f"Error detecting privesc: {e}")
-        print(f"Error: {e}")
+        print(f"Error: {_sanitize_ciem_error(e, 'privilege escalation detection')}")
         return 1
 
 
@@ -551,6 +578,5 @@ def _ciem_summary(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:
-        logger.error(f"Error generating summary: {e}")
-        print(f"Error: {e}")
+        print(f"Error: {_sanitize_ciem_error(e, 'summary generation')}")
         return 1

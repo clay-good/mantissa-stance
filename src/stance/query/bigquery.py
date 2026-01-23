@@ -112,7 +112,7 @@ class BigQueryEngine(QueryEngine):
             dataset_ref = f"{self._project_id}.{self._dataset_id}"
             client.get_dataset(dataset_ref)
             self._connected = True
-            logger.info(f"Connected to BigQuery dataset: {dataset_ref}")
+            logger.info("Connected to BigQuery dataset successfully")
         except Exception as e:
             raise QueryExecutionError(f"Failed to connect to BigQuery: {e}")
 

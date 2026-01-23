@@ -7,15 +7,290 @@ session management, API keys, roles, permissions, and audit logging.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
-from datetime import datetime
+import threading
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any
 
 from stance.web.handlers.base import HandlerResponse, HttpStatus
 from stance.web.handlers.router import route, RoutedHandler
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Rate Limiter for Authentication Endpoints
+# =============================================================================
+
+@dataclass
+class RateLimitEntry:
+    """Tracks rate limit state for a single key."""
+    attempts: int = 0
+    first_attempt: datetime = field(default_factory=datetime.utcnow)
+    locked_until: datetime | None = None
+
+
+class AuthRateLimiter:
+    """
+    Thread-safe rate limiter for authentication endpoints.
+
+    Implements progressive rate limiting with lockout periods:
+    - 5 failed attempts in 5 minutes: 1 minute lockout
+    - 10 failed attempts in 15 minutes: 5 minute lockout
+    - 15 failed attempts in 30 minutes: 15 minute lockout
+    - 20+ failed attempts: 1 hour lockout
+
+    Uses both IP address and username/email for tracking to prevent
+    both brute force attacks on single accounts and credential stuffing.
+    """
+
+    def __init__(self) -> None:
+        self._entries: dict[str, RateLimitEntry] = defaultdict(RateLimitEntry)
+        self._lock = threading.Lock()
+
+        # Configuration
+        self.window_seconds = 300  # 5 minutes
+        self.max_attempts = 5
+        self.lockout_thresholds = [
+            (5, timedelta(minutes=1)),    # 5 attempts -> 1 min lockout
+            (10, timedelta(minutes=5)),   # 10 attempts -> 5 min lockout
+            (15, timedelta(minutes=15)),  # 15 attempts -> 15 min lockout
+            (20, timedelta(hours=1)),     # 20+ attempts -> 1 hour lockout
+        ]
+
+    def _get_key(self, identifier: str, ip_address: str | None = None) -> str:
+        """Generate a rate limit key from identifier and optional IP."""
+        # Hash the identifier to prevent timing attacks and normalize length
+        id_hash = hashlib.sha256(identifier.lower().encode()).hexdigest()[:16]
+        if ip_address:
+            ip_hash = hashlib.sha256(ip_address.encode()).hexdigest()[:8]
+            return f"{id_hash}:{ip_hash}"
+        return id_hash
+
+    def _cleanup_old_entries(self) -> None:
+        """Remove entries older than the longest window (1 hour)."""
+        cutoff = datetime.utcnow() - timedelta(hours=1)
+        keys_to_remove = [
+            key for key, entry in self._entries.items()
+            if entry.first_attempt < cutoff and entry.locked_until is None
+        ]
+        for key in keys_to_remove:
+            del self._entries[key]
+
+    def _get_lockout_duration(self, attempts: int) -> timedelta | None:
+        """Get lockout duration based on attempt count."""
+        for threshold, duration in reversed(self.lockout_thresholds):
+            if attempts >= threshold:
+                return duration
+        return None
+
+    def check_rate_limit(
+        self,
+        identifier: str,
+        ip_address: str | None = None
+    ) -> tuple[bool, str | None]:
+        """
+        Check if a login attempt is allowed.
+
+        Args:
+            identifier: Username or email being used for login
+            ip_address: Client IP address (if available)
+
+        Returns:
+            Tuple of (allowed: bool, error_message: str | None)
+        """
+        with self._lock:
+            self._cleanup_old_entries()
+
+            now = datetime.utcnow()
+
+            # Check both identifier-specific and IP-specific limits
+            keys_to_check = [self._get_key(identifier)]
+            if ip_address:
+                keys_to_check.append(self._get_key("ip", ip_address))
+
+            for key in keys_to_check:
+                entry = self._entries[key]
+
+                # Check if currently locked out
+                if entry.locked_until and now < entry.locked_until:
+                    remaining = (entry.locked_until - now).total_seconds()
+                    return False, f"Too many login attempts. Try again in {int(remaining)} seconds."
+
+                # Reset if outside window
+                if (now - entry.first_attempt).total_seconds() > self.window_seconds:
+                    entry.attempts = 0
+                    entry.first_attempt = now
+                    entry.locked_until = None
+
+                # Check if over limit
+                if entry.attempts >= self.max_attempts:
+                    lockout = self._get_lockout_duration(entry.attempts)
+                    if lockout:
+                        entry.locked_until = now + lockout
+                        remaining = lockout.total_seconds()
+                        return False, f"Too many login attempts. Try again in {int(remaining)} seconds."
+
+            return True, None
+
+    def record_attempt(
+        self,
+        identifier: str,
+        ip_address: str | None = None,
+        success: bool = False
+    ) -> None:
+        """
+        Record a login attempt.
+
+        Args:
+            identifier: Username or email used for login
+            ip_address: Client IP address (if available)
+            success: Whether the login was successful
+        """
+        with self._lock:
+            now = datetime.utcnow()
+
+            keys = [self._get_key(identifier)]
+            if ip_address:
+                keys.append(self._get_key("ip", ip_address))
+
+            for key in keys:
+                entry = self._entries[key]
+
+                if success:
+                    # Clear rate limit on successful login
+                    entry.attempts = 0
+                    entry.first_attempt = now
+                    entry.locked_until = None
+                else:
+                    # Increment failed attempts
+                    if (now - entry.first_attempt).total_seconds() > self.window_seconds:
+                        entry.attempts = 1
+                        entry.first_attempt = now
+                    else:
+                        entry.attempts += 1
+
+                    # Check if we should lock
+                    lockout = self._get_lockout_duration(entry.attempts)
+                    if lockout and entry.attempts >= self.max_attempts:
+                        entry.locked_until = now + lockout
+                        logger.warning(
+                            f"Rate limit lockout triggered for key {key[:8]}... "
+                            f"({entry.attempts} attempts)"
+                        )
+
+    def check_and_record_attempt(
+        self,
+        identifier: str,
+        ip_address: str | None = None,
+    ) -> tuple[bool, str | None]:
+        """
+        Atomically check rate limit AND record the attempt.
+
+        This prevents TOCTOU (time-of-check to time-of-use) race conditions
+        where multiple concurrent requests could bypass rate limiting by
+        checking before their attempts are recorded.
+
+        Args:
+            identifier: Username or email being used for login
+            ip_address: Client IP address (if available)
+
+        Returns:
+            Tuple of (allowed: bool, error_message: str | None)
+        """
+        with self._lock:
+            self._cleanup_old_entries()
+
+            now = datetime.utcnow()
+
+            # Check both identifier-specific and IP-specific limits
+            keys = [self._get_key(identifier)]
+            if ip_address:
+                keys.append(self._get_key("ip", ip_address))
+
+            # First, check if any key is locked
+            for key in keys:
+                entry = self._entries[key]
+
+                # Check if currently locked out
+                if entry.locked_until and now < entry.locked_until:
+                    remaining = (entry.locked_until - now).total_seconds()
+                    return False, f"Too many login attempts. Try again in {int(remaining)} seconds."
+
+                # Reset if outside window
+                if (now - entry.first_attempt).total_seconds() > self.window_seconds:
+                    entry.attempts = 0
+                    entry.first_attempt = now
+                    entry.locked_until = None
+
+                # Check if over limit (before recording new attempt)
+                if entry.attempts >= self.max_attempts:
+                    lockout = self._get_lockout_duration(entry.attempts)
+                    if lockout:
+                        entry.locked_until = now + lockout
+                        remaining = lockout.total_seconds()
+                        return False, f"Too many login attempts. Try again in {int(remaining)} seconds."
+
+            # Atomically record the attempt for all keys
+            for key in keys:
+                entry = self._entries[key]
+                if (now - entry.first_attempt).total_seconds() > self.window_seconds:
+                    entry.attempts = 1
+                    entry.first_attempt = now
+                else:
+                    entry.attempts += 1
+
+            return True, None
+
+    def record_success(
+        self,
+        identifier: str,
+        ip_address: str | None = None,
+    ) -> None:
+        """
+        Record a successful login, clearing rate limit state.
+
+        Args:
+            identifier: Username or email used for login
+            ip_address: Client IP address (if available)
+        """
+        with self._lock:
+            now = datetime.utcnow()
+
+            keys = [self._get_key(identifier)]
+            if ip_address:
+                keys.append(self._get_key("ip", ip_address))
+
+            for key in keys:
+                entry = self._entries[key]
+                entry.attempts = 0
+                entry.first_attempt = now
+                entry.locked_until = None
+
+    def get_status(self, identifier: str, ip_address: str | None = None) -> dict[str, Any]:
+        """Get rate limit status for an identifier."""
+        with self._lock:
+            key = self._get_key(identifier, ip_address)
+            entry = self._entries.get(key, RateLimitEntry())
+
+            now = datetime.utcnow()
+            locked = entry.locked_until and now < entry.locked_until
+
+            return {
+                "attempts": entry.attempts,
+                "max_attempts": self.max_attempts,
+                "locked": locked,
+                "locked_until": entry.locked_until.isoformat() if entry.locked_until else None,
+                "window_seconds": self.window_seconds,
+            }
+
+
+# Global rate limiter instance for auth endpoints
+_auth_rate_limiter = AuthRateLimiter()
 
 
 class AuthHandler(RoutedHandler):
@@ -566,6 +841,8 @@ class AuthHandler(RoutedHandler):
 
             email = data.get("email", "")
             password = data.get("password", "")
+            # Extract client IP from headers or params (typically set by reverse proxy)
+            client_ip = data.get("_client_ip") or params.get("_client_ip")
 
             if not email or not password:
                 return HandlerResponse.error(
@@ -573,7 +850,31 @@ class AuthHandler(RoutedHandler):
                     HttpStatus.BAD_REQUEST
                 )
 
-            # Demo: accept any login
+            # Atomically check rate limit AND record the attempt
+            # This prevents TOCTOU race conditions in concurrent requests
+            allowed, error_msg = _auth_rate_limiter.check_and_record_attempt(email, client_ip)
+            if not allowed:
+                logger.warning(f"Login rate limited for email={email[:3]}*** ip={client_ip}")
+                return HandlerResponse.error(
+                    error_msg or "Too many login attempts",
+                    HttpStatus.TOO_MANY_REQUESTS
+                )
+
+            # Demo: In production, this would validate against UserManager
+            # For now, accept any login but record the attempt
+            login_success = True  # Replace with actual validation
+
+            # On success, clear rate limit state
+            if login_success:
+                _auth_rate_limiter.record_success(email, client_ip)
+
+            if not login_success:
+                # Use generic error to prevent user enumeration
+                return HandlerResponse.error(
+                    "Invalid credentials",
+                    HttpStatus.UNAUTHORIZED
+                )
+
             result = {
                 "success": True,
                 "user": {

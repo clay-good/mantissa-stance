@@ -7965,7 +7965,7 @@ class TestIacHandler:
 
     def test_handle_validate(self, handler):
         """Test handling GET /api/iac/validate."""
-        params = {"path": ["/some/path"]}
+        params = {"path": ["iac/templates/main.tf"]}
         response = handler.handle("/api/iac/validate", params, "GET")
         assert response.status == HttpStatus.OK
         assert "valid" in response.data

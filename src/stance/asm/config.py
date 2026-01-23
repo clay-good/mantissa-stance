@@ -254,6 +254,11 @@ class ASMConfiguration:
     # HTTP settings
     user_agent: str = "Stance-ASM/1.0 (Security Scanner; https://github.com/mantissa/stance)"
     respect_robots_txt: bool = True
+    # TLS verification for ASM scanning - disabled by default to discover assets
+    # with self-signed or expired certificates. This is intentional for ASM
+    # since we need to fingerprint all external assets regardless of cert validity.
+    # Enable for internal scanning where you expect valid certificates.
+    verify_tls_certificates: bool = False
 
     # Caching
     cache_ttl_hours: int = 24

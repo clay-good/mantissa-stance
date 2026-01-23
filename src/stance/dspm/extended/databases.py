@@ -8,6 +8,7 @@ sensitive data using read-only column sampling queries.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from abc import abstractmethod
 from dataclasses import dataclass, field
@@ -26,6 +27,85 @@ from stance.dspm.extended.base import (
 from stance.dspm.scanners.base import FindingSeverity
 
 logger = logging.getLogger(__name__)
+
+
+# Valid identifier pattern: alphanumeric, underscore, dollar (no leading digit)
+_VALID_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_$][a-zA-Z0-9_$]*$")
+
+
+def _validate_identifier(identifier: str) -> bool:
+    """
+    Validate that a SQL identifier is safe.
+
+    Only allows alphanumeric characters, underscores, and dollar signs.
+    Does not allow quotes or other special characters.
+
+    Args:
+        identifier: The identifier to validate
+
+    Returns:
+        True if the identifier is valid, False otherwise
+    """
+    if not identifier or len(identifier) > 128:
+        return False
+    return bool(_VALID_IDENTIFIER_PATTERN.match(identifier))
+
+
+def _quote_identifier_postgres(identifier: str) -> str:
+    """
+    Safely quote an identifier for PostgreSQL.
+
+    Args:
+        identifier: The identifier to quote
+
+    Returns:
+        Quoted identifier safe for use in SQL
+
+    Raises:
+        ValueError: If the identifier contains invalid characters
+    """
+    if not _validate_identifier(identifier):
+        raise ValueError(f"Invalid SQL identifier: {identifier!r}")
+    # Double any double quotes inside the identifier (shouldn't happen with validation)
+    return f'"{identifier.replace(chr(34), chr(34)+chr(34))}"'
+
+
+def _quote_identifier_mysql(identifier: str) -> str:
+    """
+    Safely quote an identifier for MySQL.
+
+    Args:
+        identifier: The identifier to quote
+
+    Returns:
+        Quoted identifier safe for use in SQL
+
+    Raises:
+        ValueError: If the identifier contains invalid characters
+    """
+    if not _validate_identifier(identifier):
+        raise ValueError(f"Invalid SQL identifier: {identifier!r}")
+    # Double any backticks inside the identifier (shouldn't happen with validation)
+    return f"`{identifier.replace('`', '``')}`"
+
+
+def _quote_identifier_mssql(identifier: str) -> str:
+    """
+    Safely quote an identifier for SQL Server.
+
+    Args:
+        identifier: The identifier to quote
+
+    Returns:
+        Quoted identifier safe for use in SQL
+
+    Raises:
+        ValueError: If the identifier contains invalid characters
+    """
+    if not _validate_identifier(identifier):
+        raise ValueError(f"Invalid SQL identifier: {identifier!r}")
+    # Double any brackets inside the identifier (shouldn't happen with validation)
+    return f"[{identifier.replace(']', ']]')}]"
 
 
 class DatabaseType(Enum):
@@ -242,10 +322,8 @@ class DatabaseScanner(BaseExtendedScanner):
         scan_id = str(uuid.uuid4())[:8]
         started_at = datetime.now(timezone.utc)
 
-        logger.info(
-            f"Starting database scan: {self._db_config.host}/{self._db_config.database}, "
-            f"scan_id={scan_id}"
-        )
+        # Log scan start without exposing full database host/name (security best practice)
+        logger.info(f"Starting database scan, scan_id={scan_id}")
 
         result = ExtendedScanResult(
             scan_id=scan_id,
@@ -655,24 +733,41 @@ class RDSScanner(DatabaseScanner):
     ) -> list[Any]:
         """Sample values from a column."""
         try:
-            if self._db_config.db_type == DatabaseType.POSTGRESQL:
-                query = f"""
-                    SELECT "{column}"
-                    FROM "{schema}"."{table}"
-                    WHERE "{column}" IS NOT NULL
-                    LIMIT {self._config.sample_rows_per_column}
-                """
-            else:
-                query = f"""
-                    SELECT `{column}`
-                    FROM `{schema}`.`{table}`
-                    WHERE `{column}` IS NOT NULL
-                    LIMIT {self._config.sample_rows_per_column}
-                """
+            # Validate and sanitize limit parameter
+            limit = int(self._config.sample_rows_per_column)
+            if limit <= 0 or limit > 10000:
+                limit = 100  # Safe default
 
-            cursor.execute(query)
+            if self._db_config.db_type == DatabaseType.POSTGRESQL:
+                # Safely quote identifiers to prevent SQL injection
+                quoted_column = _quote_identifier_postgres(column)
+                quoted_schema = _quote_identifier_postgres(schema)
+                quoted_table = _quote_identifier_postgres(table)
+                query = f"""
+                    SELECT {quoted_column}
+                    FROM {quoted_schema}.{quoted_table}
+                    WHERE {quoted_column} IS NOT NULL
+                    LIMIT %s
+                """
+                cursor.execute(query, (limit,))
+            else:
+                # MySQL/MariaDB
+                quoted_column = _quote_identifier_mysql(column)
+                quoted_schema = _quote_identifier_mysql(schema)
+                quoted_table = _quote_identifier_mysql(table)
+                query = f"""
+                    SELECT {quoted_column}
+                    FROM {quoted_schema}.{quoted_table}
+                    WHERE {quoted_column} IS NOT NULL
+                    LIMIT %s
+                """
+                cursor.execute(query, (limit,))
+
             return [row[0] for row in cursor.fetchall()]
 
+        except ValueError as e:
+            logger.warning(f"Invalid identifier in column sampling: {e}")
+            return []
         except Exception as e:
             logger.debug(f"Error sampling column {column}: {e}")
             return []
@@ -833,23 +928,40 @@ class CloudSQLScanner(DatabaseScanner):
     ) -> list[Any]:
         """Sample values from a column."""
         try:
-            if self._db_config.db_type == DatabaseType.POSTGRESQL:
-                query = f"""
-                    SELECT "{column}"
-                    FROM "{schema}"."{table}"
-                    WHERE "{column}" IS NOT NULL
-                    LIMIT {self._config.sample_rows_per_column}
-                """
-            else:
-                query = f"""
-                    SELECT `{column}`
-                    FROM `{schema}`.`{table}`
-                    WHERE `{column}` IS NOT NULL
-                    LIMIT {self._config.sample_rows_per_column}
-                """
+            # Validate and sanitize limit parameter
+            limit = int(self._config.sample_rows_per_column)
+            if limit <= 0 or limit > 10000:
+                limit = 100  # Safe default
 
-            cursor.execute(query)
+            if self._db_config.db_type == DatabaseType.POSTGRESQL:
+                # Safely quote identifiers to prevent SQL injection
+                quoted_column = _quote_identifier_postgres(column)
+                quoted_schema = _quote_identifier_postgres(schema)
+                quoted_table = _quote_identifier_postgres(table)
+                query = f"""
+                    SELECT {quoted_column}
+                    FROM {quoted_schema}.{quoted_table}
+                    WHERE {quoted_column} IS NOT NULL
+                    LIMIT %s
+                """
+                cursor.execute(query, (limit,))
+            else:
+                # MySQL/MariaDB
+                quoted_column = _quote_identifier_mysql(column)
+                quoted_schema = _quote_identifier_mysql(schema)
+                quoted_table = _quote_identifier_mysql(table)
+                query = f"""
+                    SELECT {quoted_column}
+                    FROM {quoted_schema}.{quoted_table}
+                    WHERE {quoted_column} IS NOT NULL
+                    LIMIT %s
+                """
+                cursor.execute(query, (limit,))
+
             return [row[0] for row in cursor.fetchall()]
+        except ValueError as e:
+            logger.warning(f"Invalid identifier in column sampling: {e}")
+            return []
         except Exception as e:
             logger.debug(f"Error sampling column {column}: {e}")
             return []
@@ -982,13 +1094,28 @@ class AzureSQLScanner(DatabaseScanner):
     ) -> list[Any]:
         """Sample values from a column."""
         try:
+            # Validate and sanitize limit parameter
+            limit = int(self._config.sample_rows_per_column)
+            if limit <= 0 or limit > 10000:
+                limit = 100  # Safe default
+
+            # Safely quote identifiers to prevent SQL injection
+            quoted_column = _quote_identifier_mssql(column)
+            quoted_schema = _quote_identifier_mssql(schema)
+            quoted_table = _quote_identifier_mssql(table)
+
+            # MSSQL uses parameterized TOP via variable or subquery
+            # Since TOP doesn't support parameters directly, we use validated int
             query = f"""
-                SELECT TOP {self._config.sample_rows_per_column} [{column}]
-                FROM [{schema}].[{table}]
-                WHERE [{column}] IS NOT NULL
+                SELECT TOP ({limit}) {quoted_column}
+                FROM {quoted_schema}.{quoted_table}
+                WHERE {quoted_column} IS NOT NULL
             """
             cursor.execute(query)
             return [row[0] for row in cursor.fetchall()]
+        except ValueError as e:
+            logger.warning(f"Invalid identifier in column sampling: {e}")
+            return []
         except Exception as e:
             logger.debug(f"Error sampling column {column}: {e}")
             return []

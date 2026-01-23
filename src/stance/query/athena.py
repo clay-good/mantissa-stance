@@ -114,7 +114,7 @@ class AthenaQueryEngine(QueryEngine):
             # Verify workgroup exists
             client.get_work_group(WorkGroup=self._workgroup)
             self._connected = True
-            logger.info(f"Connected to Athena workgroup: {self._workgroup}")
+            logger.info("Connected to Athena workgroup successfully")
         except Exception as e:
             raise QueryExecutionError(f"Failed to connect to Athena: {e}")
 

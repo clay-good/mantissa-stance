@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import subprocess
 import time
@@ -58,6 +59,15 @@ class TrivyScanner(ImageScanner):
     """
 
     scanner_name: str = "trivy"
+
+    # Valid image reference pattern (Docker image naming conventions)
+    # Allows: registry/namespace/image:tag@sha256:digest
+    # Does NOT allow: shell metacharacters, spaces, newlines
+    IMAGE_REFERENCE_PATTERN = re.compile(
+        r"^[a-zA-Z0-9]"  # Must start with alphanumeric
+        r"[a-zA-Z0-9._\-/:@]*"  # Allowed characters
+        r"$"
+    )
 
     def __init__(
         self,
@@ -144,6 +154,40 @@ class TrivyScanner(ImageScanner):
 
         return None
 
+    def _validate_image_reference(self, image_reference: str) -> None:
+        """
+        Validate image reference format for security.
+
+        Args:
+            image_reference: Image reference to validate
+
+        Raises:
+            ValueError: If image reference is invalid or potentially malicious
+        """
+        if not image_reference:
+            raise ValueError("Image reference cannot be empty")
+
+        # Check length (reasonable limit for image references)
+        if len(image_reference) > 512:
+            raise ValueError("Image reference exceeds maximum length")
+
+        # Check for null bytes
+        if "\x00" in image_reference:
+            raise ValueError("Image reference contains invalid characters")
+
+        # Check for newlines (could be used for log injection)
+        if "\n" in image_reference or "\r" in image_reference:
+            raise ValueError("Image reference contains invalid characters")
+
+        # Validate against allowed pattern
+        if not self.IMAGE_REFERENCE_PATTERN.match(image_reference):
+            raise ValueError(
+                f"Invalid image reference format: {image_reference!r}. "
+                "Image references must start with alphanumeric and contain only "
+                "alphanumeric characters, periods, hyphens, underscores, "
+                "forward slashes, colons, and at-signs."
+            )
+
     def scan(
         self,
         image_reference: str,
@@ -162,7 +206,13 @@ class TrivyScanner(ImageScanner):
 
         Returns:
             ScanResult with vulnerabilities found
+
+        Raises:
+            ValueError: If image_reference is invalid or potentially malicious
         """
+        # Validate image reference before passing to subprocess
+        self._validate_image_reference(image_reference)
+
         trivy_path = self._get_trivy_path()
         if not trivy_path:
             raise ScannerNotAvailableError(

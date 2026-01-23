@@ -14,8 +14,16 @@ check:
   type: expression
   expression: "resource.ebs_encryption.all_encrypted == true"
 
-benchmark:
-  - cis-aws: "2.2.1"
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "2.2.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "3.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-28"
 
 remediation:
   guidance: |

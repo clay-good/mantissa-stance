@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,111 @@ from stance.web.handlers.base import HandlerResponse, HttpStatus
 from stance.web.handlers.router import route, RoutedHandler
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_module_name(module_name: str) -> str:
+    """
+    Validate a Python module name to prevent path traversal.
+
+    Args:
+        module_name: The module name to validate (e.g., "stance.scanner.trivy")
+
+    Returns:
+        The validated module name
+
+    Raises:
+        ValueError: If module name contains invalid characters
+    """
+    if not module_name:
+        raise ValueError("Module name cannot be empty")
+
+    # Module names should only contain alphanumeric, underscores, and dots
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$", module_name):
+        raise ValueError(
+            f"Invalid module name: {module_name!r}. "
+            "Module names must be valid Python identifiers separated by dots."
+        )
+
+    # Block any path traversal attempts
+    if ".." in module_name or module_name.startswith("."):
+        raise ValueError(f"Invalid module name: path traversal not allowed: {module_name}")
+
+    return module_name
+
+
+def _validate_path_within_base(path: str, base_dir: str, context: str = "path") -> Path:
+    """
+    Validate that a path is within the base directory.
+
+    Args:
+        path: The path to validate
+        base_dir: The base directory that path must be within
+        context: Description of the path for error messages
+
+    Returns:
+        The resolved, validated Path object
+
+    Raises:
+        ValueError: If path escapes the base directory
+    """
+    # Resolve both paths to absolute, following symlinks
+    base_resolved = Path(base_dir).resolve()
+    path_resolved = Path(path).resolve()
+
+    # Check if path is within base directory
+    try:
+        path_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise ValueError(
+            f"Invalid {context}: path escapes base directory. "
+            f"Path must be within {base_resolved}"
+        )
+
+    return path_resolved
+
+
+def _validate_safe_directory(directory: str, context: str = "directory") -> Path:
+    """
+    Validate that a directory path is safe for use.
+
+    Args:
+        directory: The directory path to validate
+        context: Description of the path for error messages
+
+    Returns:
+        The validated Path object
+
+    Raises:
+        ValueError: If path contains dangerous characters or traversal
+    """
+    if not directory:
+        raise ValueError(f"{context} cannot be empty")
+
+    # Block path traversal
+    if ".." in directory:
+        raise ValueError(f"Invalid {context}: path traversal not allowed")
+
+    # Block absolute paths to system directories
+    path = Path(directory)
+    if path.is_absolute():
+        # Only allow specific safe absolute paths
+        safe_prefixes = ["/tmp/", "/var/tmp/"]
+        home = os.path.expanduser("~")
+        safe_prefixes.append(home)
+
+        path_str = str(path)
+        if not any(path_str.startswith(prefix) for prefix in safe_prefixes):
+            raise ValueError(
+                f"Invalid {context}: absolute paths must be under home directory or /tmp"
+            )
+
+    # Block shell metacharacters
+    dangerous_chars = ["|", ";", "&", "$", "`", "(", ")", "{", "}", "[", "]", "<", ">", "\\", "'", '"']
+    for char in dangerous_chars:
+        if char in directory:
+            raise ValueError(f"Invalid {context}: contains forbidden character '{char}'")
+
+    return path
 
 
 class DocsHandler(RoutedHandler):
@@ -255,24 +361,37 @@ class DocsHandler(RoutedHandler):
             if not module_name:
                 return HandlerResponse.error("Missing required parameter: module", HttpStatus.BAD_REQUEST)
 
+            # Validate module name to prevent path traversal
+            try:
+                validated_module = _validate_module_name(module_name)
+            except ValueError as e:
+                return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
             source_dir = self.get_param(params, "source_dir", "src")
 
-            module_path = module_name.replace(".", os.sep) + ".py"
+            module_path = validated_module.replace(".", os.sep) + ".py"
             full_path = os.path.join(source_dir, module_path)
-            init_path = os.path.join(source_dir, module_name.replace(".", os.sep), "__init__.py")
+            init_path = os.path.join(source_dir, validated_module.replace(".", os.sep), "__init__.py")
+
+            # Validate paths are within source directory
+            try:
+                _validate_path_within_base(full_path, source_dir, "module path")
+                _validate_path_within_base(init_path, source_dir, "module path")
+            except ValueError as e:
+                return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
 
             if os.path.exists(full_path):
                 source_path = full_path
             elif os.path.exists(init_path):
                 source_path = init_path
             else:
-                return HandlerResponse.not_found(f"Module: {module_name}")
+                return HandlerResponse.not_found(f"Module: {validated_module}")
 
             analyzer = SourceAnalyzer(source_path)
             module_info = analyzer.analyze()
 
             return HandlerResponse.success({
-                "name": module_name,
+                "name": validated_module,
                 "path": source_path,
                 "docstring": module_info.docstring,
                 "classes": [cls.name for cls in module_info.classes],
@@ -305,16 +424,33 @@ class DocsHandler(RoutedHandler):
 
             module_name, cls_name = parts
 
-            module_path = module_name.replace(".", os.sep) + ".py"
+            # Validate module name to prevent path traversal
+            try:
+                validated_module = _validate_module_name(module_name)
+            except ValueError as e:
+                return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
+            # Validate class name is a valid Python identifier
+            if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cls_name):
+                return HandlerResponse.error(f"Invalid class name: {cls_name}", HttpStatus.BAD_REQUEST)
+
+            module_path = validated_module.replace(".", os.sep) + ".py"
             full_path = os.path.join(source_dir, module_path)
-            init_path = os.path.join(source_dir, module_name.replace(".", os.sep), "__init__.py")
+            init_path = os.path.join(source_dir, validated_module.replace(".", os.sep), "__init__.py")
+
+            # Validate paths are within source directory
+            try:
+                _validate_path_within_base(full_path, source_dir, "module path")
+                _validate_path_within_base(init_path, source_dir, "module path")
+            except ValueError as e:
+                return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
 
             if os.path.exists(full_path):
                 source_path = full_path
             elif os.path.exists(init_path):
                 source_path = init_path
             else:
-                return HandlerResponse.not_found(f"Module: {module_name}")
+                return HandlerResponse.not_found(f"Module: {validated_module}")
 
             analyzer = SourceAnalyzer(source_path)
             module_info = analyzer.analyze()
@@ -330,7 +466,7 @@ class DocsHandler(RoutedHandler):
 
             return HandlerResponse.success({
                 "name": class_info.name,
-                "module": module_name,
+                "module": validated_module,
                 "bases": class_info.bases,
                 "docstring": class_info.docstring,
                 "is_dataclass": class_info.is_dataclass,
@@ -361,6 +497,21 @@ class DocsHandler(RoutedHandler):
             output_dir = data.get("output_dir", "docs/generated")
             policies_dir = data.get("policies_dir", "policies")
             doc_type = data.get("type", "all")
+
+            # Validate directories to prevent path traversal
+            try:
+                _validate_safe_directory(source_dir, "source_dir")
+                _validate_safe_directory(output_dir, "output_dir")
+                _validate_safe_directory(policies_dir, "policies_dir")
+            except ValueError as e:
+                return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
+            # Validate doc_type
+            if doc_type not in ("all", "api", "cli", "policies"):
+                return HandlerResponse.error(
+                    f"Invalid type: {doc_type}. Must be one of: all, api, cli, policies",
+                    HttpStatus.BAD_REQUEST
+                )
 
             generator = DocumentationGenerator(
                 source_dir=source_dir,
@@ -397,7 +548,15 @@ class DocsHandler(RoutedHandler):
     def docs_validate(self, params: dict, body: dict | None) -> HandlerResponse:
         """Validate generated documentation."""
         data = body or {}
-        output_dir = Path(data.get("output_dir", "docs/generated"))
+        output_dir_str = data.get("output_dir", "docs/generated")
+
+        # Validate directory path
+        try:
+            _validate_safe_directory(output_dir_str, "output_dir")
+        except ValueError as e:
+            return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
+        output_dir = Path(output_dir_str)
 
         if not output_dir.exists():
             return HandlerResponse.success({"valid": False, "error": "Directory not found"})
@@ -435,8 +594,23 @@ class DocsHandler(RoutedHandler):
     def docs_clean(self, params: dict, body: dict | None) -> HandlerResponse:
         """Clean generated documentation."""
         data = body or {}
-        output_dir = Path(data.get("output_dir", "docs/generated"))
+        output_dir_str = data.get("output_dir", "docs/generated")
         doc_type = data.get("type", "all")
+
+        # Validate directory path
+        try:
+            _validate_safe_directory(output_dir_str, "output_dir")
+        except ValueError as e:
+            return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
+        # Validate doc_type to prevent directory traversal via type
+        if doc_type not in ("all", "api", "cli", "policies"):
+            return HandlerResponse.error(
+                f"Invalid type: {doc_type}. Must be one of: all, api, cli, policies",
+                HttpStatus.BAD_REQUEST
+            )
+
+        output_dir = Path(output_dir_str)
 
         if not output_dir.exists():
             return HandlerResponse.success({"success": True, "files_removed": 0, "message": "Directory not found"})

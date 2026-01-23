@@ -1,7 +1,7 @@
 id: gcp-compute-007
-name: Firewall does not allow all traffic from internet
+name: Firewall rule allows unrestricted inbound traffic from internet
 description: |
-  Ensure no firewall rule allows all traffic from the internet
+  Detects firewall rules that allow all traffic from the internet
   (0.0.0.0/0 with all protocols/ports). This is an extremely
   dangerous configuration that exposes all services.
 

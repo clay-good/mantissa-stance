@@ -14,8 +14,13 @@ check:
   type: expression
   expression: "resource.metadata_options.http_tokens == 'required'"
 
-benchmark:
-  # No direct CIS mapping - security best practice
+compliance:
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "EC2.8"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "SC-7"
 
 remediation:
   guidance: |

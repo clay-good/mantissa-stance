@@ -215,7 +215,13 @@ class AnthropicProvider(LLMProvider):
         if status_code == 429:
             # Extract retry-after header if present
             retry_after = error.headers.get("retry-after")
-            retry_seconds = int(retry_after) if retry_after else 60
+            retry_seconds = 60
+            if retry_after:
+                try:
+                    retry_seconds = int(retry_after)
+                except ValueError:
+                    # retry-after can also be a date string, default to 60
+                    retry_seconds = 60
 
             raise RateLimitError(
                 f"Rate limit exceeded: {message}. "

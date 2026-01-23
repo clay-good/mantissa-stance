@@ -8,13 +8,17 @@ and JSON API endpoints for posture data.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import secrets
 import threading
 from datetime import datetime, timedelta
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+logger = logging.getLogger(__name__)
 
 from stance.storage import StorageBackend, get_storage
 from stance.web.handlers import (
@@ -58,6 +62,67 @@ from stance.web.handlers import (
 )
 
 
+def _validate_module_name(module_name: str) -> str:
+    """
+    Validate a Python module name to prevent path traversal.
+
+    Args:
+        module_name: The module name to validate (e.g., "stance.scanner.trivy")
+
+    Returns:
+        The validated module name
+
+    Raises:
+        ValueError: If module name contains invalid characters
+    """
+    if not module_name:
+        raise ValueError("Module name cannot be empty")
+
+    # Module names should only contain alphanumeric, underscores, and dots
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$", module_name):
+        raise ValueError(
+            f"Invalid module name: {module_name!r}. "
+            "Module names must be valid Python identifiers separated by dots."
+        )
+
+    # Block any path traversal attempts
+    if ".." in module_name or module_name.startswith("."):
+        raise ValueError(f"Invalid module name: path traversal not allowed: {module_name}")
+
+    return module_name
+
+
+def _validate_path_within_base(path: str, base_dir: str) -> str:
+    """
+    Validate that a path is within the base directory.
+
+    Args:
+        path: The path to validate
+        base_dir: The base directory that path must be within
+
+    Returns:
+        The validated path string
+
+    Raises:
+        ValueError: If path escapes the base directory
+    """
+    from pathlib import Path
+
+    # Resolve both paths to absolute, following symlinks
+    base_resolved = Path(base_dir).resolve()
+    path_resolved = Path(path).resolve()
+
+    # Check if path is within base directory
+    try:
+        path_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise ValueError(
+            f"Invalid path: escapes base directory. Path must be within {base_resolved}"
+        )
+
+    return str(path_resolved)
+
+
 class StanceRequestHandler(SimpleHTTPRequestHandler):
     """
     HTTP request handler for Stance dashboard.
@@ -71,12 +136,52 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
     # Handler registry for modular routing
     _handler_registry: HandlerRegistry | None = None
 
+    # CORS configuration (set by StanceServer)
+    # None = no CORS headers (same-origin only)
+    # ["*"] = allow all origins (development only)
+    # ["https://example.com"] = whitelist specific origins
+    _allowed_origins: list[str] | None = None
+
     def __init__(self, *args, **kwargs):
         # Set the directory for static files
         self.static_dir = os.path.join(os.path.dirname(__file__), "static")
         # Initialize handler registry if not already done
         self._init_handler_registry()
         super().__init__(*args, directory=self.static_dir, **kwargs)
+
+    def _get_cors_origin(self) -> str | None:
+        """
+        Get the CORS origin header value based on configuration and request.
+
+        Returns:
+            Origin to allow, or None if CORS should not be enabled
+        """
+        allowed = StanceRequestHandler._allowed_origins
+        if allowed is None:
+            # No CORS configured - same-origin only, but for backward
+            # compatibility default to "*" if not explicitly configured
+            return "*"
+
+        if "*" in allowed:
+            # Wildcard - allow all (development only)
+            return "*"
+
+        # Check if request origin is in whitelist
+        request_origin = self.headers.get("Origin")
+        if request_origin and request_origin in allowed:
+            return request_origin
+
+        # Origin not in whitelist - still return None to deny cross-origin
+        return None
+
+    def _send_cors_headers(self) -> None:
+        """Send CORS headers if configured."""
+        origin = self._get_cors_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            # Only send Vary header for non-wildcard origins
+            if origin != "*":
+                self.send_header("Vary", "Origin")
 
     def _init_handler_registry(self) -> None:
         """Initialize the handler registry with all modular handlers."""
@@ -1269,6 +1374,44 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             },
         }
 
+    def _parse_pagination_params(
+        self,
+        params: dict[str, list[str]],
+        default_limit: int = 50,
+        max_limit: int = 1000,
+    ) -> tuple[int, int]:
+        """
+        Parse and validate pagination parameters.
+
+        Prevents DoS attacks by enforcing maximum limits and
+        rejecting negative values.
+
+        Args:
+            params: Query parameters
+            default_limit: Default page size (default: 50)
+            max_limit: Maximum allowed page size (default: 1000)
+
+        Returns:
+            Tuple of (limit, offset) with validated values
+        """
+        try:
+            limit_str = params.get("limit", [str(default_limit)])[0]
+            limit = int(limit_str)
+        except (ValueError, IndexError):
+            limit = default_limit
+
+        try:
+            offset_str = params.get("offset", ["0"])[0]
+            offset = int(offset_str)
+        except (ValueError, IndexError):
+            offset = 0
+
+        # Enforce bounds to prevent DoS
+        limit = max(1, min(limit, max_limit))
+        offset = max(0, offset)
+
+        return limit, offset
+
     def _get_assets(self, params: dict[str, list[str]]) -> dict[str, Any]:
         """Get paginated assets."""
         if not self.storage:
@@ -1292,9 +1435,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         if exposure and exposure == "internet_facing":
             assets = assets.filter_internet_facing()
 
-        # Pagination
-        limit = int(params.get("limit", ["50"])[0])
-        offset = int(params.get("offset", ["0"])[0])
+        # Pagination with validation
+        limit, offset = self._parse_pagination_params(params)
 
         total = len(assets)
         items = [
@@ -1343,9 +1485,8 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         if asset_id:
             findings = findings.filter_by_asset(asset_id)
 
-        # Pagination
-        limit = int(params.get("limit", ["50"])[0])
-        offset = int(params.get("offset", ["0"])[0])
+        # Pagination with validation
+        limit, offset = self._parse_pagination_params(params)
 
         total = len(findings)
         items = [
@@ -1855,7 +1996,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self._send_cors_headers()
             self.end_headers()
             self.wfile.write(content)
 
@@ -2038,7 +2179,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
         query = params.get("q", [""])[0].strip().lower()
         search_type = params.get("type", ["all"])[0].lower()
-        limit = int(params.get("limit", ["20"])[0])
+        limit, _ = self._parse_pagination_params(params, default_limit=20)
 
         if not query:
             return {"error": "Search query is required", "findings": [], "assets": []}
@@ -2304,8 +2445,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
 
     def _get_notification_history(self, params: dict[str, list[str]]) -> dict[str, Any]:
         """Get notification history."""
-        limit = int(params.get("limit", ["20"])[0])
-        offset = int(params.get("offset", ["0"])[0])
+        limit, offset = self._parse_pagination_params(params, default_limit=20)
 
         total = len(self._notification_history)
         items = self._notification_history[offset:offset + limit]
@@ -5308,7 +5448,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         """Send JSON response."""
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
 
@@ -5316,20 +5456,111 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
         """Send response from a modular handler."""
         self.send_response(response.status.value)
         self.send_header("Content-Type", response.content_type)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors_headers()
         for header_name, header_value in response.headers.items():
             self.send_header(header_name, header_value)
         self.end_headers()
         if response.data is not None:
             self.wfile.write(response.to_json().encode("utf-8"))
 
-    def _send_error(self, code: int, message: str):
-        """Send error response."""
+    def _send_error(self, code: int, message: str, log_details: bool = True):
+        """
+        Send error response with sanitized message.
+
+        For security, internal error details are logged server-side only.
+        Clients receive a generic error message with an error ID for support reference.
+
+        Args:
+            code: HTTP status code
+            message: Error message (may contain sensitive details)
+            log_details: Whether to log full error details server-side
+        """
+        # Generate error ID for correlation
+        error_id = secrets.token_hex(8)
+
+        # Determine client-safe message based on error code
+        if code >= 500:
+            # Internal errors - don't expose implementation details
+            client_message = f"Internal server error. Error ID: {error_id}"
+            if log_details:
+                logger.error(f"Error {error_id}: {code} - {message}")
+        elif code == 404:
+            client_message = "Not found"
+        elif code == 400:
+            # Bad request - can include some details but sanitize
+            # Remove file paths, stack traces, and internal references
+            sanitized = self._sanitize_error_message(message)
+            client_message = sanitized if sanitized else "Bad request"
+        elif code == 401:
+            client_message = "Authentication required"
+        elif code == 403:
+            client_message = "Access denied"
+        else:
+            # Other 4xx errors - sanitize before sending
+            sanitized = self._sanitize_error_message(message)
+            client_message = sanitized if sanitized else f"Request error ({code})"
+
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors_headers()
         self.end_headers()
-        self.wfile.write(json.dumps({"error": message}).encode("utf-8"))
+        response_data = {"error": client_message}
+        if code >= 500:
+            response_data["error_id"] = error_id
+        self.wfile.write(json.dumps(response_data).encode("utf-8"))
+
+    def _sanitize_error_message(self, message: str) -> str:
+        """
+        Sanitize error message to remove sensitive information.
+
+        Removes:
+        - File paths
+        - Stack traces
+        - Database connection strings
+        - Internal module references
+        - Exception class names
+
+        Args:
+            message: Raw error message
+
+        Returns:
+            Sanitized message safe for client display
+        """
+        if not message:
+            return ""
+
+        # Remove file paths (Unix and Windows)
+        sanitized = re.sub(r'(/[a-zA-Z0-9_\-./]+)+\.(py|json|yaml|yml|txt|log)', '[path]', message)
+        sanitized = re.sub(r'[A-Za-z]:\\[^\s]+', '[path]', sanitized)
+
+        # Remove stack trace patterns
+        sanitized = re.sub(r'File "[^"]+", line \d+', '[trace]', sanitized)
+        sanitized = re.sub(r'Traceback \(most recent call last\):', '', sanitized)
+        sanitized = re.sub(r'^\s+at\s+.*$', '', sanitized, flags=re.MULTILINE)
+
+        # Remove Python exception class names
+        sanitized = re.sub(r'\b[A-Z][a-zA-Z]*Error\b:', '', sanitized)
+        sanitized = re.sub(r'\b[A-Z][a-zA-Z]*Exception\b:', '', sanitized)
+
+        # Remove connection strings and credentials
+        sanitized = re.sub(r'(password|passwd|pwd|secret|token|key|api_key)=[^\s&]+', r'\1=[REDACTED]', sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(r'(postgresql|mysql|mongodb|redis)://[^\s]+', '[connection_string]', sanitized)
+
+        # Remove IP addresses with ports (internal services)
+        sanitized = re.sub(r'\b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d+\.\d+(?::\d+)?\b', '[internal_ip]', sanitized)
+
+        # Remove internal module references
+        sanitized = re.sub(r'\bstance\.[a-zA-Z_.]+\b', '[module]', sanitized)
+
+        # Clean up multiple spaces and newlines
+        sanitized = re.sub(r'\s+', ' ', sanitized).strip()
+
+        # Limit length
+        max_length = 200
+        if len(sanitized) > max_length:
+            sanitized = sanitized[:max_length] + "..."
+
+        return sanitized
 
     def log_message(self, format: str, *args):
         """Suppress default logging."""
@@ -16120,25 +16351,38 @@ tags:
         if not module_name:
             return {"error": "Missing required parameter: module"}
 
+        # Validate module name to prevent path traversal
+        try:
+            validated_module = _validate_module_name(module_name)
+        except ValueError as e:
+            return {"error": str(e)}
+
         source_dir = params.get("source_dir", ["src"])[0]
 
-        module_path = module_name.replace(".", os.sep) + ".py"
+        module_path = validated_module.replace(".", os.sep) + ".py"
         full_path = os.path.join(source_dir, module_path)
-        init_path = os.path.join(source_dir, module_name.replace(".", os.sep), "__init__.py")
+        init_path = os.path.join(source_dir, validated_module.replace(".", os.sep), "__init__.py")
+
+        # Validate paths are within source directory
+        try:
+            _validate_path_within_base(full_path, source_dir)
+            _validate_path_within_base(init_path, source_dir)
+        except ValueError as e:
+            return {"error": str(e)}
 
         if os.path.exists(full_path):
             source_path = full_path
         elif os.path.exists(init_path):
             source_path = init_path
         else:
-            return {"error": f"Module not found: {module_name}"}
+            return {"error": f"Module not found: {validated_module}"}
 
         try:
             analyzer = SourceAnalyzer(source_path)
             module_info = analyzer.analyze()
 
             return {
-                "name": module_name,
+                "name": validated_module,
                 "path": source_path,
                 "docstring": module_info.docstring,
                 "classes": [cls.name for cls in module_info.classes],
@@ -16165,16 +16409,33 @@ tags:
 
         module_name, cls_name = parts
 
-        module_path = module_name.replace(".", os.sep) + ".py"
+        # Validate module name to prevent path traversal
+        try:
+            validated_module = _validate_module_name(module_name)
+        except ValueError as e:
+            return {"error": str(e)}
+
+        # Validate class name is a valid Python identifier
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cls_name):
+            return {"error": f"Invalid class name: {cls_name}"}
+
+        module_path = validated_module.replace(".", os.sep) + ".py"
         full_path = os.path.join(source_dir, module_path)
-        init_path = os.path.join(source_dir, module_name.replace(".", os.sep), "__init__.py")
+        init_path = os.path.join(source_dir, validated_module.replace(".", os.sep), "__init__.py")
+
+        # Validate paths are within source directory
+        try:
+            _validate_path_within_base(full_path, source_dir)
+            _validate_path_within_base(init_path, source_dir)
+        except ValueError as e:
+            return {"error": str(e)}
 
         if os.path.exists(full_path):
             source_path = full_path
         elif os.path.exists(init_path):
             source_path = init_path
         else:
-            return {"error": f"Module not found: {module_name}"}
+            return {"error": f"Module not found: {validated_module}"}
 
         try:
             analyzer = SourceAnalyzer(source_path)
@@ -16191,7 +16452,7 @@ tags:
 
             return {
                 "name": class_info.name,
-                "module": module_name,
+                "module": validated_module,
                 "bases": class_info.bases,
                 "docstring": class_info.docstring,
                 "is_dataclass": class_info.is_dataclass,
@@ -16218,6 +16479,15 @@ tags:
         output_dir = data.get("output_dir", "docs/generated")
         policies_dir = data.get("policies_dir", "policies")
         doc_type = data.get("type", "all")
+
+        # Validate directories to prevent path traversal
+        for dir_name, dir_val in [("source_dir", source_dir), ("output_dir", output_dir), ("policies_dir", policies_dir)]:
+            if ".." in dir_val:
+                return {"error": f"Invalid {dir_name}: path traversal not allowed"}
+
+        # Validate doc_type
+        if doc_type not in ("all", "api", "cli", "policies"):
+            return {"error": f"Invalid type: {doc_type}. Must be one of: all, api, cli, policies"}
 
         generator = DocumentationGenerator(
             source_dir=source_dir,
@@ -16259,7 +16529,13 @@ tags:
         except json.JSONDecodeError:
             return {"error": "Invalid JSON body"}
 
-        output_dir = Path(data.get("output_dir", "docs/generated"))
+        output_dir_str = data.get("output_dir", "docs/generated")
+
+        # Validate output_dir to prevent path traversal
+        if ".." in output_dir_str:
+            return {"error": "Invalid output_dir: path traversal not allowed"}
+
+        output_dir = Path(output_dir_str)
 
         if not output_dir.exists():
             return {"valid": False, "error": "Directory not found"}
@@ -16303,8 +16579,18 @@ tags:
         except json.JSONDecodeError:
             return {"error": "Invalid JSON body"}
 
-        output_dir = Path(data.get("output_dir", "docs/generated"))
+        output_dir_str = data.get("output_dir", "docs/generated")
         doc_type = data.get("type", "all")
+
+        # Validate output_dir to prevent path traversal
+        if ".." in output_dir_str:
+            return {"error": "Invalid output_dir: path traversal not allowed"}
+
+        # Validate doc_type to prevent directory traversal via type
+        if doc_type not in ("all", "api", "cli", "policies"):
+            return {"error": f"Invalid type: {doc_type}. Must be one of: all, api, cli, policies"}
+
+        output_dir = Path(output_dir_str)
 
         if not output_dir.exists():
             return {"success": True, "files_removed": 0, "message": "Directory not found"}
@@ -19169,6 +19455,7 @@ class StanceServer:
         host: str = "127.0.0.1",
         port: int = 8080,
         storage: StorageBackend | None = None,
+        allowed_origins: list[str] | None = None,
     ):
         """
         Initialize the server.
@@ -19177,10 +19464,14 @@ class StanceServer:
             host: Host to bind to (default: 127.0.0.1)
             port: Port to listen on (default: 8080)
             storage: Storage backend to use (default: LocalStorage)
+            allowed_origins: List of allowed CORS origins. If None, defaults
+                            to same-origin only (no CORS headers). Use ["*"]
+                            for development only to allow all origins.
         """
         self.host = host
         self.port = port
         self.storage = storage or get_storage("local")
+        self.allowed_origins = allowed_origins
         self._server: HTTPServer | None = None
         self._thread: threading.Thread | None = None
 

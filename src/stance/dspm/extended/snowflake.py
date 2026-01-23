@@ -38,17 +38,46 @@ def _escape_identifier(name: str) -> str:
 
     Returns:
         Safely quoted identifier string
+
+    Raises:
+        ValueError: If the identifier is invalid or potentially dangerous
     """
     if not name:
         raise ValueError("Identifier cannot be empty")
+
+    # Check length - Snowflake identifiers can be up to 255 characters
+    if len(name) > 255:
+        raise ValueError(f"Identifier exceeds maximum length of 255 characters")
+
+    # Check for null bytes (could truncate strings)
+    if "\x00" in name:
+        raise ValueError("Identifier contains null bytes")
+
     # Remove any existing quotes and escape internal double quotes
     clean_name = name.strip('"').replace('"', '""')
-    # Validate that identifier doesn't contain dangerous characters
-    # Snowflake identifiers: letters, digits, underscores (and $ in some cases)
-    # After quoting, most characters are allowed, but we still block semicolons
-    # and SQL comment sequences as defense-in-depth
-    if ';' in clean_name or '--' in clean_name or '/*' in clean_name:
-        raise ValueError(f"Invalid identifier: {name}")
+
+    # Block dangerous patterns that could be used for SQL injection
+    # These are checked case-insensitively and as substrings
+    dangerous_patterns = [
+        ";",       # Statement separator
+        "--",      # SQL comment
+        "/*",      # Block comment start
+        "*/",      # Block comment end
+        "\\",      # Backslash (could be used for escapes)
+        "\n",      # Newline
+        "\r",      # Carriage return
+        "\t",      # Tab (suspicious in identifier)
+    ]
+    for pattern in dangerous_patterns:
+        if pattern in clean_name:
+            raise ValueError(f"Identifier contains invalid character sequence: {repr(pattern)}")
+
+    # Note: Snowflake allows SQL keywords as identifiers when properly quoted
+    # (e.g., "TABLE", "SELECT", "SCHEMA" are valid table/column names).
+    # Since we always quote identifiers with double quotes and escape internal
+    # double quotes, SQL keywords are safe to use. The dangerous patterns check
+    # above (;, --, /*, etc.) provides sufficient protection against injection.
+
     return f'"{clean_name}"'
 
 

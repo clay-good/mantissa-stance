@@ -50,7 +50,7 @@ This document maps Mantissa Stance policy IDs to CIS GCP Foundations Benchmark v
 | 3.1 | Ensure default network is deleted | gcp-compute-010 | Medium | Covered |
 | 3.3 | Ensure DNSSEC is enabled for Cloud DNS | gcp-network-005 | Medium | Covered |
 | 3.4 | Ensure Cloud VPN uses IKE v2 | gcp-network-007 | Medium | Covered |
-| 3.5 | Ensure firewall does not allow all traffic from internet | gcp-compute-007 | Critical | Covered |
+| 3.5 | Firewall rule allows unrestricted inbound traffic from internet | gcp-compute-007 | Critical | Covered |
 | 3.6 | Ensure SSH access is restricted from internet | gcp-compute-003, gcp-network-008 | High/Medium | Covered |
 | 3.7 | Ensure RDP access is restricted from internet | gcp-compute-004, gcp-network-004 | High/Medium | Covered |
 | 3.8 | Ensure database ports are not exposed | gcp-compute-006, gcp-network-003 | Critical/High | Covered |
@@ -272,7 +272,7 @@ This document maps Mantissa Stance policy IDs to CIS GCP Foundations Benchmark v
   2. Check for exposed database ports (3306, 5432, 1433, etc.)
   3. Flag publicly accessible database ports
 
-#### gcp-compute-007: Firewall does not allow all traffic
+#### gcp-compute-007: Firewall rule allows unrestricted inbound traffic from internet
 - **CIS Controls**: 3.5
 - **Severity**: Critical
 - **Resource Type**: gcp_compute_firewall

@@ -130,7 +130,10 @@ class PDFExporter(BaseExporter):
         options: ExportOptions,
     ) -> ExportResult:
         """Convert HTML to PDF using wkhtmltopdf."""
+        html_path = None
+        temp_pdf_path = None
         try:
+            # Create temp HTML file with restrictive permissions
             with tempfile.NamedTemporaryFile(
                 mode="w",
                 suffix=".html",
@@ -148,6 +151,7 @@ class PDFExporter(BaseExporter):
                     delete=False,
                 )
                 pdf_path = pdf_file.name
+                temp_pdf_path = pdf_path  # Track for cleanup
                 pdf_file.close()
 
             # Run wkhtmltopdf
@@ -168,9 +172,6 @@ class PDFExporter(BaseExporter):
                 timeout=60,
             )
 
-            # Clean up temp HTML
-            Path(html_path).unlink(missing_ok=True)
-
             if result.returncode != 0:
                 return ExportResult(
                     success=False,
@@ -183,16 +184,17 @@ class PDFExporter(BaseExporter):
             output_path = None
             if options.output_path:
                 output_path = Path(options.output_path)
+                bytes_written = Path(pdf_path).stat().st_size
             else:
                 pdf_content = Path(pdf_path).read_bytes()
-                Path(pdf_path).unlink(missing_ok=True)
+                bytes_written = len(pdf_content)
 
             return ExportResult(
                 success=True,
                 format=ExportFormat.PDF,
                 output_path=output_path,
                 content=pdf_content,
-                bytes_written=len(pdf_content) if pdf_content else Path(pdf_path).stat().st_size if output_path else 0,
+                bytes_written=bytes_written,
             )
 
         except Exception as e:
@@ -201,6 +203,12 @@ class PDFExporter(BaseExporter):
                 format=ExportFormat.PDF,
                 error=str(e),
             )
+        finally:
+            # Always clean up temp files
+            if html_path:
+                Path(html_path).unlink(missing_ok=True)
+            if temp_pdf_path:
+                Path(temp_pdf_path).unlink(missing_ok=True)
 
     def _convert_with_weasyprint(
         self,
@@ -208,6 +216,8 @@ class PDFExporter(BaseExporter):
         options: ExportOptions,
     ) -> ExportResult:
         """Convert HTML to PDF using weasyprint."""
+        html_path = None
+        temp_pdf_path = None
         try:
             with tempfile.NamedTemporaryFile(
                 mode="w",
@@ -226,6 +236,7 @@ class PDFExporter(BaseExporter):
                     delete=False,
                 )
                 pdf_path = pdf_file.name
+                temp_pdf_path = pdf_path  # Track for cleanup
                 pdf_file.close()
 
             # Run weasyprint
@@ -234,9 +245,6 @@ class PDFExporter(BaseExporter):
                 capture_output=True,
                 timeout=60,
             )
-
-            # Clean up temp HTML
-            Path(html_path).unlink(missing_ok=True)
 
             if result.returncode != 0:
                 return ExportResult(
@@ -250,16 +258,17 @@ class PDFExporter(BaseExporter):
             output_path = None
             if options.output_path:
                 output_path = Path(options.output_path)
+                bytes_written = Path(pdf_path).stat().st_size
             else:
                 pdf_content = Path(pdf_path).read_bytes()
-                Path(pdf_path).unlink(missing_ok=True)
+                bytes_written = len(pdf_content)
 
             return ExportResult(
                 success=True,
                 format=ExportFormat.PDF,
                 output_path=output_path,
                 content=pdf_content,
-                bytes_written=len(pdf_content) if pdf_content else 0,
+                bytes_written=bytes_written,
             )
 
         except Exception as e:
@@ -268,6 +277,12 @@ class PDFExporter(BaseExporter):
                 format=ExportFormat.PDF,
                 error=str(e),
             )
+        finally:
+            # Always clean up temp files
+            if html_path:
+                Path(html_path).unlink(missing_ok=True)
+            if temp_pdf_path:
+                Path(temp_pdf_path).unlink(missing_ok=True)
 
     def _generate_print_ready_html(
         self,

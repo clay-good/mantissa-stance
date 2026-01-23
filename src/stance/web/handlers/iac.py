@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from stance.web.handlers.base import HandlerResponse, HttpStatus
+from stance.web.handlers.base import HandlerResponse, HttpStatus, PathValidationError, validate_safe_path
 from stance.web.handlers.router import route, RoutedHandler
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,13 @@ class IacHandler(RoutedHandler):
     def iac_scan(self, params: dict, body: dict | None) -> HandlerResponse:
         """Scan IaC files for security issues."""
         path = self.get_param(params, "path", ".")
+
+        # Validate path to prevent traversal attacks
+        try:
+            path = validate_safe_path(path, allow_parent_refs=False)
+        except PathValidationError as e:
+            return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
+
         severity_filter = self.get_param(params, "severity", "")
         iac_format = self.get_param(params, "format", "all")
 
@@ -227,6 +234,12 @@ class IacHandler(RoutedHandler):
         if not path:
             return HandlerResponse.error("Missing required parameter: path", HttpStatus.BAD_REQUEST)
 
+        # Validate path to prevent traversal attacks
+        try:
+            path = validate_safe_path(path, allow_parent_refs=False)
+        except PathValidationError as e:
+            return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
+
         return HandlerResponse.success({
             "path": path,
             "valid": True,
@@ -239,6 +252,12 @@ class IacHandler(RoutedHandler):
     def iac_resources(self, params: dict, body: dict | None) -> HandlerResponse:
         """List resources in IaC files."""
         path = self.get_param(params, "path", ".")
+
+        # Validate path to prevent traversal attacks
+        try:
+            path = validate_safe_path(path, allow_parent_refs=False)
+        except PathValidationError as e:
+            return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
 
         resources = [
             {"type": "aws_s3_bucket", "name": "data_bucket", "file": f"{path}/main.tf", "line": 15},

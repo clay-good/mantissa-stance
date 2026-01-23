@@ -8,12 +8,127 @@ query generation and policy management.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from stance.web.handlers.base import HandlerResponse, HttpStatus
 from stance.web.handlers.router import route, RoutedHandler
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Prompt Injection Prevention
+# =============================================================================
+
+class PromptInjectionError(ValueError):
+    """Raised when prompt injection is detected."""
+    pass
+
+
+def sanitize_llm_input(
+    text: str,
+    max_length: int = 4000,
+    allow_code_blocks: bool = False,
+) -> str:
+    """
+    Sanitize user input before including in LLM prompts.
+
+    This function helps prevent prompt injection attacks by:
+    - Limiting input length
+    - Removing control characters
+    - Escaping common injection patterns
+    - Detecting suspicious instruction-like content
+
+    Args:
+        text: User input text
+        max_length: Maximum allowed length
+        allow_code_blocks: Whether to allow code block markers
+
+    Returns:
+        Sanitized text
+
+    Raises:
+        PromptInjectionError: If suspicious content is detected
+    """
+    if not text:
+        return ""
+
+    # Check length
+    if len(text) > max_length:
+        raise PromptInjectionError(f"Input exceeds maximum length of {max_length} characters")
+
+    # Check for null bytes
+    if "\x00" in text:
+        raise PromptInjectionError("Input contains invalid characters")
+
+    # Remove control characters (except newlines and tabs for formatting)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+
+    # Detect common prompt injection patterns
+    injection_patterns = [
+        # Direct instruction attempts
+        r"ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?|rules?)",
+        r"disregard\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?|rules?)",
+        r"forget\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?|rules?)",
+        r"override\s+(all\s+)?(previous|above|prior)",
+        r"new\s+(instructions?|prompt|task|role)",
+        r"you\s+are\s+now\s+[a-zA-Z]+",  # Role change attempts
+        r"system\s*:\s*",  # System prompt injection
+        r"\[INST\]",  # Llama instruction format
+        r"<\|system\|>",  # ChatML format
+        r"<\|user\|>",
+        r"<\|assistant\|>",
+        r"###\s*(System|Human|Assistant|User)\s*:",  # Common chat formats
+        r"ASSISTANT:",
+        r"USER:",
+        r"SYSTEM:",
+        # Jailbreak patterns
+        r"DAN\s+mode",
+        r"jailbreak",
+        r"bypass\s+(safety|security|filter)",
+        # Output manipulation
+        r"respond\s+with\s+(only|just)",
+        r"output\s+(only|just|exactly)",
+        r"print\s+(only|just)",
+    ]
+
+    text_lower = text.lower()
+    for pattern in injection_patterns:
+        if re.search(pattern, text_lower, re.IGNORECASE):
+            logger.warning(f"Potential prompt injection detected: pattern={pattern[:30]}...")
+            raise PromptInjectionError(
+                "Input contains potentially malicious content. "
+                "Please rephrase your request."
+            )
+
+    # Remove or escape code blocks if not allowed
+    if not allow_code_blocks:
+        # Replace triple backticks with escaped version
+        text = text.replace("```", "\\`\\`\\`")
+
+    # Escape XML-like tags that might be interpreted as special tokens
+    text = re.sub(r"<\|([^|>]+)\|>", r"&lt;|\1|&gt;", text)
+    text = re.sub(r"<(/?)(\w+)>", r"&lt;\1\2&gt;", text)
+
+    return text
+
+
+def validate_llm_query_request(question: str) -> tuple[bool, str | None]:
+    """
+    Validate a natural language query request.
+
+    Args:
+        question: The user's natural language question
+
+    Returns:
+        Tuple of (valid: bool, error_message: str | None)
+    """
+    try:
+        sanitize_llm_input(question, max_length=2000)
+        return True, None
+    except PromptInjectionError as e:
+        return False, str(e)
 
 
 class LlmHandler(RoutedHandler):
@@ -102,6 +217,11 @@ class LlmHandler(RoutedHandler):
         if not question:
             return HandlerResponse.error("Missing required parameter: question", HttpStatus.BAD_REQUEST)
 
+        # Validate and sanitize input to prevent prompt injection
+        valid, error = validate_llm_query_request(question)
+        if not valid:
+            return HandlerResponse.error(error or "Invalid input", HttpStatus.BAD_REQUEST)
+
         # Demo response
         return HandlerResponse.success({
             "question": question,
@@ -118,6 +238,12 @@ class LlmHandler(RoutedHandler):
         if not query:
             return HandlerResponse.error("Missing required parameter: query", HttpStatus.BAD_REQUEST)
 
+        # Sanitize input
+        try:
+            query = sanitize_llm_input(query, max_length=5000, allow_code_blocks=True)
+        except PromptInjectionError as e:
+            return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
         return HandlerResponse.success({
             "query": query,
             "valid": True,
@@ -131,6 +257,10 @@ class LlmHandler(RoutedHandler):
         finding_id = self.get_param(params, "finding_id", "")
         if not finding_id:
             return HandlerResponse.error("Missing required parameter: finding_id", HttpStatus.BAD_REQUEST)
+
+        # Validate finding_id format (should be alphanumeric with hyphens/underscores)
+        if not re.match(r"^[\w\-]+$", finding_id):
+            return HandlerResponse.error("Invalid finding_id format", HttpStatus.BAD_REQUEST)
 
         return HandlerResponse.success({
             "finding_id": finding_id,
@@ -151,6 +281,12 @@ class LlmHandler(RoutedHandler):
         if not description:
             return HandlerResponse.error("Missing required parameter: description", HttpStatus.BAD_REQUEST)
 
+        # Sanitize input to prevent prompt injection
+        try:
+            description = sanitize_llm_input(description, max_length=2000)
+        except PromptInjectionError as e:
+            return HandlerResponse.error(str(e), HttpStatus.BAD_REQUEST)
+
         return HandlerResponse.success({
             "description": description,
             "generated_policy": {
@@ -169,6 +305,10 @@ class LlmHandler(RoutedHandler):
         resource_type = self.get_param(params, "resource_type", "")
         if not resource_type:
             return HandlerResponse.error("Missing required parameter: resource_type", HttpStatus.BAD_REQUEST)
+
+        # Validate resource_type format (should be alphanumeric with dots/hyphens/underscores)
+        if not re.match(r"^[\w\.\-]+$", resource_type) or len(resource_type) > 200:
+            return HandlerResponse.error("Invalid resource_type format", HttpStatus.BAD_REQUEST)
 
         suggestions = [
             {"name": "Enable encryption", "description": "Ensure encryption is enabled"},

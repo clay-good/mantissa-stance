@@ -514,10 +514,11 @@ class DependencyParser:
                     # Handle scoped packages (@org/pkg@version)
                     if first_spec.startswith("@"):
                         parts = first_spec[1:].split("@")
-                        current_package = "@" + parts[0]
+                        # parts[0] is always defined after split, even if empty
+                        current_package = "@" + parts[0] if parts else first_spec
                     else:
                         parts = first_spec.split("@")
-                        current_package = parts[0]
+                        current_package = parts[0] if parts else first_spec
                 else:
                     current_package = first_spec
 
@@ -714,7 +715,7 @@ class DependencyParser:
                 resolved_version=version,
                 ecosystem=PackageEcosystem.PYPI,
                 scope=DependencyScope.RUNTIME,
-                integrity_hash=info.get("hashes", [None])[0] if info.get("hashes") else None,
+                integrity_hash=info.get("hashes", [])[0] if info.get("hashes") else None,
             )
             dependencies.append(dep)
 
@@ -727,7 +728,7 @@ class DependencyParser:
                 resolved_version=version,
                 ecosystem=PackageEcosystem.PYPI,
                 scope=DependencyScope.DEVELOPMENT,
-                integrity_hash=info.get("hashes", [None])[0] if info.get("hashes") else None,
+                integrity_hash=info.get("hashes", [])[0] if info.get("hashes") else None,
             )
             dependencies.append(dep)
 
@@ -1239,7 +1240,7 @@ class DependencyParser:
                 resolved_version=pkg.get("version", "").lstrip("v"),
                 ecosystem=PackageEcosystem.COMPOSER,
                 scope=DependencyScope.RUNTIME,
-                license=pkg.get("license", [None])[0] if pkg.get("license") else None,
+                license=pkg.get("license", [])[0] if pkg.get("license") else None,
                 description=pkg.get("description"),
                 source_url=pkg.get("source", {}).get("url"),
             )
@@ -1253,7 +1254,7 @@ class DependencyParser:
                 resolved_version=pkg.get("version", "").lstrip("v"),
                 ecosystem=PackageEcosystem.COMPOSER,
                 scope=DependencyScope.DEVELOPMENT,
-                license=pkg.get("license", [None])[0] if pkg.get("license") else None,
+                license=pkg.get("license", [])[0] if pkg.get("license") else None,
                 description=pkg.get("description"),
                 source_url=pkg.get("source", {}).get("url"),
             )

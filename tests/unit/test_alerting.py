@@ -1514,9 +1514,9 @@ class TestServiceNowClientIntegration:
         """Test getting incident raises error when httpx unavailable."""
         from stance.alerting.destinations.servicenow import ServiceNowError
 
-        # Should raise error when httpx not available
+        # Should raise error when httpx not available (use valid 32-char hex sys_id)
         with pytest.raises(ServiceNowError) as exc_info:
-            client.get_incident("mock_sys_id")
+            client.get_incident("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4")
 
         assert "httpx library is required" in str(exc_info.value)
 

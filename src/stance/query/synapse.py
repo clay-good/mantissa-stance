@@ -131,7 +131,7 @@ class SynapseQueryEngine(QueryEngine):
             cursor.execute("SELECT 1")
             cursor.close()
             self._connected = True
-            logger.info(f"Connected to Synapse: {self._server}/{self._database}")
+            logger.info("Connected to Synapse successfully")
         except Exception as e:
             raise QueryExecutionError(f"Failed to connect to Synapse: {e}")
 

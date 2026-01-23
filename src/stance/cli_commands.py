@@ -1917,17 +1917,25 @@ def cmd_iac_scan(args: argparse.Namespace) -> int:
     if args.format == "json":
         output = _output_iac_json(all_findings, files_scanned, files_with_issues)
         if args.output:
-            with open(args.output, "w") as f:
-                f.write(output)
-            print(f"Results written to {args.output}")
+            try:
+                with open(args.output, "w") as f:
+                    f.write(output)
+                print(f"Results written to {args.output}")
+            except IOError as e:
+                print(f"Error writing to {args.output}: {e}")
+                return 1
         else:
             print(output)
     elif args.format == "sarif":
         output = _output_iac_sarif(all_findings, files_scanned)
         if args.output:
-            with open(args.output, "w") as f:
-                f.write(output)
-            print(f"Results written to {args.output}")
+            try:
+                with open(args.output, "w") as f:
+                    f.write(output)
+                print(f"Results written to {args.output}")
+            except IOError as e:
+                print(f"Error writing to {args.output}: {e}")
+                return 1
         else:
             print(output)
     else:
@@ -2195,9 +2203,13 @@ def cmd_secrets_scan(args: argparse.Namespace) -> int:
     if args.format == "json":
         output = _output_secrets_json(all_matches, files_scanned, files_with_secrets)
         if args.output:
-            with open(args.output, "w") as f:
-                f.write(output)
-            print(f"Results written to {args.output}")
+            try:
+                with open(args.output, "w") as f:
+                    f.write(output)
+                print(f"Results written to {args.output}")
+            except IOError as e:
+                print(f"Error writing to {args.output}: {e}")
+                return 1
         else:
             print(output)
     else:

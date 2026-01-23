@@ -722,7 +722,10 @@ class TestCliCommandDecorator:
                 break
         json_str = "\n".join(json_lines)
         error_data = json.loads(json_str)
-        assert error_data["error"] == "json error"
+        # Error message is sanitized - includes type in dev mode
+        assert "json error" in error_data["error"]
+        # Verify error_id is included for correlation
+        assert "error_id" in error_data
 
 
 class TestRequireStorageDecorator:

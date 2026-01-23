@@ -12,7 +12,7 @@ resource_type: azure_function_app
 
 check:
   type: expression
-  expression: "resource.private_endpoints_count >= 1 or resource.requires_public_access == true"
+  expression: "resource.private_endpoints_count >= 1"
 
 compliance:
   - framework: cis-azure-foundations

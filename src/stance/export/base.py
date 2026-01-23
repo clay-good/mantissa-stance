@@ -218,6 +218,38 @@ class BaseExporter(ABC):
             if severity_order.get(f.severity, 4) <= threshold
         ]
 
+    def _validate_output_path(self, output_path: Path | str) -> Path:
+        """
+        Validate an output path for security.
+
+        Args:
+            output_path: Path to validate
+
+        Returns:
+            Validated Path object
+
+        Raises:
+            ValueError: If path is invalid or potentially dangerous
+        """
+        path_str = str(output_path)
+
+        # Check for directory traversal attempts
+        if ".." in path_str:
+            raise ValueError(
+                f"Invalid output path: directory traversal not allowed: {path_str}"
+            )
+
+        # Resolve to absolute path and check again
+        path = Path(output_path).resolve()
+
+        # Double-check for traversal in resolved path
+        if ".." in str(path):
+            raise ValueError(
+                f"Invalid output path: directory traversal detected after resolution"
+            )
+
+        return path
+
     def _write_output(
         self,
         content: bytes | str,
@@ -232,11 +264,14 @@ class BaseExporter(ABC):
 
         Returns:
             Tuple of (path if written, content if in-memory)
+
+        Raises:
+            ValueError: If path contains directory traversal attempts
         """
         if output_path is None:
             return None, content
 
-        path = Path(output_path)
+        path = self._validate_output_path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         if isinstance(content, str):

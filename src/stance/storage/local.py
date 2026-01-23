@@ -46,16 +46,26 @@ def _validate_db_path(db_path: str) -> str:
     Raises:
         ValueError: If path contains directory traversal attempts
     """
+    # Check for directory traversal attempts in the original path
+    if ".." in db_path:
+        raise ValueError(f"Invalid database path: directory traversal not allowed: {db_path}")
+
     # Expand user directory
     expanded = os.path.expanduser(db_path)
 
-    # Get absolute path
-    abs_path = os.path.abspath(expanded)
+    # Use Path.resolve() to follow symlinks and get canonical path
+    # This prevents symlink attacks
+    try:
+        resolved_path = Path(expanded).resolve()
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Invalid database path: cannot resolve: {db_path}") from e
 
-    # Check for directory traversal attempts in the original path
-    # (before expansion/normalization)
-    if ".." in db_path:
-        raise ValueError(f"Invalid database path: directory traversal not allowed: {db_path}")
+    # Get the resolved path as string
+    abs_path = str(resolved_path)
+
+    # Double-check for traversal in resolved path (handles URL encoding, etc.)
+    if ".." in abs_path:
+        raise ValueError(f"Invalid database path: directory traversal detected after resolution: {db_path}")
 
     # Ensure the path ends with expected extension
     if not abs_path.endswith(".db"):
@@ -303,94 +313,98 @@ class LocalStorage(StorageBackend):
     def store_assets(self, assets: AssetCollection, snapshot_id: str) -> None:
         """Store an asset inventory snapshot."""
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Get account_id from first asset if available
-        account_id = None
-        if len(assets) > 0:
-            account_id = assets[0].account_id
+            # Get account_id from first asset if available
+            account_id = None
+            if len(assets) > 0:
+                account_id = assets[0].account_id
 
-        # Insert or update snapshot record
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO snapshots (id, created_at, account_id, asset_count, finding_count)
-            VALUES (?, ?, ?, ?, COALESCE((SELECT finding_count FROM snapshots WHERE id = ?), 0))
-            """,
-            (
-                snapshot_id,
-                datetime.utcnow().isoformat(),
-                account_id,
-                len(assets),
-                snapshot_id,
-            ),
-        )
-
-        # Delete existing assets for this snapshot
-        cursor.execute("DELETE FROM assets WHERE snapshot_id = ?", (snapshot_id,))
-
-        # Insert assets
-        for asset in assets:
+            # Insert or update snapshot record
             cursor.execute(
                 """
-                INSERT INTO assets (
-                    id, snapshot_id, cloud_provider, account_id, region,
-                    resource_type, name, tags, network_exposure,
-                    created_at, last_seen, raw_config
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO snapshots (id, created_at, account_id, asset_count, finding_count)
+                VALUES (?, ?, ?, ?, COALESCE((SELECT finding_count FROM snapshots WHERE id = ?), 0))
                 """,
-                self._serialize_asset(asset, snapshot_id),
+                (
+                    snapshot_id,
+                    datetime.utcnow().isoformat(),
+                    account_id,
+                    len(assets),
+                    snapshot_id,
+                ),
             )
 
-        conn.commit()
-        conn.close()
+            # Delete existing assets for this snapshot
+            cursor.execute("DELETE FROM assets WHERE snapshot_id = ?", (snapshot_id,))
+
+            # Insert assets
+            for asset in assets:
+                cursor.execute(
+                    """
+                    INSERT INTO assets (
+                        id, snapshot_id, cloud_provider, account_id, region,
+                        resource_type, name, tags, network_exposure,
+                        created_at, last_seen, raw_config
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    self._serialize_asset(asset, snapshot_id),
+                )
+
+            conn.commit()
+        finally:
+            conn.close()
 
     def store_findings(self, findings: FindingCollection, snapshot_id: str) -> None:
         """Store findings from policy evaluation."""
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Update snapshot record with finding count
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO snapshots (id, created_at, account_id, asset_count, finding_count)
-            VALUES (
-                ?,
-                COALESCE((SELECT created_at FROM snapshots WHERE id = ?), ?),
-                (SELECT account_id FROM snapshots WHERE id = ?),
-                COALESCE((SELECT asset_count FROM snapshots WHERE id = ?), 0),
-                ?
-            )
-            """,
-            (
-                snapshot_id,
-                snapshot_id,
-                datetime.utcnow().isoformat(),
-                snapshot_id,
-                snapshot_id,
-                len(findings),
-            ),
-        )
-
-        # Delete existing findings for this snapshot
-        cursor.execute("DELETE FROM findings WHERE snapshot_id = ?", (snapshot_id,))
-
-        # Insert findings
-        for finding in findings:
+            # Update snapshot record with finding count
             cursor.execute(
                 """
-                INSERT INTO findings (
-                    id, snapshot_id, asset_id, finding_type, severity, status,
-                    title, description, rule_id, resource_path, expected_value,
-                    actual_value, cve_id, cvss_score, package_name,
-                    installed_version, fixed_version, compliance_frameworks,
-                    remediation_guidance, first_seen, last_seen
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO snapshots (id, created_at, account_id, asset_count, finding_count)
+                VALUES (
+                    ?,
+                    COALESCE((SELECT created_at FROM snapshots WHERE id = ?), ?),
+                    (SELECT account_id FROM snapshots WHERE id = ?),
+                    COALESCE((SELECT asset_count FROM snapshots WHERE id = ?), 0),
+                    ?
+                )
                 """,
-                self._serialize_finding(finding, snapshot_id),
+                (
+                    snapshot_id,
+                    snapshot_id,
+                    datetime.utcnow().isoformat(),
+                    snapshot_id,
+                    snapshot_id,
+                    len(findings),
+                ),
             )
 
-        conn.commit()
-        conn.close()
+            # Delete existing findings for this snapshot
+            cursor.execute("DELETE FROM findings WHERE snapshot_id = ?", (snapshot_id,))
+
+            # Insert findings
+            for finding in findings:
+                cursor.execute(
+                    """
+                    INSERT INTO findings (
+                        id, snapshot_id, asset_id, finding_type, severity, status,
+                        title, description, rule_id, resource_path, expected_value,
+                        actual_value, cve_id, cvss_score, package_name,
+                        installed_version, fixed_version, compliance_frameworks,
+                        remediation_guidance, first_seen, last_seen
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    self._serialize_finding(finding, snapshot_id),
+                )
+
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_assets(self, snapshot_id: str | None = None) -> AssetCollection:
         """Retrieve assets from storage."""
@@ -400,15 +414,17 @@ class LocalStorage(StorageBackend):
                 return AssetCollection()
 
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM assets WHERE snapshot_id = ?",
-            (snapshot_id,),
-        )
+            cursor.execute(
+                "SELECT * FROM assets WHERE snapshot_id = ?",
+                (snapshot_id,),
+            )
 
-        assets = [self._deserialize_asset(row) for row in cursor.fetchall()]
-        conn.close()
+            assets = [self._deserialize_asset(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
 
         return AssetCollection(assets)
 
@@ -425,55 +441,54 @@ class LocalStorage(StorageBackend):
                 return FindingCollection()
 
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Build query with optional filters
-        query = "SELECT * FROM findings WHERE snapshot_id = ?"
-        params: list[Any] = [snapshot_id]
+            # Build query with optional filters
+            query = "SELECT * FROM findings WHERE snapshot_id = ?"
+            params: list[Any] = [snapshot_id]
 
-        if severity is not None:
-            query += " AND severity = ?"
-            params.append(severity.value)
+            if severity is not None:
+                query += " AND severity = ?"
+                params.append(severity.value)
 
-        if status is not None:
-            query += " AND status = ?"
-            params.append(status.value)
+            if status is not None:
+                query += " AND status = ?"
+                params.append(status.value)
 
-        cursor.execute(query, params)
+            cursor.execute(query, params)
 
-        findings = [self._deserialize_finding(row) for row in cursor.fetchall()]
-        conn.close()
+            findings = [self._deserialize_finding(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
 
         return FindingCollection(findings)
 
     def get_latest_snapshot_id(self) -> str | None:
         """Get the most recent snapshot ID."""
         conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT id FROM snapshots ORDER BY created_at DESC LIMIT 1"
-        )
-
-        row = cursor.fetchone()
-        conn.close()
-
-        return row["id"] if row else None
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id FROM snapshots ORDER BY created_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+            return row["id"] if row else None
+        finally:
+            conn.close()
 
     def list_snapshots(self, limit: int = 10) -> list[str]:
         """List recent snapshot IDs."""
         conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT id FROM snapshots ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        )
-
-        snapshot_ids = [row["id"] for row in cursor.fetchall()]
-        conn.close()
-
-        return snapshot_ids
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id FROM snapshots ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+            return [row["id"] for row in cursor.fetchall()]
+        finally:
+            conn.close()
 
     def get_snapshot_info(self, snapshot_id: str) -> dict[str, Any] | None:
         """
@@ -486,26 +501,24 @@ class LocalStorage(StorageBackend):
             Dictionary with snapshot metadata, or None if not found
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT * FROM snapshots WHERE id = ?",
-            (snapshot_id,),
-        )
-
-        row = cursor.fetchone()
-        conn.close()
-
-        if row is None:
-            return None
-
-        return {
-            "id": row["id"],
-            "created_at": row["created_at"],
-            "account_id": row["account_id"],
-            "asset_count": row["asset_count"],
-            "finding_count": row["finding_count"],
-        }
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM snapshots WHERE id = ?",
+                (snapshot_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return {
+                "id": row["id"],
+                "created_at": row["created_at"],
+                "account_id": row["account_id"],
+                "asset_count": row["asset_count"],
+                "finding_count": row["finding_count"],
+            }
+        finally:
+            conn.close()
 
     def query_assets(self, sql: str) -> list[dict[str, Any]]:
         """
@@ -526,14 +539,14 @@ class LocalStorage(StorageBackend):
             raise ValueError("Only SELECT queries are allowed")
 
         conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(sql)
-        columns = [description[0] for description in cursor.description]
-        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-        conn.close()
-        return results
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            columns = [description[0] for description in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            return results
+        finally:
+            conn.close()
 
     def query_findings(self, sql: str) -> list[dict[str, Any]]:
         """
@@ -554,14 +567,14 @@ class LocalStorage(StorageBackend):
             raise ValueError("Only SELECT queries are allowed")
 
         conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(sql)
-        columns = [description[0] for description in cursor.description]
-        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-        conn.close()
-        return results
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            columns = [description[0] for description in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            return results
+        finally:
+            conn.close()
 
     def _is_safe_query(self, sql: str) -> bool:
         """
@@ -624,19 +637,23 @@ class LocalStorage(StorageBackend):
             True if snapshot was deleted, False if not found
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Check if snapshot exists
-        cursor.execute("SELECT id FROM snapshots WHERE id = ?", (snapshot_id,))
-        if cursor.fetchone() is None:
+            # Check if snapshot exists
+            cursor.execute("SELECT id FROM snapshots WHERE id = ?", (snapshot_id,))
+            if cursor.fetchone() is None:
+                return False
+
+            # Delete findings, assets, and snapshot
+            cursor.execute("DELETE FROM findings WHERE snapshot_id = ?", (snapshot_id,))
+            cursor.execute("DELETE FROM assets WHERE snapshot_id = ?", (snapshot_id,))
+            cursor.execute("DELETE FROM snapshots WHERE id = ?", (snapshot_id,))
+
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
             conn.close()
-            return False
-
-        # Delete findings, assets, and snapshot
-        cursor.execute("DELETE FROM findings WHERE snapshot_id = ?", (snapshot_id,))
-        cursor.execute("DELETE FROM assets WHERE snapshot_id = ?", (snapshot_id,))
-        cursor.execute("DELETE FROM snapshots WHERE id = ?", (snapshot_id,))
-
-        conn.commit()
-        conn.close()
-        return True

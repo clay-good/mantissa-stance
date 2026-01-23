@@ -14,8 +14,16 @@ check:
   type: expression
   expression: "resource.has_public_bindings == false"
 
-benchmark:
-  - cis-gcp: "1.1"
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "1.1"
+  - framework: pci-dss
+    version: "4.0"
+    control: "7.1.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-2"
 
 remediation:
   guidance: |

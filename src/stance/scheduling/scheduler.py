@@ -470,6 +470,7 @@ class ScanScheduler:
         self._executor = scan_executor
         self._check_interval = check_interval
         self._running = False
+        self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._callbacks: list[Callable[[ScanJob, ScanResult], None]] = []
@@ -594,36 +595,45 @@ class ScanScheduler:
         Args:
             callback: Function taking (ScanJob, ScanResult)
         """
-        self._callbacks.append(callback)
+        with self._lock:
+            self._callbacks.append(callback)
 
     def start(self) -> None:
         """Start the scheduler background thread."""
-        if self._running:
-            return
+        with self._lock:
+            if self._running:
+                return
 
-        self._running = True
-        self._thread = threading.Thread(target=self._run_loop, daemon=True)
-        self._thread.start()
+            self._running = True
+            self._stop_event.clear()
+            self._thread = threading.Thread(target=self._run_loop, daemon=True)
+            self._thread.start()
 
     def stop(self) -> None:
         """Stop the scheduler background thread."""
-        self._running = False
-        if self._thread:
-            self._thread.join(timeout=5)
+        with self._lock:
+            self._running = False
+            self._stop_event.set()
+            thread = self._thread
+        if thread:
+            thread.join(timeout=5)
+        with self._lock:
             self._thread = None
 
     def is_running(self) -> bool:
         """Check if the scheduler is running."""
-        return self._running
+        with self._lock:
+            return self._running
 
     def _run_loop(self) -> None:
         """Main scheduler loop."""
-        while self._running:
+        while not self._stop_event.is_set():
             try:
                 self._check_and_run_jobs()
             except Exception as e:
                 logger.error(f"Error in scheduler loop: {e}")
-            time.sleep(self._check_interval)
+            # Use wait with timeout for faster shutdown response
+            self._stop_event.wait(timeout=self._check_interval)
 
     def _check_and_run_jobs(self) -> None:
         """Check for pending jobs and run them."""
@@ -666,8 +676,10 @@ class ScanScheduler:
         # Update job state
         job.mark_run(result)
 
-        # Notify callbacks
-        for callback in self._callbacks:
+        # Notify callbacks (take snapshot under lock to avoid race)
+        with self._lock:
+            callbacks = list(self._callbacks)
+        for callback in callbacks:
             try:
                 callback(job, result)
             except Exception as e:
@@ -687,13 +699,15 @@ class ScanScheduler:
     def get_status(self) -> dict[str, Any]:
         """Get scheduler status."""
         now = datetime.utcnow()
+        with self._lock:
+            jobs_snapshot = list(self._jobs.values())
         return {
             "running": self._running,
-            "total_jobs": len(self._jobs),
-            "enabled_jobs": len(self.get_enabled_jobs()),
-            "pending_jobs": len(self.get_pending_jobs(now)),
+            "total_jobs": len(jobs_snapshot),
+            "enabled_jobs": len([j for j in jobs_snapshot if j.enabled]),
+            "pending_jobs": len([j for j in jobs_snapshot if j.enabled and j.should_run(now)]),
             "check_interval": self._check_interval,
-            "jobs": [job.to_dict() for job in self._jobs.values()],
+            "jobs": [job.to_dict() for job in jobs_snapshot],
         }
 
     def to_dict(self) -> dict[str, Any]:

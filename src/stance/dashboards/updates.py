@@ -101,17 +101,30 @@ class DataProvider(ABC):
     """
     Abstract base class for widget data providers.
 
-    Provides data fetching with caching, rate limiting, and error handling.
+    Provides thread-safe data fetching with caching, rate limiting, and error handling.
     Subclasses must implement the _fetch_data method.
     """
 
     def __init__(self, config: DataProviderConfig):
         self.config = config
-        self.cache: Dict[str, Any] = {}
-        self.cache_timestamps: Dict[str, datetime] = {}
-        self.call_timestamps: List[datetime] = []
-        self.error_count: int = 0
-        self.last_error: Optional[str] = None
+        self._cache: Dict[str, Any] = {}
+        self._cache_timestamps: Dict[str, datetime] = {}
+        self._call_timestamps: List[datetime] = []
+        self._error_count: int = 0
+        self._last_error: Optional[str] = None
+        # Thread-safety: separate locks for cache and rate limiting
+        self._cache_lock = threading.Lock()
+        self._rate_limit_lock = threading.Lock()
+
+    @property
+    def error_count(self) -> int:
+        """Get error count (thread-safe)."""
+        return self._error_count
+
+    @property
+    def last_error(self) -> Optional[str]:
+        """Get last error (thread-safe)."""
+        return self._last_error
 
     def get_data(
         self,
@@ -120,36 +133,39 @@ class DataProvider(ABC):
         force_refresh: bool = False,
     ) -> Tuple[Any, bool]:
         """
-        Get data for a widget.
+        Get data for a widget (thread-safe).
 
         Returns (data, from_cache) tuple.
         """
         cache_key = self._make_cache_key(widget_id, params)
 
-        # Check cache
-        if not force_refresh and self._is_cache_valid(cache_key):
-            return self.cache.get(cache_key), True
+        # Check cache under lock (atomic read)
+        with self._cache_lock:
+            if not force_refresh and self._is_cache_valid_locked(cache_key):
+                return self._cache.get(cache_key), True
+            cached_data = self._cache.get(cache_key)
 
-        # Check rate limit
-        if not self._check_rate_limit():
+        # Check rate limit under separate lock (atomic check-and-update)
+        if not self._check_and_record_rate_limit():
             # Return cached data if available
-            if cache_key in self.cache:
-                return self.cache[cache_key], True
+            if cached_data is not None:
+                return cached_data, True
             raise RateLimitError(f"Rate limit exceeded for {self.config.provider_id}")
 
-        # Fetch new data
+        # Fetch new data (outside locks to avoid blocking)
         try:
             data = self._fetch_data(widget_id, params)
             self._update_cache(cache_key, data)
-            self.error_count = 0
-            self.last_error = None
+            self._error_count = 0
+            self._last_error = None
             return data, False
         except Exception as e:
-            self.error_count += 1
-            self.last_error = str(e)
+            self._error_count += 1
+            self._last_error = str(e)
             # Return stale cache if available
-            if cache_key in self.cache:
-                return self.cache[cache_key], True
+            with self._cache_lock:
+                if cache_key in self._cache:
+                    return self._cache[cache_key], True
             raise
 
     @abstractmethod
@@ -173,50 +189,59 @@ class DataProvider(ABC):
                 parts.append(f"{k}={v}")
         return ":".join(parts)
 
-    def _is_cache_valid(self, cache_key: str) -> bool:
-        """Check if cached data is still valid."""
-        if cache_key not in self.cache_timestamps:
+    def _is_cache_valid_locked(self, cache_key: str) -> bool:
+        """Check if cached data is still valid. Must be called with _cache_lock held."""
+        if cache_key not in self._cache_timestamps:
             return False
-        age = (datetime.utcnow() - self.cache_timestamps[cache_key]).total_seconds()
+        age = (datetime.utcnow() - self._cache_timestamps[cache_key]).total_seconds()
         return age < self.config.cache_ttl_seconds
 
     def _update_cache(self, cache_key: str, data: Any) -> None:
-        """Update cache with new data."""
-        self.cache[cache_key] = data
-        self.cache_timestamps[cache_key] = datetime.utcnow()
+        """Update cache with new data (thread-safe)."""
+        with self._cache_lock:
+            self._cache[cache_key] = data
+            self._cache_timestamps[cache_key] = datetime.utcnow()
 
-    def _check_rate_limit(self) -> bool:
-        """Check if within rate limit."""
-        now = datetime.utcnow()
-        cutoff = now - timedelta(minutes=1)
+    def _check_and_record_rate_limit(self) -> bool:
+        """
+        Check if within rate limit and record the attempt atomically.
 
-        # Remove old timestamps
-        self.call_timestamps = [
-            ts for ts in self.call_timestamps
-            if ts > cutoff
-        ]
+        This fixes the TOCTOU vulnerability by combining check and record
+        in a single atomic operation under a lock.
+        """
+        with self._rate_limit_lock:
+            now = datetime.utcnow()
+            cutoff = now - timedelta(minutes=1)
 
-        if len(self.call_timestamps) >= self.config.rate_limit_per_minute:
-            return False
+            # Remove old timestamps
+            self._call_timestamps = [
+                ts for ts in self._call_timestamps
+                if ts > cutoff
+            ]
 
-        self.call_timestamps.append(now)
-        return True
+            if len(self._call_timestamps) >= self.config.rate_limit_per_minute:
+                return False
+
+            # Atomically record this call as part of the rate limit check
+            self._call_timestamps.append(now)
+            return True
 
     def invalidate_cache(self, widget_id: Optional[str] = None) -> None:
-        """Invalidate cache entries."""
-        if widget_id:
-            # Invalidate specific widget
-            keys_to_remove = [
-                k for k in self.cache.keys()
-                if k.startswith(widget_id)
-            ]
-            for key in keys_to_remove:
-                self.cache.pop(key, None)
-                self.cache_timestamps.pop(key, None)
-        else:
-            # Invalidate all
-            self.cache.clear()
-            self.cache_timestamps.clear()
+        """Invalidate cache entries (thread-safe)."""
+        with self._cache_lock:
+            if widget_id:
+                # Invalidate specific widget
+                keys_to_remove = [
+                    k for k in self._cache.keys()
+                    if k.startswith(widget_id)
+                ]
+                for key in keys_to_remove:
+                    self._cache.pop(key, None)
+                    self._cache_timestamps.pop(key, None)
+            else:
+                # Invalidate all
+                self._cache.clear()
+                self._cache_timestamps.clear()
 
 
 # =============================================================================
@@ -323,6 +348,7 @@ class DashboardUpdateManager:
         self._running = False
         self._update_queue: List[Tuple[str, str, UpdatePriority]] = []  # (dashboard_id, widget_id, priority)
         self._queue_lock = threading.Lock()
+        self._state_lock = threading.Lock()  # Protects widget_states dictionary access
 
     def register_dashboard(self, dashboard: Dashboard) -> None:
         """Register a dashboard for updates."""
@@ -439,9 +465,11 @@ class DashboardUpdateManager:
             # Sort by priority
             self._update_queue.sort(key=lambda x: x[2].value)
 
-        # Mark widget as pending update
-        if widget_id in self.widget_states:
-            self.widget_states[widget_id].mark_stale()
+        # Mark widget as pending update (thread-safe access)
+        with self._state_lock:
+            state = self.widget_states.get(widget_id)
+            if state:
+                state.mark_stale()
 
     def process_update_queue(self) -> int:
         """Process pending updates. Returns number processed."""
@@ -458,8 +486,10 @@ class DashboardUpdateManager:
                 processed += 1
             except Exception as e:
                 logger.error(f"Error updating widget {widget_id}: {e}")
-                if widget_id in self.widget_states:
-                    self.widget_states[widget_id].mark_error(str(e))
+                with self._state_lock:
+                    state = self.widget_states.get(widget_id)
+                    if state:
+                        state.mark_error(str(e))
 
         return processed
 
@@ -473,9 +503,11 @@ class DashboardUpdateManager:
         if not widget:
             return
 
-        state = self.widget_states.get(widget_id)
-        if state:
-            state.mark_updating()
+        # Get state reference under lock
+        with self._state_lock:
+            state = self.widget_states.get(widget_id)
+            if state:
+                state.mark_updating()
 
         start_time = time.time()
 
@@ -492,17 +524,21 @@ class DashboardUpdateManager:
             if handler:
                 handler(widget, data)
 
-            # Update state
+            # Update state under lock
             update_time_ms = (time.time() - start_time) * 1000
-            if state:
-                state.mark_updated(update_time_ms)
+            with self._state_lock:
+                state = self.widget_states.get(widget_id)
+                if state:
+                    state.mark_updated(update_time_ms)
 
             # Push update to subscribed clients
             self._push_widget_update(dashboard_id, widget, data)
 
         except Exception as e:
-            if state:
-                state.mark_error(str(e))
+            with self._state_lock:
+                state = self.widget_states.get(widget_id)
+                if state:
+                    state.mark_error(str(e))
             raise
 
     def _fetch_widget_data(self, widget: Widget) -> Any:

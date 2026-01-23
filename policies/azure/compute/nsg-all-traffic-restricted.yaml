@@ -1,7 +1,7 @@
 id: azure-compute-006
-name: NSG does not allow all traffic from internet
+name: NSG allows unrestricted inbound traffic from internet
 description: |
-  Ensure no Network Security Group rule allows all traffic from
+  Detects Network Security Group rules that allow all traffic from
   the internet. Overly permissive rules that allow all protocols
   and ports from Any source create severe security vulnerabilities.
 

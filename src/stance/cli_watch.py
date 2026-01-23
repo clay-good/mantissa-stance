@@ -502,7 +502,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     # Build configuration
     config = WatchConfig(
         interval_seconds=getattr(args, "interval", 300),
-        collectors=getattr(args, "collectors", "").split(",") if getattr(args, "collectors", None) else None,
+        collectors=[c.strip() for c in getattr(args, "collectors", "").split(",") if c.strip()] if getattr(args, "collectors", None) else None,
         notify_on_change=getattr(args, "notify", False),
         show_summary=not getattr(args, "no_summary", False),
         show_diff=not getattr(args, "no_diff", False),

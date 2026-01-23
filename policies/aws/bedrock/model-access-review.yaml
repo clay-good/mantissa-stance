@@ -12,7 +12,7 @@ resource_type: aws_bedrock_model_access
 
 check:
   type: expression
-  expression: "resource.model_access_status == 'ENABLED' and (resource.model_risk_level == 'low' or resource.model_risk_level == 'medium')"
+  expression: "resource.model_access_status != 'ENABLED' or resource.model_risk_level == 'low' or resource.model_risk_level == 'medium'"
 
 compliance:
   - framework: nist-ai-rmf

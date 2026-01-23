@@ -238,9 +238,14 @@ class IPEnricher(AssetEnricher):
         for iface in config.get("NetworkInterfaces", []):
             if "PrivateIpAddress" in iface:
                 ips.add(iface["PrivateIpAddress"])
-            for assoc in iface.get("Association", []):
-                if isinstance(assoc, dict) and "PublicIp" in assoc:
-                    ips.add(assoc["PublicIp"])
+            # AWS returns Association as a dict, not a list
+            assoc = iface.get("Association")
+            if isinstance(assoc, dict) and "PublicIp" in assoc:
+                ips.add(assoc["PublicIp"])
+            elif isinstance(assoc, list):
+                for a in assoc:
+                    if isinstance(a, dict) and "PublicIp" in a:
+                        ips.add(a["PublicIp"])
 
         # GCP compute instances
         for iface in config.get("networkInterfaces", []):

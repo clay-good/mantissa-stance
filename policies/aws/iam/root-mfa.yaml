@@ -14,8 +14,19 @@ check:
   type: expression
   expression: "resource.account_mfa_enabled == 1"
 
-benchmark:
-  - cis-aws: "1.5"
+compliance:
+  - framework: cis-aws-foundations
+    version: "1.5.0"
+    control: "1.5"
+  - framework: pci-dss
+    version: "4.0"
+    control: "8.4.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+  - framework: aws-foundational-security
+    version: "1.0"
+    control: "IAM.9"
 
 remediation:
   guidance: |

@@ -109,11 +109,17 @@ class Asset:
         """
         created_at = None
         if data.get("created_at"):
-            created_at = datetime.fromisoformat(data["created_at"])
+            try:
+                created_at = datetime.fromisoformat(data["created_at"])
+            except (ValueError, TypeError):
+                created_at = None
 
         last_seen = None
         if data.get("last_seen"):
-            last_seen = datetime.fromisoformat(data["last_seen"])
+            try:
+                last_seen = datetime.fromisoformat(data["last_seen"])
+            except (ValueError, TypeError):
+                last_seen = None
 
         return cls(
             id=data["id"],

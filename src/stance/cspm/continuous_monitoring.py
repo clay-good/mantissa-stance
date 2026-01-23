@@ -7,10 +7,13 @@ and automated alerting for compliance deviations.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Callable
+
+logger = logging.getLogger(__name__)
 
 
 class ComplianceState(Enum):
@@ -603,8 +606,9 @@ class ContinuousComplianceMonitor:
         for handler in self._alert_handlers:
             try:
                 handler(alert)
-            except Exception:
-                pass  # Don't let handler errors affect alerting
+            except Exception as e:
+                # Don't let handler errors affect alerting, but log them
+                logger.warning(f"Alert handler failed for alert {alert_id}: {e}")
 
         return alert
 

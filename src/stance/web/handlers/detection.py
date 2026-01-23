@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from stance.web.handlers.base import HandlerResponse, HttpStatus
+from stance.web.handlers.base import HandlerResponse, HttpStatus, PathValidationError, validate_safe_path
 from stance.web.handlers.router import route, RoutedHandler
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,12 @@ class DetectionHandler(RoutedHandler):
     def detection_scan(self, params: dict, body: dict | None) -> HandlerResponse:
         """Scan for sensitive data."""
         path = self.get_param(params, "path", ".")
+
+        # Validate path to prevent traversal attacks
+        try:
+            path = validate_safe_path(path, allow_parent_refs=False)
+        except PathValidationError as e:
+            return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
 
         # Demo findings
         findings = [

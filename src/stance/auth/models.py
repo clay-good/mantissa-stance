@@ -113,6 +113,12 @@ class AuditEventType(Enum):
 # User Models
 # =============================================================================
 
+# NIST SP 800-132 recommends minimum 10,000 iterations for PBKDF2.
+# OWASP 2023 recommends 600,000 iterations for SHA-256.
+# We use 600,000 to provide strong protection against brute-force attacks.
+DEFAULT_PASSWORD_ITERATIONS = 600_000
+
+
 @dataclass
 class UserCredentials:
     """
@@ -123,7 +129,7 @@ class UserCredentials:
     password_hash: str
     password_salt: str
     password_algorithm: str = "pbkdf2_sha256"
-    password_iterations: int = 100000
+    password_iterations: int = DEFAULT_PASSWORD_ITERATIONS
     mfa_enabled: bool = False
     mfa_secret: Optional[str] = None
     mfa_backup_codes: List[str] = field(default_factory=list)
@@ -134,8 +140,20 @@ class UserCredentials:
     lockout_until: Optional[datetime] = None
 
     @classmethod
-    def create(cls, password: str) -> "UserCredentials":
-        """Create credentials from plaintext password."""
+    def create(cls, password: str, validate: bool = True) -> "UserCredentials":
+        """
+        Create credentials from plaintext password.
+
+        Args:
+            password: The plaintext password
+            validate: Whether to validate password complexity (default True)
+
+        Raises:
+            ValueError: If password doesn't meet complexity requirements
+        """
+        if validate:
+            cls._validate_password_complexity(password)
+
         salt = secrets.token_hex(32)
         password_hash = cls._hash_password(password, salt)
         return cls(
@@ -145,7 +163,71 @@ class UserCredentials:
         )
 
     @staticmethod
-    def _hash_password(password: str, salt: str, iterations: int = 100000) -> str:
+    def _validate_password_complexity(password: str) -> None:
+        """
+        Validate password meets complexity requirements.
+
+        Requirements:
+        - Minimum 12 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        - At least one special character
+        - Not in common password list
+
+        Raises:
+            ValueError: If password doesn't meet requirements
+        """
+        import re
+
+        errors = []
+
+        if len(password) < 12:
+            errors.append("Password must be at least 12 characters long")
+
+        if not re.search(r"[A-Z]", password):
+            errors.append("Password must contain at least one uppercase letter")
+
+        if not re.search(r"[a-z]", password):
+            errors.append("Password must contain at least one lowercase letter")
+
+        if not re.search(r"\d", password):
+            errors.append("Password must contain at least one digit")
+
+        if not re.search(r"[!@#$%^&*()_+\-=\[\]{}|;':\",./<>?\\`~]", password):
+            errors.append("Password must contain at least one special character")
+
+        # Check against common passwords (subset for efficiency)
+        common_passwords = {
+            "password", "123456", "12345678", "qwerty", "abc123",
+            "monkey", "1234567", "letmein", "trustno1", "dragon",
+            "baseball", "master", "michael", "shadow", "ashley",
+            "foobar", "passw0rd", "p@ssword", "password1", "password123",
+            "admin", "administrator", "welcome", "welcome1", "changeme",
+        }
+        if password.lower() in common_passwords:
+            errors.append("Password is too common. Please choose a stronger password")
+
+        # Check for repetitive patterns
+        if re.search(r"(.)\1{3,}", password):
+            errors.append("Password cannot contain more than 3 repeated characters")
+
+        # Check for sequential patterns
+        sequential_patterns = [
+            "123456", "234567", "345678", "456789", "567890",
+            "abcdef", "bcdefg", "cdefgh", "qwerty", "asdfgh",
+        ]
+        lower_password = password.lower()
+        for pattern in sequential_patterns:
+            if pattern in lower_password:
+                errors.append("Password cannot contain common sequential patterns")
+                break
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+    @staticmethod
+    def _hash_password(password: str, salt: str, iterations: int = DEFAULT_PASSWORD_ITERATIONS) -> str:
         """Hash password using PBKDF2-SHA256."""
         return hashlib.pbkdf2_hmac(
             "sha256",

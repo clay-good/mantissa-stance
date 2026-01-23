@@ -14,9 +14,7 @@ check:
   type: expression
   expression: 'resource.certificate_info not_exists or
 
-    resource.certificate_info.days_until_expiry >= 30 or
-
-    resource.certificate_info.days_until_expiry < 0
+    resource.certificate_info.days_until_expiry >= 30
 
     '
 remediation:

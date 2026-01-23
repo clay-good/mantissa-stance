@@ -176,6 +176,11 @@ class AzureBlobStorage(StorageBackend):
             download = blob.download_blob()
             content = download.readall().decode("utf-8")
             return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"Malformed JSON in {self.account_name}/{self.container_name}/{blob_name}: {e}"
+            )
+            return None
         except ResourceNotFoundError:
             return None
         except HttpResponseError as e:
@@ -202,9 +207,16 @@ class AzureBlobStorage(StorageBackend):
             download = blob.download_blob()
             content = download.readall().decode("utf-8")
             items = []
-            for line in content.strip().split("\n"):
+            for line_num, line in enumerate(content.strip().split("\n"), 1):
                 if line:
-                    items.append(json.loads(line))
+                    try:
+                        items.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"Skipping malformed JSON on line {line_num} in "
+                            f"{self.account_name}/{self.container_name}/{blob_name}: {e}"
+                        )
+                        continue
             return items
         except ResourceNotFoundError:
             return []

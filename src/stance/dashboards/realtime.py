@@ -243,36 +243,43 @@ class EventBus:
         """Initialize the event bus."""
         self._connections: dict[str, ClientConnection] = {}
         self._lock = threading.RLock()
+        self._handlers_lock = threading.Lock()
         self._event_handlers: list[Callable[[RealtimeEvent], None]] = []
         self._running = False
+        self._stop_event = threading.Event()
         self._dispatcher_thread: threading.Thread | None = None
 
         logger.info("EventBus initialized")
 
     def start(self) -> None:
         """Start the event bus dispatcher."""
-        if self._running:
-            return
+        with self._lock:
+            if self._running:
+                return
 
-        self._running = True
-        self._dispatcher_thread = threading.Thread(
-            target=self._dispatch_loop,
-            daemon=True,
-            name="EventBusDispatcher",
-        )
-        self._dispatcher_thread.start()
+            self._running = True
+            self._stop_event.clear()
+            self._dispatcher_thread = threading.Thread(
+                target=self._dispatch_loop,
+                daemon=True,
+                name="EventBusDispatcher",
+            )
+            self._dispatcher_thread.start()
         logger.info("EventBus dispatcher started")
 
     def stop(self) -> None:
         """Stop the event bus dispatcher."""
-        self._running = False
-        if self._dispatcher_thread:
-            self._dispatcher_thread.join(timeout=5.0)
+        with self._lock:
+            self._running = False
+            self._stop_event.set()
+            thread = self._dispatcher_thread
+        if thread:
+            thread.join(timeout=5.0)
         logger.info("EventBus dispatcher stopped")
 
     def _dispatch_loop(self) -> None:
         """Main dispatch loop for event processing."""
-        while self._running:
+        while not self._stop_event.is_set():
             try:
                 # Send heartbeats periodically
                 self._send_heartbeats()
@@ -280,7 +287,8 @@ class EventBus:
                 # Clean up stale connections
                 self._cleanup_stale_connections()
 
-                time.sleep(1.0)
+                # Use wait with timeout instead of sleep for faster shutdown
+                self._stop_event.wait(timeout=1.0)
 
             except Exception as e:
                 logger.error(f"Dispatch loop error: {e}")
@@ -475,8 +483,10 @@ class EventBus:
                     except queue.Full:
                         logger.warning(f"Message queue full for client: {conn.id}")
 
-        # Notify handlers
-        for handler in self._event_handlers:
+        # Notify handlers - take snapshot under lock to avoid race conditions
+        with self._handlers_lock:
+            handlers = list(self._event_handlers)
+        for handler in handlers:
             try:
                 handler(event)
             except Exception as e:
@@ -490,7 +500,8 @@ class EventBus:
         handler: Callable[[RealtimeEvent], None],
     ) -> None:
         """Register an event handler."""
-        self._event_handlers.append(handler)
+        with self._handlers_lock:
+            self._event_handlers.append(handler)
 
     def get_messages(
         self,
@@ -517,11 +528,15 @@ class EventBus:
             # Update heartbeat
             conn.last_heartbeat = datetime.utcnow()
 
+            # Get reference to message queue while still holding lock
+            message_queue = conn.message_queue
+
+        # Now safe to access the queue outside the lock since Queue is thread-safe
         messages = []
         try:
             while len(messages) < max_messages:
                 try:
-                    msg = conn.message_queue.get(timeout=timeout)
+                    msg = message_queue.get(timeout=timeout)
                     messages.append(msg)
                 except queue.Empty:
                     break

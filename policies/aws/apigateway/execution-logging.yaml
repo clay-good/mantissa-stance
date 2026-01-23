@@ -12,7 +12,7 @@ resource_type: aws_apigateway_rest_api
 
 check:
   type: expression
-  expression: "resource.stages != null and resource.tracing_enabled == true"
+  expression: "resource.stages != null and resource.logging_level != 'OFF' and resource.logging_level exists"
 
 compliance:
   - framework: nist-800-53

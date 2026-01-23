@@ -406,16 +406,15 @@ class ASMStorageAdapter:
                 return ExternalAssetCollection()
             scan_id = latest.scan_id
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM asm_external_assets WHERE scan_id = ?",
-            (scan_id,),
-        )
+            cursor.execute(
+                "SELECT * FROM asm_external_assets WHERE scan_id = ?",
+                (scan_id,),
+            )
 
-        assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
-        conn.close()
+            assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
 
         return ExternalAssetCollection(assets)
 
@@ -429,16 +428,15 @@ class ASMStorageAdapter:
         Returns:
             ASMScanResult if found, None otherwise
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM asm_scans WHERE scan_id = ?",
-            (scan_id,),
-        )
+            cursor.execute(
+                "SELECT * FROM asm_scans WHERE scan_id = ?",
+                (scan_id,),
+            )
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
         if row is None:
             return None
@@ -452,19 +450,18 @@ class ASMStorageAdapter:
         Returns:
             Most recent ASMScanResult, or None if no scans exist
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            SELECT * FROM asm_scans
-            ORDER BY started_at DESC
-            LIMIT 1
-            """
-        )
+            cursor.execute(
+                """
+                SELECT * FROM asm_scans
+                ORDER BY started_at DESC
+                LIMIT 1
+                """
+            )
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
         if row is None:
             return None
@@ -478,19 +475,18 @@ class ASMStorageAdapter:
         Returns:
             Latest scan ID, or None if no scans exist
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            SELECT scan_id FROM asm_scans
-            ORDER BY started_at DESC
-            LIMIT 1
-            """
-        )
+            cursor.execute(
+                """
+                SELECT scan_id FROM asm_scans
+                ORDER BY started_at DESC
+                LIMIT 1
+                """
+            )
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
         return row["scan_id"] if row else None
 
@@ -504,42 +500,41 @@ class ASMStorageAdapter:
         Returns:
             List of ASMScanInfo objects, most recent first
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            SELECT scan_id, started_at, completed_at, status, target_domains,
-                   scan_mode, assets_discovered, findings_count, duration_seconds
-            FROM asm_scans
-            ORDER BY started_at DESC
-            LIMIT ?
-            """,
-            (limit,),
-        )
-
-        scans = []
-        for row in cursor.fetchall():
-            started_at = datetime.fromisoformat(row["started_at"])
-            completed_at = None
-            if row["completed_at"]:
-                completed_at = datetime.fromisoformat(row["completed_at"])
-
-            scans.append(
-                ASMScanInfo(
-                    scan_id=row["scan_id"],
-                    started_at=started_at,
-                    completed_at=completed_at,
-                    status=ASMScanStatus(row["status"]),
-                    target_domains=json.loads(row["target_domains"]),
-                    scan_mode=ASMScanMode(row["scan_mode"]),
-                    assets_discovered=row["assets_discovered"],
-                    findings_count=row["findings_count"],
-                    duration_seconds=row["duration_seconds"],
-                )
+            cursor.execute(
+                """
+                SELECT scan_id, started_at, completed_at, status, target_domains,
+                       scan_mode, assets_discovered, findings_count, duration_seconds
+                FROM asm_scans
+                ORDER BY started_at DESC
+                LIMIT ?
+                """,
+                (limit,),
             )
 
-        conn.close()
+            scans = []
+            for row in cursor.fetchall():
+                started_at = datetime.fromisoformat(row["started_at"])
+                completed_at = None
+                if row["completed_at"]:
+                    completed_at = datetime.fromisoformat(row["completed_at"])
+
+                scans.append(
+                    ASMScanInfo(
+                        scan_id=row["scan_id"],
+                        started_at=started_at,
+                        completed_at=completed_at,
+                        status=ASMScanStatus(row["status"]),
+                        target_domains=json.loads(row["target_domains"]),
+                        scan_mode=ASMScanMode(row["scan_mode"]),
+                        assets_discovered=row["assets_discovered"],
+                        findings_count=row["findings_count"],
+                        duration_seconds=row["duration_seconds"],
+                    )
+                )
+
         return scans
 
     def delete_scan(self, scan_id: str) -> bool:
@@ -552,30 +547,28 @@ class ASMStorageAdapter:
         Returns:
             True if scan was deleted, False if not found
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        # Check if scan exists
-        cursor.execute(
-            "SELECT scan_id FROM asm_scans WHERE scan_id = ?",
-            (scan_id,),
-        )
-        if cursor.fetchone() is None:
-            conn.close()
-            return False
+            # Check if scan exists
+            cursor.execute(
+                "SELECT scan_id FROM asm_scans WHERE scan_id = ?",
+                (scan_id,),
+            )
+            if cursor.fetchone() is None:
+                return False
 
-        # Delete assets and scan record
-        cursor.execute(
-            "DELETE FROM asm_external_assets WHERE scan_id = ?",
-            (scan_id,),
-        )
-        cursor.execute(
-            "DELETE FROM asm_scans WHERE scan_id = ?",
-            (scan_id,),
-        )
+            # Delete assets and scan record
+            cursor.execute(
+                "DELETE FROM asm_external_assets WHERE scan_id = ?",
+                (scan_id,),
+            )
+            cursor.execute(
+                "DELETE FROM asm_scans WHERE scan_id = ?",
+                (scan_id,),
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
         logger.info(f"Deleted ASM scan: {scan_id}")
         return True
@@ -590,16 +583,15 @@ class ASMStorageAdapter:
         Returns:
             Dictionary with first_seen_global, last_seen_global, scan_count
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM asm_asset_history WHERE asset_id = ?",
-            (asset_id,),
-        )
+            cursor.execute(
+                "SELECT * FROM asm_asset_history WHERE asset_id = ?",
+                (asset_id,),
+            )
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
         if row is None:
             return None
@@ -632,14 +624,13 @@ class ASMStorageAdapter:
         if not self._is_safe_query(sql):
             raise ValueError("Only SELECT queries are allowed")
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(sql)
-        columns = [description[0] for description in cursor.description]
-        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            cursor.execute(sql)
+            columns = [description[0] for description in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-        conn.close()
         return results
 
     def get_assets_by_domain(self, domain: str) -> ExternalAssetCollection:
@@ -652,20 +643,19 @@ class ASMStorageAdapter:
         Returns:
             ExternalAssetCollection with matching assets
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            SELECT * FROM asm_external_assets
-            WHERE domain = ?
-            ORDER BY last_seen DESC
-            """,
-            (domain.lower(),),
-        )
+            cursor.execute(
+                """
+                SELECT * FROM asm_external_assets
+                WHERE domain = ?
+                ORDER BY last_seen DESC
+                """,
+                (domain.lower(),),
+            )
 
-        assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
-        conn.close()
+            assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
 
         return ExternalAssetCollection(assets)
 
@@ -684,34 +674,25 @@ class ASMStorageAdapter:
         Returns:
             ExternalAssetCollection with matching assets
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        if scan_id:
-            cursor.execute(
-                """
-                SELECT * FROM asm_external_assets
-                WHERE port = ? AND scan_id = ?
-                """,
-                (port, scan_id),
-            )
-        else:
-            # Get from latest scan only
-            latest_id = self.get_latest_scan_id()
-            if latest_id is None:
-                conn.close()
+        # Get scan_id to use (either provided or latest)
+        target_scan_id = scan_id
+        if target_scan_id is None:
+            target_scan_id = self.get_latest_scan_id()
+            if target_scan_id is None:
                 return ExternalAssetCollection()
 
+        with self._connection() as conn:
+            cursor = conn.cursor()
+
             cursor.execute(
                 """
                 SELECT * FROM asm_external_assets
                 WHERE port = ? AND scan_id = ?
                 """,
-                (port, latest_id),
+                (port, target_scan_id),
             )
 
-        assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
-        conn.close()
+            assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
 
         return ExternalAssetCollection(assets)
 
@@ -730,26 +711,26 @@ class ASMStorageAdapter:
         Returns:
             ExternalAssetCollection with high-risk assets
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        if scan_id is None:
-            scan_id = self.get_latest_scan_id()
-            if scan_id is None:
-                conn.close()
+        # Get scan_id to use (either provided or latest)
+        target_scan_id = scan_id
+        if target_scan_id is None:
+            target_scan_id = self.get_latest_scan_id()
+            if target_scan_id is None:
                 return ExternalAssetCollection()
 
-        cursor.execute(
-            """
-            SELECT * FROM asm_external_assets
-            WHERE risk_score >= ? AND scan_id = ?
-            ORDER BY risk_score DESC
-            """,
-            (min_risk_score, scan_id),
-        )
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
-        conn.close()
+            cursor.execute(
+                """
+                SELECT * FROM asm_external_assets
+                WHERE risk_score >= ? AND scan_id = ?
+                ORDER BY risk_score DESC
+                """,
+                (min_risk_score, target_scan_id),
+            )
+
+            assets = [self._deserialize_external_asset(row) for row in cursor.fetchall()]
 
         return ExternalAssetCollection(assets)
 
@@ -820,6 +801,10 @@ class ASMStorageAdapter:
         """
         Validate that a SQL query is safe to execute.
 
+        This performs basic validation to prevent destructive operations.
+        Note: This still allows arbitrary SELECT queries which could
+        potentially access any data in the ASM database. Use with caution.
+
         Args:
             sql: SQL query to validate
 
@@ -828,6 +813,9 @@ class ASMStorageAdapter:
         """
         import re
 
+        if not sql or not sql.strip():
+            return False
+
         # Normalize whitespace and convert to uppercase for checking
         normalized = " ".join(sql.split()).upper()
 
@@ -835,7 +823,7 @@ class ASMStorageAdapter:
         if not normalized.startswith("SELECT"):
             return False
 
-        # Check for dangerous keywords
+        # Check for dangerous keywords that could modify data
         dangerous_keywords = [
             "INSERT",
             "UPDATE",
@@ -847,6 +835,11 @@ class ASMStorageAdapter:
             "REPLACE",
             "GRANT",
             "REVOKE",
+            "ATTACH",  # Could attach external databases
+            "DETACH",
+            "PRAGMA",  # Could modify SQLite settings
+            "VACUUM",
+            "REINDEX",
         ]
 
         for keyword in dangerous_keywords:
@@ -858,8 +851,16 @@ class ASMStorageAdapter:
         if "--" in sql or "/*" in sql or "*/" in sql:
             return False
 
-        # Check for multiple statements
+        # Check for multiple statements (prevent stacked queries)
         if ";" in sql.strip().rstrip(";"):
+            return False
+
+        # Check for hex/char encoding that could bypass filters
+        if re.search(r"0x[0-9a-fA-F]+", sql) or re.search(r"CHAR\s*\(", normalized):
+            return False
+
+        # Limit query length to prevent DoS
+        if len(sql) > 10000:
             return False
 
         return True
@@ -874,9 +875,11 @@ class ASMStorageAdapter:
         Returns:
             Dictionary with statistics
         """
-        if scan_id is None:
-            scan_id = self.get_latest_scan_id()
-            if scan_id is None:
+        # Get scan_id to use (either provided or latest)
+        target_scan_id = scan_id
+        if target_scan_id is None:
+            target_scan_id = self.get_latest_scan_id()
+            if target_scan_id is None:
                 return {
                     "scan_id": None,
                     "total_assets": 0,
@@ -887,88 +890,86 @@ class ASMStorageAdapter:
                     "risk_distribution": {},
                 }
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._connection() as conn:
+            cursor = conn.cursor()
 
-        # Total assets
-        cursor.execute(
-            "SELECT COUNT(*) as count FROM asm_external_assets WHERE scan_id = ?",
-            (scan_id,),
-        )
-        total_assets = cursor.fetchone()["count"]
+            # Total assets
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM asm_external_assets WHERE scan_id = ?",
+                (target_scan_id,),
+            )
+            total_assets = cursor.fetchone()["count"]
 
-        # Unique domains
-        cursor.execute(
-            """
-            SELECT COUNT(DISTINCT domain) as count
-            FROM asm_external_assets WHERE scan_id = ?
-            """,
-            (scan_id,),
-        )
-        domains_discovered = cursor.fetchone()["count"]
+            # Unique domains
+            cursor.execute(
+                """
+                SELECT COUNT(DISTINCT domain) as count
+                FROM asm_external_assets WHERE scan_id = ?
+                """,
+                (target_scan_id,),
+            )
+            domains_discovered = cursor.fetchone()["count"]
 
-        # Unique IPs
-        cursor.execute(
-            """
-            SELECT COUNT(DISTINCT ip_address) as count
-            FROM asm_external_assets
-            WHERE scan_id = ? AND ip_address IS NOT NULL
-            """,
-            (scan_id,),
-        )
-        unique_ips = cursor.fetchone()["count"]
+            # Unique IPs
+            cursor.execute(
+                """
+                SELECT COUNT(DISTINCT ip_address) as count
+                FROM asm_external_assets
+                WHERE scan_id = ? AND ip_address IS NOT NULL
+                """,
+                (target_scan_id,),
+            )
+            unique_ips = cursor.fetchone()["count"]
 
-        # Ports distribution
-        cursor.execute(
-            """
-            SELECT port, COUNT(*) as count
-            FROM asm_external_assets
-            WHERE scan_id = ? AND port IS NOT NULL
-            GROUP BY port
-            ORDER BY count DESC
-            """,
-            (scan_id,),
-        )
-        ports = {row["port"]: row["count"] for row in cursor.fetchall()}
+            # Ports distribution
+            cursor.execute(
+                """
+                SELECT port, COUNT(*) as count
+                FROM asm_external_assets
+                WHERE scan_id = ? AND port IS NOT NULL
+                GROUP BY port
+                ORDER BY count DESC
+                """,
+                (target_scan_id,),
+            )
+            ports = {row["port"]: row["count"] for row in cursor.fetchall()}
 
-        # Cloud provider distribution
-        cursor.execute(
-            """
-            SELECT COALESCE(cloud_provider, 'unknown') as provider, COUNT(*) as count
-            FROM asm_external_assets
-            WHERE scan_id = ?
-            GROUP BY cloud_provider
-            ORDER BY count DESC
-            """,
-            (scan_id,),
-        )
-        cloud_providers = {row["provider"]: row["count"] for row in cursor.fetchall()}
+            # Cloud provider distribution
+            cursor.execute(
+                """
+                SELECT COALESCE(cloud_provider, 'unknown') as provider, COUNT(*) as count
+                FROM asm_external_assets
+                WHERE scan_id = ?
+                GROUP BY cloud_provider
+                ORDER BY count DESC
+                """,
+                (target_scan_id,),
+            )
+            cloud_providers = {row["provider"]: row["count"] for row in cursor.fetchall()}
 
-        # Risk distribution
-        cursor.execute(
-            """
-            SELECT
-                CASE
-                    WHEN risk_score >= 8 THEN 'critical'
-                    WHEN risk_score >= 6 THEN 'high'
-                    WHEN risk_score >= 4 THEN 'medium'
-                    WHEN risk_score >= 2 THEN 'low'
-                    ELSE 'info'
-                END as risk_level,
-                COUNT(*) as count
-            FROM asm_external_assets
-            WHERE scan_id = ?
-            GROUP BY risk_level
-            ORDER BY risk_score DESC
-            """,
-            (scan_id,),
-        )
-        risk_distribution = {row["risk_level"]: row["count"] for row in cursor.fetchall()}
-
-        conn.close()
+            # Risk distribution
+            cursor.execute(
+                """
+                SELECT
+                    CASE
+                        WHEN risk_score >= 8 THEN 'critical'
+                        WHEN risk_score >= 6 THEN 'high'
+                        WHEN risk_score >= 4 THEN 'medium'
+                        WHEN risk_score >= 2 THEN 'low'
+                        ELSE 'info'
+                    END as risk_level,
+                    COUNT(*) as count
+                FROM asm_external_assets
+                WHERE scan_id = ?
+                GROUP BY risk_level
+                ORDER BY risk_score DESC
+                """,
+                (target_scan_id,),
+            )
+            risk_distribution = {row["risk_level"]: row["count"] for row in cursor.fetchall()}
 
         return {
-            "scan_id": scan_id,
+            "scan_id": target_scan_id,
             "total_assets": total_assets,
             "domains_discovered": domains_discovered,
             "unique_ips": unique_ips,

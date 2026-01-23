@@ -12,7 +12,7 @@ resource_type: k8s_cluster_role
 
 check:
   type: expression
-  expression: "not (resource.risk_analysis.has_wildcard_resources and resource.risk_analysis.has_wildcard_verbs)"
+  expression: "not (resource.risk_analysis.has_wildcard_resources or resource.risk_analysis.has_wildcard_verbs)"
 
 compliance:
   - framework: cis-kubernetes

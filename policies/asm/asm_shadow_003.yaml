@@ -12,11 +12,7 @@ severity: info
 resource_type: external_asset
 check:
   type: expression
-  expression: 'resource.first_seen != resource.last_seen or
-
-    resource.raw_data.is_new_asset != true
-
-    '
+  expression: 'resource.raw_data.is_new_asset != true'
 remediation:
   guidance: "1. This is an informational finding for new asset awareness\n2. Verify\
     \ the new subdomain is expected:\n   - Check with development and infrastructure\

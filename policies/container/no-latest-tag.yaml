@@ -12,7 +12,7 @@ resource_type: container_image
 
 check:
   type: expression
-  expression: "resource.tag != 'latest' && resource.has_digest == true"
+  expression: "resource.tag != 'latest' or resource.has_digest == true"
 
 compliance:
   - framework: nist-800-53

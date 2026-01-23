@@ -12,7 +12,7 @@ resource_type: aws_rds_instance
 
 check:
   type: expression
-  expression: "resource.storage_encrypted == false or resource.kms_key_id starts_with 'arn:aws:kms:'"
+  expression: "resource.storage_encrypted == true and resource.kms_key_id starts_with 'arn:aws:kms:'"
 
 compliance:
   - framework: pci-dss

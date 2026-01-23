@@ -200,28 +200,16 @@ class FindingsDiffer:
         Returns:
             DiffResult with changes
         """
-        # Get baseline findings
-        baseline_sql = f"""
-        SELECT * FROM findings WHERE snapshot_id = '{baseline_snapshot}'
-        """
-        baseline_data = self.storage.query_findings(baseline_sql)
-        baseline_findings = {f["id"]: f for f in baseline_data}
+        # Get baseline findings using safe parameterized method
+        baseline_collection = self.storage.get_findings(snapshot_id=baseline_snapshot)
+        baseline_findings = {f.id: f.to_dict() for f in baseline_collection}
 
         # Get current findings
-        if current_snapshot:
-            current_sql = f"""
-            SELECT * FROM findings WHERE snapshot_id = '{current_snapshot}'
-            """
-        else:
-            current_sql = """
-            SELECT * FROM findings
-            ORDER BY timestamp DESC
-            """
-            # Get latest snapshot
-            current_snapshot = "latest"
+        if not current_snapshot:
+            current_snapshot = self.storage.get_latest_snapshot_id() or "latest"
 
-        current_data = self.storage.query_findings(current_sql)
-        current_findings = {f["id"]: f for f in current_data}
+        current_collection = self.storage.get_findings(snapshot_id=current_snapshot)
+        current_findings = {f.id: f.to_dict() for f in current_collection}
 
         return self._compute_diff(
             baseline_snapshot,

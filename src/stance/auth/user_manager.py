@@ -9,8 +9,13 @@ Part of Phase 92: API Gateway & Authentication
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import re
 import secrets
+import struct
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
@@ -21,6 +26,101 @@ from stance.auth.models import (
     UserRole,
     UserStatus,
 )
+
+
+# =============================================================================
+# TOTP Implementation (RFC 6238)
+# =============================================================================
+
+# TOTP time step in seconds (standard is 30 seconds)
+TOTP_TIME_STEP = 30
+# Number of time steps to allow for clock drift (1 step before/after = 90 second window)
+TOTP_DRIFT_STEPS = 1
+
+
+def _generate_totp_secret() -> str:
+    """
+    Generate a random base32-encoded TOTP secret.
+
+    Returns:
+        Base32-encoded secret string (20 bytes = 160 bits of entropy)
+    """
+    # Generate 20 random bytes (160 bits - recommended by RFC 4226)
+    random_bytes = secrets.token_bytes(20)
+    # Encode as base32 (standard for TOTP secrets)
+    return base64.b32encode(random_bytes).decode("utf-8")
+
+
+def _compute_totp(secret: str, counter: int) -> str:
+    """
+    Compute TOTP code for a given counter value.
+
+    Implements HOTP (RFC 4226) which TOTP is based on.
+
+    Args:
+        secret: Base32-encoded secret key
+        counter: Time-based counter value
+
+    Returns:
+        6-digit TOTP code as string
+    """
+    # Decode the base32 secret
+    try:
+        key = base64.b32decode(secret.upper())
+    except Exception:
+        # If secret is not valid base32, treat as raw bytes (backward compat)
+        key = secret.encode("utf-8")
+
+    # Pack counter as 8-byte big-endian
+    counter_bytes = struct.pack(">Q", counter)
+
+    # Compute HMAC-SHA1
+    hmac_hash = hmac.new(key, counter_bytes, hashlib.sha1).digest()
+
+    # Dynamic truncation (RFC 4226 section 5.4)
+    offset = hmac_hash[-1] & 0x0F
+    truncated = struct.unpack(">I", hmac_hash[offset : offset + 4])[0]
+    truncated &= 0x7FFFFFFF  # Clear the top bit
+
+    # Generate 6-digit code
+    code = truncated % 1000000
+    return f"{code:06d}"
+
+
+def _verify_totp(secret: str, code: str, drift_steps: int = TOTP_DRIFT_STEPS) -> bool:
+    """
+    Verify a TOTP code with time drift tolerance.
+
+    Args:
+        secret: Base32-encoded secret key
+        code: 6-digit code to verify
+        drift_steps: Number of time steps to check before/after current time
+
+    Returns:
+        True if code is valid, False otherwise
+    """
+    # Basic validation
+    if not code or len(code) != 6 or not code.isdigit():
+        return False
+
+    if not secret:
+        return False
+
+    # Get current time counter
+    current_time = int(time.time())
+    current_counter = current_time // TOTP_TIME_STEP
+
+    # Check codes for current time and allowed drift windows
+    # This handles clock drift between server and authenticator app
+    for offset in range(-drift_steps, drift_steps + 1):
+        counter = current_counter + offset
+        expected_code = _compute_totp(secret, counter)
+
+        # Use constant-time comparison to prevent timing attacks
+        if hmac.compare_digest(expected_code, code):
+            return True
+
+    return False
 
 
 # =============================================================================
@@ -872,16 +972,24 @@ class UserManager:
         if user is None:
             raise UserNotFoundError("User not found")
 
-        # Generate TOTP secret (placeholder)
-        secret = secrets.token_hex(20)
+        # Generate proper base32-encoded TOTP secret
+        secret = _generate_totp_secret()
 
         user.credentials.mfa_enabled = True
         user.credentials.mfa_secret = secret
         user.updated_at = datetime.utcnow()
 
+        # Build otpauth URI for QR code generation
+        # Format: otpauth://totp/LABEL?secret=SECRET&issuer=ISSUER
+        otpauth_uri = (
+            f"otpauth://totp/MantissaStance:{user.email}"
+            f"?secret={secret}&issuer=MantissaStance&algorithm=SHA1&digits=6&period=30"
+        )
+
         return {
             "method": method,
             "secret": secret,
+            "otpauth_uri": otpauth_uri,
             "message": "MFA enabled - use authenticator app to scan QR code",
         }
 
@@ -915,10 +1023,8 @@ class UserManager:
         if not user.credentials.mfa_enabled or not user.credentials.mfa_secret:
             return False
 
-        # Placeholder TOTP verification
-        # In production, use pyotp or similar library
-        # For now, accept any 6-digit code for testing
-        return len(code) == 6 and code.isdigit()
+        # Verify TOTP code using RFC 6238 implementation
+        return _verify_totp(user.credentials.mfa_secret, code)
 
 
 def create_user_manager(

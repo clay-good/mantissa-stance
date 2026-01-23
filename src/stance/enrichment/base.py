@@ -6,6 +6,7 @@ Provides abstract interface for finding and asset enrichment.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -14,6 +15,8 @@ from typing import Any, Generic, TypeVar
 
 from stance.models.asset import Asset
 from stance.models.finding import Finding
+
+logger = logging.getLogger(__name__)
 
 
 class EnrichmentType(Enum):
@@ -310,9 +313,12 @@ class EnrichmentPipeline:
                     enrichments = enricher.enrich(ef.finding)
                     for enrichment in enrichments:
                         ef.add_enrichment(enrichment)
-                except Exception:
+                except Exception as e:
                     # Log error but continue with other enrichments
-                    pass
+                    logger.warning(
+                        f"Enrichment failed for finding {ef.finding.id} "
+                        f"with enricher {enricher.__class__.__name__}: {e}"
+                    )
 
         return enriched
 
@@ -340,9 +346,12 @@ class EnrichmentPipeline:
                     enrichments = enricher.enrich(ea.asset)
                     for enrichment in enrichments:
                         ea.add_enrichment(enrichment)
-                except Exception:
+                except Exception as e:
                     # Log error but continue with other enrichments
-                    pass
+                    logger.warning(
+                        f"Enrichment failed for asset {ea.asset.id} "
+                        f"with enricher {enricher.__class__.__name__}: {e}"
+                    )
 
         return enriched
 

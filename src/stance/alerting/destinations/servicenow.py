@@ -18,11 +18,12 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, quote
 
 try:
     import httpx
@@ -331,6 +332,248 @@ class ServiceNowError(Exception):
         super().__init__(message)
 
 
+class OpenRedirectError(ServiceNowError):
+    """Exception raised when a redirect to a different host is detected."""
+    pass
+
+
+def _validate_servicenow_url(url: str) -> None:
+    """
+    Validate that a URL is a legitimate ServiceNow instance URL.
+
+    Args:
+        url: URL to validate
+
+    Raises:
+        ValueError: If URL is invalid or potentially malicious
+    """
+    if not url:
+        raise ValueError("ServiceNow instance URL cannot be empty")
+
+    parsed = urlparse(url)
+
+    # Must be HTTPS for security
+    if parsed.scheme != "https":
+        raise ValueError(
+            f"ServiceNow instance URL must use HTTPS, got: {parsed.scheme}"
+        )
+
+    # Must have a hostname
+    if not parsed.hostname:
+        raise ValueError("ServiceNow instance URL must have a hostname")
+
+    # Hostname validation - ServiceNow instances follow specific patterns
+    hostname = parsed.hostname.lower()
+
+    # Common ServiceNow hostname patterns
+    valid_patterns = [
+        ".service-now.com",
+        ".servicenow.com",
+        ".servicenowservices.com",
+    ]
+
+    # Check if hostname matches a known ServiceNow pattern
+    # Note: Some organizations use custom domains, so we allow those but log a warning
+    is_standard_servicenow = any(hostname.endswith(pattern) for pattern in valid_patterns)
+
+    if not is_standard_servicenow:
+        logger.warning(
+            f"ServiceNow instance URL uses non-standard hostname: {hostname}. "
+            "Ensure this is a legitimate ServiceNow instance."
+        )
+
+    # Reject IP addresses to prevent SSRF to internal services
+    try:
+        import ipaddress
+        ipaddress.ip_address(hostname)
+        raise ValueError("ServiceNow instance URL cannot be an IP address")
+    except ValueError as e:
+        if "cannot be an IP address" in str(e):
+            raise
+        # Not an IP address, which is good
+        pass
+
+    # No path traversal
+    if ".." in parsed.path:
+        raise ValueError("ServiceNow instance URL contains invalid path")
+
+    # No credentials in URL
+    if parsed.username or parsed.password:
+        raise ValueError("ServiceNow instance URL cannot contain credentials")
+
+
+# Regular expressions for validating ServiceNow inputs
+_SERVICENOW_SYS_ID_PATTERN = re.compile(r"^[a-f0-9]{32}$")
+_SERVICENOW_NUMBER_PATTERN = re.compile(r"^[A-Z]{2,5}[0-9]{7,10}$")
+_SERVICENOW_EMAIL_PATTERN = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+_SERVICENOW_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_.]+$")
+
+
+def _validate_sys_id(sys_id: str) -> str:
+    """
+    Validate and return a ServiceNow sys_id.
+
+    Args:
+        sys_id: The sys_id to validate (32-char hex string)
+
+    Returns:
+        The validated sys_id
+
+    Raises:
+        ValueError: If sys_id is invalid
+    """
+    if not sys_id:
+        raise ValueError("sys_id cannot be empty")
+    sys_id = sys_id.strip().lower()
+    if not _SERVICENOW_SYS_ID_PATTERN.match(sys_id):
+        raise ValueError(
+            f"Invalid sys_id format: {sys_id!r}. "
+            "sys_id must be a 32-character hexadecimal string."
+        )
+    return sys_id
+
+
+def _validate_ticket_number(number: str) -> str:
+    """
+    Validate and return a ServiceNow ticket number.
+
+    Args:
+        number: The ticket number to validate (e.g., INC0010001, CHG0000123)
+
+    Returns:
+        The validated ticket number
+
+    Raises:
+        ValueError: If ticket number is invalid
+    """
+    if not number:
+        raise ValueError("Ticket number cannot be empty")
+    number = number.strip().upper()
+    if not _SERVICENOW_NUMBER_PATTERN.match(number):
+        raise ValueError(
+            f"Invalid ticket number format: {number!r}. "
+            "Expected format: PREFIX followed by 7-10 digits (e.g., INC0010001)."
+        )
+    return number
+
+
+def _validate_email(email: str) -> str:
+    """
+    Validate and return an email address for ServiceNow queries.
+
+    Args:
+        email: The email address to validate
+
+    Returns:
+        The validated email address
+
+    Raises:
+        ValueError: If email is invalid
+    """
+    if not email:
+        raise ValueError("Email cannot be empty")
+    email = email.strip().lower()
+    if len(email) > 254:
+        raise ValueError("Email address too long")
+    if not _SERVICENOW_EMAIL_PATTERN.match(email):
+        raise ValueError(f"Invalid email format: {email!r}")
+    return email
+
+
+def _validate_group_name(name: str) -> str:
+    """
+    Validate and return a ServiceNow group name.
+
+    Args:
+        name: The group name to validate
+
+    Returns:
+        The validated group name
+
+    Raises:
+        ValueError: If name is invalid
+    """
+    if not name:
+        raise ValueError("Group name cannot be empty")
+    name = name.strip()
+    if len(name) > 100:
+        raise ValueError("Group name too long (max 100 characters)")
+    if not _SERVICENOW_NAME_PATTERN.match(name):
+        raise ValueError(
+            f"Invalid group name: {name!r}. "
+            "Group names can only contain alphanumeric characters, spaces, hyphens, underscores, and periods."
+        )
+    return name
+
+
+def _encode_query_value(value: str) -> str:
+    """
+    Safely encode a value for use in ServiceNow sysparm_query.
+
+    ServiceNow query syntax uses special characters (^, =, !=, etc.).
+    This function escapes special characters to prevent query injection.
+
+    Args:
+        value: The value to encode
+
+    Returns:
+        The safely encoded value
+    """
+    # ServiceNow uses ^ as AND operator and other special chars
+    # URL-encode the value to prevent injection
+    return quote(value, safe="")
+
+
+def _validate_query_string(query: str, max_length: int = 2000) -> str:
+    """
+    Validate a ServiceNow encoded query string.
+
+    This validates that the query doesn't contain dangerous characters
+    that could lead to injection attacks while allowing ServiceNow's
+    query language operators.
+
+    Args:
+        query: The query string to validate
+        max_length: Maximum allowed query length
+
+    Returns:
+        The validated query string
+
+    Raises:
+        ValueError: If query contains invalid characters
+    """
+    if not query:
+        raise ValueError("Query string cannot be empty")
+
+    query = query.strip()
+
+    if len(query) > max_length:
+        raise ValueError(f"Query too long (max {max_length} characters)")
+
+    # Block null bytes and control characters (except newlines which shouldn't be there anyway)
+    if "\x00" in query or any(ord(c) < 32 and c not in "\t" for c in query):
+        raise ValueError("Query contains invalid control characters")
+
+    # Block newlines and carriage returns
+    if "\n" in query or "\r" in query:
+        raise ValueError("Query cannot contain newline characters")
+
+    # ServiceNow queries use specific operators: ^, =, !=, LIKE, STARTSWITH, etc.
+    # Allow alphanumeric, common punctuation used in queries, and percent-encoded values
+    # Block shell metacharacters that shouldn't appear in legitimate queries
+    dangerous_patterns = [
+        "$(", "`", "&&", "||", ";", "|", ">", "<",
+        "{", "}", "[", "]", "\\", "'", '"',
+    ]
+    for pattern in dangerous_patterns:
+        if pattern in query:
+            raise ValueError(
+                f"Query contains potentially dangerous character sequence: {pattern!r}"
+            )
+
+    return query
+
+
 class ServiceNowClient:
     """
     ServiceNow REST API client.
@@ -341,20 +584,80 @@ class ServiceNowClient:
     """
 
     def __init__(self, config: ServiceNowConfig):
-        """Initialize client with configuration."""
+        """
+        Initialize client with configuration.
+
+        Raises:
+            ValueError: If instance URL is invalid
+        """
+        # Validate instance URL to prevent SSRF and open redirect attacks
+        _validate_servicenow_url(config.instance_url)
+
         self.config = config
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
         self._http_client: Optional[Any] = None
+
+        # Store the expected hostname for redirect validation
+        parsed = urlparse(config.instance_url)
+        self._expected_host = parsed.hostname.lower() if parsed.hostname else ""
 
     def _get_http_client(self) -> Any:
         """Get or create HTTP client."""
         if self._http_client is None and HTTPX_AVAILABLE:
             self._http_client = httpx.Client(
                 timeout=httpx.Timeout(30.0, connect=10.0),
-                follow_redirects=True,
+                # Disable automatic redirects to prevent open redirect attacks
+                # We handle redirects manually with host validation
+                follow_redirects=False,
             )
         return self._http_client
+
+    def _validate_redirect(self, response: Any, original_url: str) -> Optional[str]:
+        """
+        Validate and extract redirect URL if present.
+
+        Args:
+            response: HTTP response object
+            original_url: The original request URL
+
+        Returns:
+            Validated redirect URL or None if no redirect
+
+        Raises:
+            OpenRedirectError: If redirect goes to a different host
+        """
+        if response.status_code not in (301, 302, 303, 307, 308):
+            return None
+
+        location = response.headers.get("location")
+        if not location:
+            return None
+
+        # Parse redirect URL
+        redirect_parsed = urlparse(location)
+
+        # Handle relative redirects
+        if not redirect_parsed.netloc:
+            # Relative URL - safe to follow (stays on same host)
+            return urljoin(original_url, location)
+
+        # Absolute URL - validate the host
+        redirect_host = redirect_parsed.hostname.lower() if redirect_parsed.hostname else ""
+
+        if redirect_host != self._expected_host:
+            raise OpenRedirectError(
+                f"Redirect to different host blocked: {redirect_host} "
+                f"(expected: {self._expected_host}). This may indicate an attack."
+            )
+
+        # Ensure redirect uses HTTPS
+        if redirect_parsed.scheme != "https":
+            raise OpenRedirectError(
+                f"Redirect to non-HTTPS URL blocked: {location}"
+            )
+
+        return location
 
     def _ensure_oauth_token(self) -> None:
         """Ensure OAuth token is valid, refresh if needed."""
@@ -451,19 +754,38 @@ class ServiceNowClient:
         client = self._get_http_client()
         headers = self._get_auth_headers()
 
+        # Maximum number of redirects to follow
+        max_redirects = 5
+        current_url = url
+
         try:
-            if method.upper() == "GET":
-                response = client.get(url, headers=headers, params=params)
-            elif method.upper() == "POST":
-                response = client.post(url, headers=headers, json=data, params=params)
-            elif method.upper() == "PATCH":
-                response = client.patch(url, headers=headers, json=data, params=params)
-            elif method.upper() == "PUT":
-                response = client.put(url, headers=headers, json=data, params=params)
-            elif method.upper() == "DELETE":
-                response = client.delete(url, headers=headers, params=params)
-            else:
-                raise ServiceNowError(f"Unsupported HTTP method: {method}")
+            for redirect_count in range(max_redirects + 1):
+                if method.upper() == "GET":
+                    response = client.get(current_url, headers=headers, params=params)
+                elif method.upper() == "POST":
+                    response = client.post(current_url, headers=headers, json=data, params=params)
+                elif method.upper() == "PATCH":
+                    response = client.patch(current_url, headers=headers, json=data, params=params)
+                elif method.upper() == "PUT":
+                    response = client.put(current_url, headers=headers, json=data, params=params)
+                elif method.upper() == "DELETE":
+                    response = client.delete(current_url, headers=headers, params=params)
+                else:
+                    raise ServiceNowError(f"Unsupported HTTP method: {method}")
+
+                # Check for redirect and validate it
+                redirect_url = self._validate_redirect(response, current_url)
+                if redirect_url:
+                    if redirect_count >= max_redirects:
+                        raise ServiceNowError(f"Too many redirects (max {max_redirects})")
+                    logger.debug(f"Following validated redirect to: {redirect_url}")
+                    current_url = redirect_url
+                    # Clear params on redirect (they're in the URL now)
+                    params = None
+                    continue
+
+                # No redirect, process the response
+                break
 
             # Check for errors
             if response.status_code >= 400:
@@ -487,6 +809,9 @@ class ServiceNowClient:
 
             return response.json()
 
+        except OpenRedirectError:
+            # Re-raise open redirect errors
+            raise
         except httpx.TimeoutException as e:
             raise ServiceNowError(f"Request timeout: {e}")
         except httpx.RequestError as e:
@@ -546,10 +871,14 @@ class ServiceNowClient:
 
         Returns:
             Updated ticket
+
+        Raises:
+            ValueError: If sys_id is invalid
         """
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.INCIDENT.value}/{sys_id}"
+            f"{ServiceNowTable.INCIDENT.value}/{validated_sys_id}"
         )
 
         response = self._make_request("PATCH", url, data=updates)
@@ -557,9 +886,10 @@ class ServiceNowClient:
 
     def get_incident(self, sys_id: str) -> Optional[ServiceNowTicket]:
         """Get incident by sys_id."""
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.INCIDENT.value}/{sys_id}"
+            f"{ServiceNowTable.INCIDENT.value}/{validated_sys_id}"
         )
 
         response = self._make_request("GET", url)
@@ -570,8 +900,10 @@ class ServiceNowClient:
 
     def get_incident_by_number(self, number: str) -> Optional[ServiceNowTicket]:
         """Get incident by ticket number."""
+        validated_number = _validate_ticket_number(number)
         url = urljoin(self.config.table_api_url, ServiceNowTable.INCIDENT.value)
-        params = {"sysparm_query": f"number={number}"}
+        # Use encoded query value to prevent injection
+        params = {"sysparm_query": f"number={_encode_query_value(validated_number)}"}
 
         response = self._make_request("GET", url, params=params)
         results = response.get("result", [])
@@ -595,10 +927,14 @@ class ServiceNowClient:
 
         Returns:
             List of matching tickets
+
+        Raises:
+            ValueError: If query contains invalid characters
         """
+        validated_query = _validate_query_string(query)
         url = urljoin(self.config.table_api_url, ServiceNowTable.INCIDENT.value)
         params = {
-            "sysparm_query": query,
+            "sysparm_query": validated_query,
             "sysparm_limit": str(limit),
             "sysparm_offset": str(offset),
         }
@@ -675,17 +1011,19 @@ class ServiceNowClient:
         updates: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Update a change request."""
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.CHANGE_REQUEST.value}/{sys_id}"
+            f"{ServiceNowTable.CHANGE_REQUEST.value}/{validated_sys_id}"
         )
         return self._make_request("PATCH", url, data=updates)
 
     def get_change_request(self, sys_id: str) -> Optional[Dict[str, Any]]:
         """Get change request by sys_id."""
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.CHANGE_REQUEST.value}/{sys_id}"
+            f"{ServiceNowTable.CHANGE_REQUEST.value}/{validated_sys_id}"
         )
         response = self._make_request("GET", url)
         return response.get("result")
@@ -696,18 +1034,32 @@ class ServiceNowClient:
 
     def get_ci(self, sys_id: str) -> Optional[Dict[str, Any]]:
         """Get configuration item from CMDB."""
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.CMDB_CI.value}/{sys_id}"
+            f"{ServiceNowTable.CMDB_CI.value}/{validated_sys_id}"
         )
         response = self._make_request("GET", url)
         return response.get("result")
 
     def query_ci(self, query: str, limit: int = 100) -> List[Dict[str, Any]]:
-        """Query configuration items."""
+        """
+        Query configuration items.
+
+        Args:
+            query: ServiceNow encoded query string
+            limit: Maximum results
+
+        Returns:
+            List of matching configuration items
+
+        Raises:
+            ValueError: If query contains invalid characters
+        """
+        validated_query = _validate_query_string(query)
         url = urljoin(self.config.table_api_url, ServiceNowTable.CMDB_CI.value)
         params = {
-            "sysparm_query": query,
+            "sysparm_query": validated_query,
             "sysparm_limit": str(limit),
         }
         response = self._make_request("GET", url, params=params)
@@ -715,7 +1067,10 @@ class ServiceNowClient:
 
     def find_ci_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Find CI by name."""
-        results = self.query_ci(f"name={name}", limit=1)
+        # Validate and encode the name to prevent query injection
+        if not name or len(name) > 255:
+            raise ValueError("Invalid CI name")
+        results = self.query_ci(f"name={_encode_query_value(name)}", limit=1)
         return results[0] if results else None
 
     # =========================================================================
@@ -724,37 +1079,41 @@ class ServiceNowClient:
 
     def get_user(self, sys_id: str) -> Optional[Dict[str, Any]]:
         """Get user by sys_id."""
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.SYS_USER.value}/{sys_id}"
+            f"{ServiceNowTable.SYS_USER.value}/{validated_sys_id}"
         )
         response = self._make_request("GET", url)
         return response.get("result")
 
     def find_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Find user by email."""
+        validated_email = _validate_email(email)
         url = urljoin(self.config.table_api_url, ServiceNowTable.SYS_USER.value)
-        params = {"sysparm_query": f"email={email}"}
+        params = {"sysparm_query": f"email={_encode_query_value(validated_email)}"}
         response = self._make_request("GET", url, params=params)
         results = response.get("result", [])
         return results[0] if results else None
 
     def get_group(self, sys_id: str) -> Optional[Dict[str, Any]]:
         """Get group by sys_id."""
+        validated_sys_id = _validate_sys_id(sys_id)
         url = urljoin(
             self.config.table_api_url,
-            f"{ServiceNowTable.SYS_USER_GROUP.value}/{sys_id}"
+            f"{ServiceNowTable.SYS_USER_GROUP.value}/{validated_sys_id}"
         )
         response = self._make_request("GET", url)
         return response.get("result")
 
     def find_group_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Find group by name."""
+        validated_name = _validate_group_name(name)
         url = urljoin(
             self.config.table_api_url,
             ServiceNowTable.SYS_USER_GROUP.value
         )
-        params = {"sysparm_query": f"name={name}"}
+        params = {"sysparm_query": f"name={_encode_query_value(validated_name)}"}
         response = self._make_request("GET", url, params=params)
         results = response.get("result", [])
         return results[0] if results else None

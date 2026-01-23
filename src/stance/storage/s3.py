@@ -159,6 +159,9 @@ class S3Storage(StorageBackend):
             response = client.get_object(Bucket=self.bucket, Key=key)
             body = response["Body"].read().decode("utf-8")
             return json.loads(body)
+        except json.JSONDecodeError as e:
+            logger.error(f"Malformed JSON in s3://{self.bucket}/{key}: {e}")
+            return None
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code in ("NoSuchKey", "404"):
@@ -185,9 +188,16 @@ class S3Storage(StorageBackend):
             response = client.get_object(Bucket=self.bucket, Key=key)
             body = response["Body"].read().decode("utf-8")
             items = []
-            for line in body.strip().split("\n"):
+            for line_num, line in enumerate(body.strip().split("\n"), 1):
                 if line:
-                    items.append(json.loads(line))
+                    try:
+                        items.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"Skipping malformed JSON on line {line_num} in "
+                            f"s3://{self.bucket}/{key}: {e}"
+                        )
+                        continue
             return items
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")

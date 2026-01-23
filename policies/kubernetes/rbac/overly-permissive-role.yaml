@@ -12,7 +12,7 @@ resource_type: k8s_cluster_role
 
 check:
   type: expression
-  expression: "resource.risk_analysis.risk_score < 70"
+  expression: "resource.risk_analysis not_exists or resource.risk_analysis.risk_score < 70"
 
 compliance:
   - framework: cis-kubernetes

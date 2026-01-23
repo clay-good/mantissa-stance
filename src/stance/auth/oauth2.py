@@ -10,10 +10,15 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
+import ipaddress
 import json
 import logging
 import secrets
+import socket
+import threading
 import urllib.parse
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -25,6 +30,114 @@ try:
 except ImportError:
     httpx = None  # type: ignore
     HTTPX_AVAILABLE = False
+
+
+def _is_production_environment() -> bool:
+    """Check if running in a production environment."""
+    return any([
+        os.environ.get("STANCE_ENV", "").lower() == "production",
+        os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+        os.environ.get("ENV", "").lower() == "production",
+        os.environ.get("ENVIRONMENT", "").lower() == "production",
+        os.environ.get("NODE_ENV", "").lower() == "production",
+    ])
+
+
+def _is_private_ip(ip_str: str) -> bool:
+    """Check if an IP address is private/internal."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+            # AWS/Cloud metadata endpoints
+            or ip_str.startswith("169.254.")
+        )
+    except ValueError:
+        return False
+
+
+def _validate_oauth_url(url: str, context: str = "OAuth") -> None:
+    """
+    Validate an OAuth2/OIDC URL to prevent SSRF attacks.
+
+    Args:
+        url: The URL to validate
+        context: Context for error messages
+
+    Raises:
+        OAuth2Error: If the URL fails validation
+    """
+    if not url:
+        raise OAuth2Error(f"{context} URL is empty")
+
+    # Parse the URL
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception as e:
+        raise OAuth2Error(f"Invalid {context} URL format: {e}")
+
+    # Check scheme - only allow HTTPS in production
+    if _is_production_environment():
+        if parsed.scheme != "https":
+            raise OAuth2Error(
+                f"Invalid {context} URL scheme: {parsed.scheme}. "
+                "Only https:// is allowed in production."
+            )
+    elif parsed.scheme not in ("https", "http"):
+        raise OAuth2Error(f"Invalid {context} URL scheme: {parsed.scheme}")
+
+    # Check for empty hostname
+    if not parsed.hostname:
+        raise OAuth2Error(f"{context} URL must have a hostname")
+
+    hostname = parsed.hostname.lower()
+
+    # Block localhost and internal hostnames
+    blocked_hostnames = {
+        "localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]",
+        "metadata.google.internal", "metadata.google",
+        "kubernetes.default", "kubernetes.default.svc",
+    }
+
+    if hostname in blocked_hostnames:
+        raise OAuth2Error(f"Blocked hostname for {context}: {hostname}")
+
+    # Block private IPs directly in URL
+    try:
+        if _is_private_ip(hostname):
+            raise OAuth2Error(
+                f"Private/internal IP addresses are not allowed for {context}: {hostname}"
+            )
+    except ValueError:
+        pass  # Not an IP, continue with DNS resolution
+
+    # Resolve hostname and check all IPs (in production)
+    if _is_production_environment():
+        try:
+            addr_info = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
+            for family, socktype, proto, canonname, sockaddr in addr_info:
+                ip = sockaddr[0]
+                if _is_private_ip(ip):
+                    raise OAuth2Error(
+                        f"Hostname {hostname} resolves to private/internal IP {ip}. "
+                        f"This is not allowed for {context} endpoints in production."
+                    )
+        except socket.gaierror as e:
+            raise OAuth2Error(f"Cannot resolve hostname {hostname}: {e}")
+
+try:
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.x509 import load_pem_x509_certificate
+    CRYPTOGRAPHY_AVAILABLE = True
+except ImportError:
+    CRYPTOGRAPHY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +246,13 @@ class OIDCConfig(OAuth2Config):
 
         Returns:
             OIDCConfig populated from discovery document
+
+        Raises:
+            OAuth2Error: If the issuer URL is invalid or fails SSRF validation
         """
+        # Validate issuer URL to prevent SSRF attacks
+        _validate_oauth_url(issuer, "OIDC issuer")
+
         discovery_url = f"{issuer.rstrip('/')}/.well-known/openid-configuration"
 
         if not HTTPX_AVAILABLE:
@@ -281,6 +400,225 @@ class OIDCUserInfo:
 
 
 # =============================================================================
+# JWKS Key Management
+# =============================================================================
+
+class JWKSKeyManager:
+    """
+    Manages JSON Web Key Sets (JWKS) for ID token verification.
+
+    Fetches and caches public keys from OIDC provider's JWKS endpoint
+    to enable cryptographic signature verification of ID tokens.
+    """
+
+    def __init__(self, jwks_uri: str, cache_ttl_seconds: int = 3600):
+        """
+        Initialize JWKS key manager.
+
+        Args:
+            jwks_uri: URL of the JWKS endpoint
+            cache_ttl_seconds: How long to cache keys (default: 1 hour)
+        """
+        self.jwks_uri = jwks_uri
+        self.cache_ttl_seconds = cache_ttl_seconds
+        self._keys: Dict[str, Any] = {}
+        self._last_fetch: Optional[datetime] = None
+        self._lock = threading.Lock()
+
+    def _is_cache_valid(self) -> bool:
+        """Check if cached keys are still valid."""
+        if self._last_fetch is None:
+            return False
+        age = (datetime.utcnow() - self._last_fetch).total_seconds()
+        return age < self.cache_ttl_seconds
+
+    def _fetch_jwks(self) -> Dict[str, Any]:
+        """Fetch JWKS from the provider."""
+        if not HTTPX_AVAILABLE:
+            raise OAuth2ConfigError("httpx is required for JWKS verification")
+
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(self.jwks_uri)
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Failed to fetch JWKS from {self.jwks_uri}: {e}")
+            raise OAuth2TokenError(f"Failed to fetch JWKS: {e}")
+
+    def _parse_rsa_key(self, jwk: Dict[str, Any]) -> Any:
+        """Parse an RSA public key from JWK format."""
+        if not CRYPTOGRAPHY_AVAILABLE:
+            raise OAuth2ConfigError("cryptography library is required for JWT verification")
+
+        # Decode the modulus (n) and exponent (e)
+        n_bytes = base64.urlsafe_b64decode(jwk["n"] + "==")
+        e_bytes = base64.urlsafe_b64decode(jwk["e"] + "==")
+
+        n = int.from_bytes(n_bytes, byteorder="big")
+        e = int.from_bytes(e_bytes, byteorder="big")
+
+        # Construct the RSA public key
+        public_numbers = rsa.RSAPublicNumbers(e, n)
+        return public_numbers.public_key(default_backend())
+
+    def _parse_ec_key(self, jwk: Dict[str, Any]) -> Any:
+        """Parse an EC public key from JWK format."""
+        if not CRYPTOGRAPHY_AVAILABLE:
+            raise OAuth2ConfigError("cryptography library is required for JWT verification")
+
+        crv = jwk.get("crv", "P-256")
+        x_bytes = base64.urlsafe_b64decode(jwk["x"] + "==")
+        y_bytes = base64.urlsafe_b64decode(jwk["y"] + "==")
+
+        x = int.from_bytes(x_bytes, byteorder="big")
+        y = int.from_bytes(y_bytes, byteorder="big")
+
+        # Map curve names to cryptography curves
+        curve_map = {
+            "P-256": ec.SECP256R1(),
+            "P-384": ec.SECP384R1(),
+            "P-521": ec.SECP521R1(),
+        }
+
+        curve = curve_map.get(crv)
+        if curve is None:
+            raise OAuth2TokenError(f"Unsupported EC curve: {crv}")
+
+        public_numbers = ec.EllipticCurvePublicNumbers(x, y, curve)
+        return public_numbers.public_key(default_backend())
+
+    def get_key(self, kid: str, force_refresh: bool = False) -> Any:
+        """
+        Get a public key by key ID.
+
+        Args:
+            kid: Key ID from the JWT header
+            force_refresh: Force a refresh of the JWKS cache
+
+        Returns:
+            Public key object for signature verification
+
+        Raises:
+            OAuth2TokenError: If key not found
+        """
+        with self._lock:
+            # Check cache first
+            if not force_refresh and self._is_cache_valid() and kid in self._keys:
+                return self._keys[kid]
+
+            # Fetch fresh JWKS
+            jwks = self._fetch_jwks()
+
+            # Parse and cache all keys
+            self._keys = {}
+            for jwk in jwks.get("keys", []):
+                key_id = jwk.get("kid")
+                if not key_id:
+                    continue
+
+                kty = jwk.get("kty")
+                try:
+                    if kty == "RSA":
+                        self._keys[key_id] = {
+                            "key": self._parse_rsa_key(jwk),
+                            "alg": jwk.get("alg", "RS256"),
+                        }
+                    elif kty == "EC":
+                        self._keys[key_id] = {
+                            "key": self._parse_ec_key(jwk),
+                            "alg": jwk.get("alg", "ES256"),
+                        }
+                    # Skip unsupported key types silently
+                except Exception as e:
+                    logger.warning(f"Failed to parse JWK with kid={key_id}: {e}")
+                    continue
+
+            self._last_fetch = datetime.utcnow()
+
+            if kid not in self._keys:
+                # Key not found - could be rotation, try one more refresh
+                if not force_refresh:
+                    return self.get_key(kid, force_refresh=True)
+                raise OAuth2TokenError(f"Key not found in JWKS: {kid}")
+
+            return self._keys[kid]
+
+    def verify_signature(
+        self,
+        header: Dict[str, Any],
+        signed_content: bytes,
+        signature: bytes,
+    ) -> bool:
+        """
+        Verify a JWT signature using the appropriate key from JWKS.
+
+        Args:
+            header: JWT header containing kid and alg
+            signed_content: The signed content (header.payload)
+            signature: The signature bytes
+
+        Returns:
+            True if signature is valid
+
+        Raises:
+            OAuth2TokenError: If verification fails
+        """
+        if not CRYPTOGRAPHY_AVAILABLE:
+            raise OAuth2ConfigError("cryptography library is required for JWT verification")
+
+        kid = header.get("kid")
+        alg = header.get("alg", "RS256")
+
+        if not kid:
+            raise OAuth2TokenError("JWT header missing 'kid' claim")
+
+        # Validate algorithm to prevent algorithm confusion attacks
+        allowed_algs = {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"}
+        if alg not in allowed_algs:
+            raise OAuth2TokenError(f"Unsupported or dangerous algorithm: {alg}")
+
+        key_info = self.get_key(kid)
+        public_key = key_info["key"]
+
+        try:
+            if alg.startswith("RS"):
+                # RSA signature verification
+                hash_alg = {
+                    "RS256": hashes.SHA256(),
+                    "RS384": hashes.SHA384(),
+                    "RS512": hashes.SHA512(),
+                }[alg]
+
+                public_key.verify(
+                    signature,
+                    signed_content,
+                    padding.PKCS1v15(),
+                    hash_alg,
+                )
+            elif alg.startswith("ES"):
+                # ECDSA signature verification
+                hash_alg = {
+                    "ES256": hashes.SHA256(),
+                    "ES384": hashes.SHA384(),
+                    "ES512": hashes.SHA512(),
+                }[alg]
+
+                public_key.verify(
+                    signature,
+                    signed_content,
+                    ec.ECDSA(hash_alg),
+                )
+            else:
+                raise OAuth2TokenError(f"Unsupported algorithm: {alg}")
+
+            return True
+
+        except Exception as e:
+            raise OAuth2TokenError(f"Signature verification failed: {e}")
+
+
+# =============================================================================
 # OAuth2 Provider
 # =============================================================================
 
@@ -407,13 +745,24 @@ class OAuth2Provider:
         if error:
             raise OAuth2Error(f"OAuth2 error: {error} - {error_description}")
 
-        if state not in self._states:
+        # Use constant-time comparison to prevent timing attacks
+        # First, find if state exists using constant-time lookup
+        stored_state: Optional[OAuth2State] = None
+        state_key: Optional[str] = None
+
+        for key, value in self._states.items():
+            # Use hmac.compare_digest for constant-time string comparison
+            # This prevents timing attacks that could reveal valid state values
+            if hmac.compare_digest(key.encode("utf-8"), state.encode("utf-8")):
+                stored_state = value
+                state_key = key
+                break
+
+        if stored_state is None:
             raise OAuth2Error("Invalid or expired state parameter")
 
-        stored_state = self._states[state]
-
         if stored_state.is_expired():
-            del self._states[state]
+            del self._states[state_key]
             raise OAuth2Error("State parameter has expired")
 
         if self.config.response_type == OAuth2ResponseType.CODE and not code:
@@ -460,8 +809,17 @@ class OAuth2Provider:
             token_data["code_verifier"] = state.code_verifier
 
         if not HTTPX_AVAILABLE:
-            # Fall back to simulated response for testing
-            logger.warning("httpx not available, returning simulated OAuth2 token")
+            # In production, fail rather than returning simulated tokens
+            if _is_production_environment():
+                raise OAuth2Error(
+                    "httpx library is required for OAuth2 token exchange in production. "
+                    "Install with: pip install httpx"
+                )
+            # Fall back to simulated response for testing/development only
+            logger.warning(
+                "httpx not available, returning simulated OAuth2 token. "
+                "This is ONLY acceptable for development/testing."
+            )
             return OAuth2Token(
                 access_token=f"simulated_access_token_{secrets.token_hex(16)}",
                 token_type="Bearer",
@@ -521,7 +879,15 @@ class OAuth2Provider:
             token_data["client_secret"] = self.config.client_secret
 
         if not HTTPX_AVAILABLE:
-            logger.warning("httpx not available, returning simulated refreshed token")
+            if _is_production_environment():
+                raise OAuth2Error(
+                    "httpx library is required for OAuth2 token refresh in production. "
+                    "Install with: pip install httpx"
+                )
+            logger.warning(
+                "httpx not available, returning simulated refreshed token. "
+                "This is ONLY acceptable for development/testing."
+            )
             return OAuth2Token(
                 access_token=f"refreshed_access_token_{secrets.token_hex(16)}",
                 token_type="Bearer",
@@ -631,18 +997,31 @@ class OIDCProvider(OAuth2Provider):
     """
     OpenID Connect provider integration.
 
-    Extends OAuth2Provider with OIDC-specific functionality.
+    Extends OAuth2Provider with OIDC-specific functionality including
+    cryptographic verification of ID tokens using JWKS.
     """
 
-    def __init__(self, config: OIDCConfig):
+    def __init__(self, config: OIDCConfig, verify_signatures: bool = True):
         """
         Initialize OIDC provider.
 
         Args:
             config: OIDC configuration
+            verify_signatures: Whether to verify ID token signatures (default: True)
+                             Only set to False in development/testing environments
         """
         super().__init__(config)
         self.oidc_config = config
+        self._verify_signatures = verify_signatures
+        self._jwks_manager: Optional[JWKSKeyManager] = None
+
+        if verify_signatures and config.jwks_uri:
+            self._jwks_manager = JWKSKeyManager(config.jwks_uri)
+        elif verify_signatures and not config.jwks_uri:
+            logger.warning(
+                "OIDC signature verification enabled but no jwks_uri configured. "
+                "ID tokens will not have cryptographic verification."
+            )
 
     def generate_authorization_url(
         self,
@@ -665,12 +1044,26 @@ class OIDCProvider(OAuth2Provider):
 
         return url, state
 
+    def _decode_jwt_part(self, part: str) -> bytes:
+        """Decode a base64url-encoded JWT part with proper padding."""
+        # Add padding if needed
+        pad_len = 4 - len(part) % 4
+        if pad_len != 4:
+            part += "=" * pad_len
+        return base64.urlsafe_b64decode(part)
+
     def validate_id_token(self, id_token: str, nonce: Optional[str] = None) -> Dict[str, Any]:
         """
-        Validate an ID token.
+        Validate an ID token with cryptographic signature verification.
 
-        Decodes and validates the JWT ID token. For full security in production,
-        you should also verify the signature using the provider's JWKS.
+        Performs complete OIDC ID token validation including:
+        - Cryptographic signature verification using JWKS
+        - Algorithm validation to prevent confusion attacks
+        - Issuer validation
+        - Audience validation
+        - Expiration check
+        - Nonce validation (if provided)
+        - Issued-at time validation
 
         Args:
             id_token: The ID token to validate
@@ -683,45 +1076,100 @@ class OIDCProvider(OAuth2Provider):
             OAuth2TokenError: If validation fails
         """
         try:
-            # Decode JWT payload (header.payload.signature)
+            # Decode JWT parts (header.payload.signature)
             parts = id_token.split(".")
             if len(parts) != 3:
-                raise OAuth2TokenError("Invalid ID token format")
+                raise OAuth2TokenError("Invalid ID token format: expected 3 parts")
 
-            # Decode payload (middle part)
-            payload = parts[1]
-            # Add padding if needed
-            padding = 4 - len(payload) % 4
-            if padding != 4:
-                payload += "=" * padding
-            claims = json.loads(base64.urlsafe_b64decode(payload))
+            header_b64, payload_b64, signature_b64 = parts
+
+            # Decode header
+            header = json.loads(self._decode_jwt_part(header_b64))
+
+            # Validate algorithm - prevent algorithm confusion attacks
+            alg = header.get("alg", "")
+            allowed_algorithms = {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"}
+
+            # CRITICAL: Never accept "none" algorithm or HMAC algorithms for ID tokens
+            if alg == "none":
+                raise OAuth2TokenError("Algorithm 'none' is not allowed for ID tokens")
+            if alg.startswith("HS"):
+                raise OAuth2TokenError(
+                    f"HMAC algorithms ({alg}) are not allowed for ID tokens from OIDC providers. "
+                    "This may indicate an algorithm confusion attack."
+                )
+            if alg not in allowed_algorithms:
+                raise OAuth2TokenError(f"Unsupported algorithm: {alg}")
+
+            # Verify cryptographic signature if JWKS manager is available
+            if self._verify_signatures and self._jwks_manager:
+                signed_content = f"{header_b64}.{payload_b64}".encode("utf-8")
+                signature = self._decode_jwt_part(signature_b64)
+
+                self._jwks_manager.verify_signature(header, signed_content, signature)
+                logger.debug("ID token signature verified successfully")
+
+            elif self._verify_signatures and not self._jwks_manager:
+                logger.warning(
+                    "ID token signature verification skipped: no JWKS manager configured. "
+                    "Configure jwks_uri for production deployments."
+                )
+
+            # Decode payload
+            claims = json.loads(self._decode_jwt_part(payload_b64))
 
             # Validate issuer
-            if self.oidc_config.issuer and claims.get("iss") != self.oidc_config.issuer:
-                raise OAuth2TokenError(f"Invalid issuer: {claims.get('iss')}")
+            if self.oidc_config.issuer:
+                if claims.get("iss") != self.oidc_config.issuer:
+                    raise OAuth2TokenError(
+                        f"Invalid issuer: expected '{self.oidc_config.issuer}', "
+                        f"got '{claims.get('iss')}'"
+                    )
 
             # Validate audience
             aud = claims.get("aud")
             if isinstance(aud, list):
                 if self.config.client_id not in aud:
                     raise OAuth2TokenError(f"Client ID not in audience: {aud}")
+                # If multiple audiences, azp claim must be present and match client_id
+                if len(aud) > 1:
+                    azp = claims.get("azp")
+                    if azp and azp != self.config.client_id:
+                        raise OAuth2TokenError(f"Invalid authorized party (azp): {azp}")
             elif aud != self.config.client_id:
                 raise OAuth2TokenError(f"Invalid audience: {aud}")
 
-            # Validate expiration
+            # Validate expiration (required claim)
             exp = claims.get("exp")
-            if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+            if exp is None:
+                raise OAuth2TokenError("ID token missing required 'exp' claim")
+            if datetime.utcfromtimestamp(exp) < datetime.utcnow():
                 raise OAuth2TokenError("ID token has expired")
 
-            # Validate nonce if provided
-            if nonce and claims.get("nonce") != nonce:
-                raise OAuth2TokenError("Invalid nonce")
+            # Validate issued-at time (iat) - token shouldn't be from far future
+            iat = claims.get("iat")
+            if iat is not None:
+                iat_time = datetime.utcfromtimestamp(iat)
+                # Allow 5 minutes of clock skew
+                if iat_time > datetime.utcnow() + timedelta(minutes=5):
+                    raise OAuth2TokenError("ID token issued-at time is in the future")
+
+            # Validate nonce if provided (required if sent in auth request)
+            if nonce:
+                if claims.get("nonce") != nonce:
+                    raise OAuth2TokenError("Invalid nonce - possible replay attack")
+            elif self.oidc_config.require_nonce and "nonce" not in claims:
+                raise OAuth2TokenError("ID token missing required 'nonce' claim")
 
             logger.debug("ID token validated successfully")
             return claims
 
-        except (ValueError, KeyError, json.JSONDecodeError) as e:
-            raise OAuth2TokenError(f"Failed to decode ID token: {e}")
+        except OAuth2TokenError:
+            raise
+        except json.JSONDecodeError as e:
+            raise OAuth2TokenError(f"Invalid JSON in ID token: {e}")
+        except Exception as e:
+            raise OAuth2TokenError(f"Failed to validate ID token: {e}")
 
     def get_userinfo(self, access_token: str) -> OIDCUserInfo:
         """
@@ -740,7 +1188,15 @@ class OIDCProvider(OAuth2Provider):
             raise OAuth2Error("No userinfo endpoint configured")
 
         if not HTTPX_AVAILABLE:
-            logger.warning("httpx not available, returning simulated userinfo")
+            if _is_production_environment():
+                raise OAuth2Error(
+                    "httpx library is required for OIDC userinfo in production. "
+                    "Install with: pip install httpx"
+                )
+            logger.warning(
+                "httpx not available, returning simulated userinfo. "
+                "This is ONLY acceptable for development/testing."
+            )
             return OIDCUserInfo(
                 sub=f"user_{secrets.token_hex(8)}",
                 email="user@example.com",

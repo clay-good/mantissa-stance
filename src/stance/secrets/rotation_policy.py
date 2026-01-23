@@ -138,7 +138,7 @@ class RotationPolicy:
             if self.exclude_tags & set(secret.tags):
                 return False
         for pattern in self.exclude_name_patterns:
-            if re.match(pattern, secret.name, re.IGNORECASE):
+            if re.search(pattern, secret.name, re.IGNORECASE):
                 return False
 
         # Check inclusions
@@ -154,7 +154,7 @@ class RotationPolicy:
         name_match = True
         if self.applies_to_name_patterns:
             name_match = any(
-                re.match(pattern, secret.name, re.IGNORECASE)
+                re.search(pattern, secret.name, re.IGNORECASE)
                 for pattern in self.applies_to_name_patterns
             )
 

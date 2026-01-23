@@ -6,6 +6,7 @@ Sends alerts via SMTP with HTML formatting.
 
 from __future__ import annotations
 
+import html
 import logging
 import smtplib
 import ssl
@@ -17,6 +18,13 @@ from stance.models.finding import Finding, Severity
 from stance.alerting.destinations.base import BaseDestination
 
 logger = logging.getLogger(__name__)
+
+
+def _escape_html(text: str | None) -> str:
+    """Escape HTML special characters to prevent XSS."""
+    if text is None:
+        return ""
+    return html.escape(str(text))
 
 
 class EmailDestination(BaseDestination):
@@ -169,7 +177,14 @@ class EmailDestination(BaseDestination):
         """Build HTML email body."""
         severity_color = self.get_severity_color(finding.severity)
 
-        html = f"""
+        # Escape all user-controlled content to prevent XSS
+        title_escaped = _escape_html(finding.title)
+        severity_escaped = _escape_html(finding.severity.value.upper())
+        finding_type_escaped = _escape_html(finding.finding_type.value)
+        description_escaped = _escape_html(finding.description)
+        finding_id_escaped = _escape_html(finding.id)
+
+        html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -191,80 +206,85 @@ class EmailDestination(BaseDestination):
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>{finding.title}</h1>
+                    <h1>{title_escaped}</h1>
                 </div>
                 <div class="content">
                     <div class="field">
                         <div class="field-label">Severity</div>
                         <div class="field-value">
                             <span class="severity" style="background-color: {severity_color}; color: white;">
-                                {finding.severity.value.upper()}
+                                {severity_escaped}
                             </span>
                         </div>
                     </div>
 
                     <div class="field">
                         <div class="field-label">Type</div>
-                        <div class="field-value">{finding.finding_type.value}</div>
+                        <div class="field-value">{finding_type_escaped}</div>
                     </div>
 
                     <div class="field">
                         <div class="field-label">Description</div>
-                        <div class="field-value">{finding.description}</div>
+                        <div class="field-value">{description_escaped}</div>
                     </div>
         """
 
         if finding.asset_id:
-            html += f"""
+            asset_id_escaped = _escape_html(finding.asset_id)
+            html_content += f"""
                     <div class="field">
                         <div class="field-label">Affected Asset</div>
-                        <div class="field-value"><code>{finding.asset_id}</code></div>
+                        <div class="field-value"><code>{asset_id_escaped}</code></div>
                     </div>
             """
 
         if finding.rule_id:
-            html += f"""
+            rule_id_escaped = _escape_html(finding.rule_id)
+            html_content += f"""
                     <div class="field">
                         <div class="field-label">Rule ID</div>
-                        <div class="field-value">{finding.rule_id}</div>
+                        <div class="field-value">{rule_id_escaped}</div>
                     </div>
             """
 
         if finding.cve_id:
-            html += f"""
+            cve_id_escaped = _escape_html(finding.cve_id)
+            html_content += f"""
                     <div class="field">
                         <div class="field-label">CVE</div>
                         <div class="field-value">
-                            <a href="https://nvd.nist.gov/vuln/detail/{finding.cve_id}">{finding.cve_id}</a>
+                            <a href="https://nvd.nist.gov/vuln/detail/{cve_id_escaped}">{cve_id_escaped}</a>
             """
             if finding.cvss_score:
-                html += f" (CVSS: {finding.cvss_score})"
-            html += """
+                cvss_escaped = _escape_html(str(finding.cvss_score))
+                html_content += f" (CVSS: {cvss_escaped})"
+            html_content += """
                         </div>
                     </div>
             """
 
         if finding.remediation_guidance:
-            html += f"""
+            remediation_escaped = _escape_html(finding.remediation_guidance)
+            html_content += f"""
                     <div class="remediation">
                         <div class="field-label">Remediation</div>
-                        <div class="field-value">{finding.remediation_guidance}</div>
+                        <div class="field-value">{remediation_escaped}</div>
                     </div>
             """
 
         if finding.compliance_frameworks:
-            frameworks = ", ".join(finding.compliance_frameworks)
-            html += f"""
+            frameworks_escaped = _escape_html(", ".join(finding.compliance_frameworks))
+            html_content += f"""
                     <div class="field">
                         <div class="field-label">Compliance Frameworks</div>
-                        <div class="field-value">{frameworks}</div>
+                        <div class="field-value">{frameworks_escaped}</div>
                     </div>
             """
 
-        html += f"""
+        html_content += f"""
                 </div>
                 <div class="footer">
-                    Finding ID: {finding.id}<br>
+                    Finding ID: {finding_id_escaped}<br>
                     Generated by Mantissa Stance
                 </div>
             </div>
@@ -272,7 +292,7 @@ class EmailDestination(BaseDestination):
         </html>
         """
 
-        return html
+        return html_content
 
     def _send_email(self, msg: MIMEMultipart) -> None:
         """Send email via SMTP."""

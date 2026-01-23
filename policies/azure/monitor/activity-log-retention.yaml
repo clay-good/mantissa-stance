@@ -12,7 +12,7 @@ resource_type: azure_monitor_log_profile
 
 check:
   type: expression
-  expression: "resource.retention_days >= 365 or resource.retention_enabled == false"
+  expression: "resource.retention_enabled == true and resource.retention_days >= 365"
 
 compliance:
   - framework: cis-azure-foundations

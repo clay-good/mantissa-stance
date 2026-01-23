@@ -159,6 +159,9 @@ class GCSStorage(StorageBackend):
         try:
             content = blob.download_as_string().decode("utf-8")
             return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Malformed JSON in gs://{self.bucket_name}/{blob_name}: {e}")
+            return None
         except NotFound:
             return None
         except Forbidden as e:
@@ -182,9 +185,16 @@ class GCSStorage(StorageBackend):
         try:
             content = blob.download_as_string().decode("utf-8")
             items = []
-            for line in content.strip().split("\n"):
+            for line_num, line in enumerate(content.strip().split("\n"), 1):
                 if line:
-                    items.append(json.loads(line))
+                    try:
+                        items.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"Skipping malformed JSON on line {line_num} in "
+                            f"gs://{self.bucket_name}/{blob_name}: {e}"
+                        )
+                        continue
             return items
         except NotFound:
             return []

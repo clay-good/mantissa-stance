@@ -6,8 +6,15 @@ This module provides common fixtures used across unit and integration tests.
 
 from __future__ import annotations
 
-import json
+# Skip SSRF DNS resolution check in tests.
+# This MUST be set before any stance modules are imported.
+# This is necessary because test URLs like https://test, https://example.com
+# may not resolve or may resolve to private IPs in some environments.
+# WARNING: This should ONLY be used in test environments!
 import os
+os.environ["STANCE_SKIP_SSRF_DNS_CHECK"] = "1"
+
+import json
 import tempfile
 from datetime import datetime, timezone
 from typing import Any, Generator

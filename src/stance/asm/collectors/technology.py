@@ -334,6 +334,31 @@ class TechnologyFingerprinter:
         web_ports = {80, 443, 8080, 8443, 3000, 5000, 8000}
         return asset.port in web_ports
 
+    def _create_ssl_context(self) -> ssl.SSLContext:
+        """
+        Create SSL context based on configuration.
+
+        For ASM scanning, TLS verification is typically disabled to allow
+        fingerprinting of assets with self-signed or expired certificates.
+        This is intentional and controlled by the verify_tls_certificates config.
+
+        Returns:
+            Configured SSL context
+        """
+        ctx = ssl.create_default_context()
+
+        if not self._config.verify_tls_certificates:
+            # Disable verification for ASM scanning - this is intentional
+            # to discover assets regardless of certificate validity
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            logger.debug(
+                "TLS verification disabled for ASM scanning. "
+                "Set verify_tls_certificates=True to enable."
+            )
+
+        return ctx
+
     def _fetch_headers(self, url: str) -> dict[str, str]:
         """
         Fetch HTTP headers from a URL.
@@ -354,10 +379,8 @@ class TechnologyFingerprinter:
                 },
             )
 
-            # Create SSL context that doesn't verify (for self-signed certs)
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+            # Create SSL context based on configuration
+            ctx = self._create_ssl_context()
 
             with urlopen(
                 request,
@@ -389,9 +412,7 @@ class TechnologyFingerprinter:
                     },
                 )
 
-                ctx = ssl.create_default_context()
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
+                ctx = self._create_ssl_context()
 
                 with urlopen(
                     request,
@@ -559,9 +580,7 @@ class TechnologyFingerprinter:
         technologies: list[TechnologyFingerprint] = []
 
         try:
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+            context = self._create_ssl_context()
 
             with socket.create_connection(
                 (domain, port),

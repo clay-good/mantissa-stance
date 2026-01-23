@@ -11,7 +11,7 @@ resource_type: aws_apigateway_rest_api
 
 check:
   type: expression
-  expression: "resource.endpoint_types contains 'EDGE' or resource.endpoint_types contains 'REGIONAL'"
+  expression: "resource.minimum_tls_version == 'TLS_1_2' or resource.security_policy == 'TLS_1_2'"
 
 compliance:
   - framework: pci-dss

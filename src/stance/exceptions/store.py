@@ -7,12 +7,16 @@ Provides persistent storage for policy exceptions.
 from __future__ import annotations
 
 import json
+import logging
 import os
+import tempfile
 import threading
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from stance.exceptions.models import (
     PolicyException,
@@ -172,30 +176,71 @@ class LocalExceptionStore(ExceptionStore):
             if self._loaded:
                 return
 
-            if self._file_path.exists():
-                try:
-                    with open(self._file_path, "r") as f:
-                        data = json.load(f)
-                        for item in data.get("exceptions", []):
-                            exc = PolicyException.from_dict(item)
-                            self._cache[exc.id] = exc
-                except Exception:
-                    pass
+            # Read file without TOCTOU - just try to open it
+            # If it doesn't exist, we'll get FileNotFoundError
+            try:
+                with open(self._file_path, "r") as f:
+                    data = json.load(f)
+                    for item in data.get("exceptions", []):
+                        exc = PolicyException.from_dict(item)
+                        self._cache[exc.id] = exc
+            except FileNotFoundError:
+                # File doesn't exist yet - that's fine
+                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"Malformed JSON in exceptions file: {e}")
+            except PermissionError as e:
+                logger.error(f"Permission denied reading exceptions file: {e}")
+            except Exception as e:
+                logger.error(f"Error loading exceptions file: {e}")
 
             self._loaded = True
 
     def _save_to_file(self) -> None:
-        """Save all exceptions to file."""
+        """
+        Save all exceptions to file using atomic write.
+
+        Uses write-to-temp-then-rename pattern to prevent data corruption
+        if the process is interrupted during write.
+        """
         try:
             self._file_path.parent.mkdir(parents=True, exist_ok=True)
             data = {
                 "exceptions": [e.to_dict() for e in self._cache.values()],
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
-            with open(self._file_path, "w") as f:
-                json.dump(data, f, indent=2)
-        except Exception:
-            pass
+
+            # Write to a temporary file in the same directory
+            # then atomically rename to the target path
+            fd, temp_path = tempfile.mkstemp(
+                dir=self._file_path.parent,
+                prefix=".exceptions_",
+                suffix=".tmp",
+            )
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(data, f, indent=2)
+                    # Ensure data is flushed to disk
+                    f.flush()
+                    os.fsync(f.fileno())
+
+                # Atomic rename (on POSIX systems)
+                # On Windows, this may not be atomic but is still safer
+                os.replace(temp_path, self._file_path)
+            except Exception:
+                # Clean up temp file on error
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+                raise
+
+        except PermissionError as e:
+            logger.error(f"Permission denied writing exceptions file: {e}")
+        except OSError as e:
+            logger.error(f"OS error writing exceptions file: {e}")
+        except Exception as e:
+            logger.error(f"Error saving exceptions file: {e}")
 
     def save(self, exception: PolicyException) -> bool:
         """Save an exception."""

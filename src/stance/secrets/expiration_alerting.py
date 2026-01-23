@@ -639,7 +639,14 @@ class ExpirationAlerter:
         if secret_age.rotation_status not in {AgeStatus.STALE, AgeStatus.CRITICAL}:
             return None
 
-        days_overdue = secret_age.days_since_rotation - 90  # Assuming 90-day policy
+        # Get max_age_days from policy enforcer if available, otherwise default to 90
+        max_age_days = 90
+        if self.policy_enforcer and self.policy_enforcer.policy_set:
+            policy = self.policy_enforcer.policy_set.get_most_restrictive_policy(secret)
+            if policy:
+                max_age_days = policy.max_age_days
+
+        days_overdue = secret_age.days_since_rotation - max_age_days
 
         # Find matching threshold
         alert_threshold = None

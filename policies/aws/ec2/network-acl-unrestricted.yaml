@@ -1,7 +1,7 @@
 id: aws-ec2-012
-name: Network ACL does not allow unrestricted inbound
+name: Network ACL allows unrestricted inbound on sensitive ports
 description: |
-  Ensure Network ACLs do not allow unrestricted inbound traffic from
+  Detects Network ACLs that allow unrestricted inbound traffic from
   0.0.0.0/0 on sensitive ports. Unrestricted access increases the
   attack surface of resources in the subnet.
 

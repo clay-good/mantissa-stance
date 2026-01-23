@@ -442,8 +442,12 @@ class FindingCorrelator:
 
         max_severity = Severity.INFO
         for finding in findings:
-            if severity_order.index(finding.severity) > severity_order.index(max_severity):
-                max_severity = finding.severity
+            try:
+                if severity_order.index(finding.severity) > severity_order.index(max_severity):
+                    max_severity = finding.severity
+            except ValueError:
+                # Unknown severity, skip
+                continue
 
         return max_severity
 

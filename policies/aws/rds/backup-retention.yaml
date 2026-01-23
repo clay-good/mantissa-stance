@@ -12,7 +12,7 @@ resource_type: aws_rds_instance
 
 check:
   type: expression
-  expression: "resource.backup_retention_period >= 7"
+  expression: "resource.backup_retention_period exists and resource.backup_retention_period >= 7"
 
 compliance:
   - framework: cis-aws-foundations

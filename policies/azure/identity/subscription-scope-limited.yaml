@@ -12,7 +12,7 @@ resource_type: azure_role_assignment
 
 check:
   type: expression
-  expression: "resource.is_subscription_scope == false or resource.is_management_group_scope == false"
+  expression: "resource.is_subscription_scope == false and resource.is_management_group_scope == false"
 
 compliance:
   - framework: cis-azure-foundations

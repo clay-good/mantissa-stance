@@ -12,7 +12,7 @@ resource_type: aws_apigateway_rest_api
 
 check:
   type: expression
-  expression: "resource.stages != null and resource.method_settings != null"
+  expression: "resource.throttling_rate_limit > 0 or resource.throttling_burst_limit > 0"
 
 compliance:
   - framework: owasp-api-security

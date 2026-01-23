@@ -14,8 +14,13 @@ check:
   type: expression
   expression: "resource.uniform_bucket_level_access == true"
 
-benchmark:
-  - cis-gcp: "5.2"
+compliance:
+  - framework: cis-gcp-foundations
+    version: "2.0.0"
+    control: "5.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
 
 remediation:
   guidance: |

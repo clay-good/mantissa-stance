@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from stance.web.handlers.base import HandlerResponse, HttpStatus
+from stance.web.handlers.base import HandlerResponse, HttpStatus, PathValidationError, validate_safe_path
 from stance.web.handlers.router import route, RoutedHandler
 
 logger = logging.getLogger(__name__)
@@ -216,6 +216,12 @@ class SbomHandler(RoutedHandler):
             if not path:
                 return HandlerResponse.error("Missing required parameter: path", HttpStatus.BAD_REQUEST)
 
+            # Validate path to prevent traversal attacks
+            try:
+                path = validate_safe_path(path, allow_parent_refs=False)
+            except PathValidationError as e:
+                return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
+
             parser = DependencyParser()
             dep_file = parser.parse_file(path)
 
@@ -250,6 +256,12 @@ class SbomHandler(RoutedHandler):
             path = self.get_param(params, "path", "")
             if not path:
                 return HandlerResponse.error("Missing required parameter: path", HttpStatus.BAD_REQUEST)
+
+            # Validate path to prevent traversal attacks
+            try:
+                path = validate_safe_path(path, allow_parent_refs=False)
+            except PathValidationError as e:
+                return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
 
             parser = DependencyParser()
             analyzer = LicenseAnalyzer()
@@ -291,6 +303,12 @@ class SbomHandler(RoutedHandler):
             path = self.get_param(params, "path", "")
             if not path:
                 return HandlerResponse.error("Missing required parameter: path", HttpStatus.BAD_REQUEST)
+
+            # Validate path to prevent traversal attacks
+            try:
+                path = validate_safe_path(path, allow_parent_refs=False)
+            except PathValidationError as e:
+                return HandlerResponse.error(f"Invalid path: {e}", HttpStatus.BAD_REQUEST)
 
             parser = DependencyParser()
             analyzer = SupplyChainAnalyzer()

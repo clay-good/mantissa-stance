@@ -419,11 +419,15 @@ class AssetContextEnricher(BaseAssetEnricher):
         """Calculate age in days handling timezone-aware and naive datetimes."""
         if created_at is None:
             return None
-        now = datetime.utcnow()
-        # Handle timezone-aware datetimes by making them naive (UTC)
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
+        # Handle timezone-aware datetimes by converting to UTC
         if created_at.tzinfo is not None:
-            created_at = created_at.replace(tzinfo=None)
-        return (now - created_at).days
+            created_at_utc = created_at.astimezone(timezone.utc)
+        else:
+            # Assume naive datetime is UTC
+            created_at_utc = created_at.replace(tzinfo=timezone.utc)
+        return (now - created_at_utc).days
 
     def add_business_unit(self, mapping: BusinessUnitMapping) -> None:
         """Add a custom business unit mapping."""

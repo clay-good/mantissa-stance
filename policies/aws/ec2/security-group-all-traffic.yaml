@@ -1,7 +1,7 @@
 id: aws-ec2-007
-name: Security group does not allow all traffic from internet
+name: Security group allows unrestricted inbound traffic from internet
 description: |
-  Ensure no security group allows all traffic from the internet
+  Detects security groups that allow all traffic from the internet
   (0.0.0.0/0 with all ports). This is an extremely dangerous
   configuration that exposes all services to potential attacks.
 

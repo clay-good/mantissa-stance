@@ -591,13 +591,18 @@ class AttackPathAnalyzer:
 
     def _calculate_path_severity(self, path: list[str]) -> Severity:
         """Calculate overall severity of an attack path."""
+        severity_order = [Severity.INFO, Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
         max_severity = Severity.INFO
 
         for asset_id in path:
             findings = self._findings_by_asset.get(asset_id, [])
             for finding in findings:
-                if finding.severity.value < max_severity.value:
-                    max_severity = finding.severity
+                try:
+                    if severity_order.index(finding.severity) > severity_order.index(max_severity):
+                        max_severity = finding.severity
+                except ValueError:
+                    # Unknown severity, skip
+                    continue
 
         # Internet-to-internal paths are at least HIGH severity
         return max_severity if max_severity != Severity.INFO else Severity.MEDIUM
@@ -787,9 +792,9 @@ class AttackPathAnalyzer:
                     steps[-1].action = "Access and exfiltrate sensitive data"
 
                     # Check for data classification or sensitivity indicators
-                    data_config = data_store.asset.raw_config
+                    data_config = data_store.asset.raw_config or {}
                     is_encrypted = data_config.get("encrypted", False) or \
-                                   data_config.get("encryption", {})
+                                   bool(data_config.get("encryption", {}))
 
                     severity = Severity.HIGH
                     if not is_encrypted:

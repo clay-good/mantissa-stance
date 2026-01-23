@@ -13,6 +13,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -51,13 +52,26 @@ class InvalidTokenError(JWTError):
 # Configuration
 # =============================================================================
 
+class JWTConfigError(JWTError):
+    """JWT configuration error."""
+    pass
+
+
+# Minimum secret key length in bytes for each algorithm
+MIN_SECRET_LENGTHS = {
+    "HS256": 32,  # 256 bits
+    "HS384": 48,  # 384 bits
+    "HS512": 64,  # 512 bits
+}
+
+
 @dataclass
 class JWTConfig:
     """
     JWT configuration.
 
     Attributes:
-        secret_key: Secret key for HMAC signing
+        secret_key: Secret key for HMAC signing (REQUIRED in production)
         algorithm: Signing algorithm (HS256, HS384, HS512)
         issuer: Token issuer claim
         audience: Token audience claim
@@ -66,6 +80,7 @@ class JWTConfig:
         leeway: Clock skew tolerance in seconds
         require_exp: Require expiration claim
         require_iat: Require issued-at claim
+        allow_dev_mode: Allow insecure dev mode (auto-generated secrets)
     """
     secret_key: str = ""
     algorithm: str = "HS256"
@@ -78,11 +93,90 @@ class JWTConfig:
     require_iat: bool = True
     include_user_info: bool = True
     include_permissions: bool = True
+    allow_dev_mode: bool = False  # Must be explicitly enabled
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate JWT configuration."""
+        # Validate algorithm
+        if self.algorithm not in MIN_SECRET_LENGTHS:
+            raise JWTConfigError(
+                f"Unsupported algorithm: {self.algorithm}. "
+                f"Supported: {list(MIN_SECRET_LENGTHS.keys())}"
+            )
+
+        min_length = MIN_SECRET_LENGTHS[self.algorithm]
+
         if not self.secret_key:
-            # Generate a random secret if not provided
-            self.secret_key = secrets.token_hex(32)
+            if self.allow_dev_mode:
+                # Additional safety check: prevent dev mode in production environments
+                production_indicators = [
+                    os.environ.get("STANCE_ENV", "").lower() == "production",
+                    os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+                    os.environ.get("ENV", "").lower() == "production",
+                    os.environ.get("ENVIRONMENT", "").lower() == "production",
+                    os.environ.get("NODE_ENV", "").lower() == "production",
+                ]
+                if any(production_indicators):
+                    raise JWTConfigError(
+                        "Cannot use allow_dev_mode=True in production environment. "
+                        "Production environment detected via environment variables. "
+                        "Please configure a proper JWT secret key."
+                    )
+
+                # Development mode: generate ephemeral secret with warning
+                self.secret_key = secrets.token_hex(min_length)
+                logger.warning(
+                    "JWT secret auto-generated for development mode. "
+                    "This is INSECURE for production deployments. "
+                    "Set JWT_SECRET_KEY environment variable or provide secret_key config."
+                )
+            else:
+                raise JWTConfigError(
+                    "JWT secret_key is required. Either:\n"
+                    "1. Set the JWT_SECRET_KEY environment variable\n"
+                    "2. Provide secret_key in configuration\n"
+                    "3. Set allow_dev_mode=True for development (NOT for production)"
+                )
+        else:
+            # Validate secret key strength
+            secret_bytes = len(self.secret_key.encode("utf-8"))
+            if secret_bytes < min_length:
+                raise JWTConfigError(
+                    f"JWT secret_key is too short for {self.algorithm}. "
+                    f"Minimum {min_length} bytes required, got {secret_bytes}. "
+                    f"Use a cryptographically secure random key."
+                )
+
+            # Check for obviously weak secrets
+            weak_patterns = [
+                "secret", "password", "changeme", "test", "demo",
+                "12345", "admin", "default", "example",
+            ]
+            secret_lower = self.secret_key.lower()
+
+            # Check for production environment
+            is_production = any([
+                os.environ.get("STANCE_ENV", "").lower() == "production",
+                os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+                os.environ.get("ENV", "").lower() == "production",
+                os.environ.get("ENVIRONMENT", "").lower() == "production",
+                os.environ.get("NODE_ENV", "").lower() == "production",
+            ])
+
+            for pattern in weak_patterns:
+                if pattern in secret_lower:
+                    if is_production:
+                        # Reject weak patterns in production
+                        raise JWTConfigError(
+                            f"JWT secret_key contains weak pattern '{pattern}'. "
+                            "Weak secrets are not allowed in production environments. "
+                            "Please use a cryptographically secure random key."
+                        )
+                    else:
+                        logger.warning(
+                            f"JWT secret_key appears to contain '{pattern}'. "
+                            "Please use a cryptographically secure random key in production."
+                        )
 
 
 # =============================================================================
@@ -106,6 +200,10 @@ class JWTManager:
         self.config = config or JWTConfig()
         self._refresh_tokens: Dict[str, RefreshToken] = {}
         self._revoked_tokens: set = set()
+        # Track when tokens were revoked for cleanup
+        self._revoked_token_expiry: Dict[str, datetime] = {}
+        # Maximum revoked tokens to keep (prevents unbounded growth)
+        self._max_revoked_tokens = 100000
 
     def generate_tokens(
         self,
@@ -272,13 +370,55 @@ class JWTManager:
         """
         try:
             payload = self._decode_token(token)
-            self._revoked_tokens.add(payload.jti)
+            self._add_to_revoked(payload.jti, payload.exp)
 
             # If it's a refresh token, also revoke in store
             if payload.jti in self._refresh_tokens:
                 self._refresh_tokens[payload.jti].revoke()
         except Exception as e:
             logger.debug("Error revoking token (may be invalid): %s", e)
+
+    def _add_to_revoked(self, token_id: str, expiry: datetime) -> None:
+        """
+        Add a token to the revoked set with expiry tracking.
+
+        Args:
+            token_id: Token JTI to revoke
+            expiry: Token expiration time (for cleanup)
+        """
+        self._revoked_tokens.add(token_id)
+        self._revoked_token_expiry[token_id] = expiry
+
+        # Cleanup if we exceed the maximum
+        if len(self._revoked_tokens) > self._max_revoked_tokens:
+            self._cleanup_expired_revocations()
+
+    def _cleanup_expired_revocations(self) -> int:
+        """
+        Remove expired tokens from the revocation list.
+
+        Tokens only need to be tracked until they expire naturally.
+        After expiry, they're invalid anyway.
+
+        Returns:
+            Number of entries cleaned up
+        """
+        now = datetime.utcnow()
+        expired_ids = []
+
+        for token_id, expiry in self._revoked_token_expiry.items():
+            # Add some buffer time for clock skew
+            if expiry + timedelta(seconds=self.config.leeway) < now:
+                expired_ids.append(token_id)
+
+        for token_id in expired_ids:
+            self._revoked_tokens.discard(token_id)
+            self._revoked_token_expiry.pop(token_id, None)
+
+        if expired_ids:
+            logger.debug("Cleaned up %d expired token revocations", len(expired_ids))
+
+        return len(expired_ids)
 
     def revoke_all_user_tokens(self, user_id: str) -> int:
         """
@@ -294,7 +434,9 @@ class JWTManager:
         for token_id, token in self._refresh_tokens.items():
             if token.user_id == user_id and not token.is_revoked:
                 token.revoke()
-                self._revoked_tokens.add(token_id)
+                # Use a generous expiry since we don't have the actual token
+                expiry = datetime.utcnow() + timedelta(seconds=self.config.refresh_token_expires)
+                self._add_to_revoked(token_id, expiry)
                 count += 1
         return count
 
@@ -312,7 +454,9 @@ class JWTManager:
         for token_id, token in self._refresh_tokens.items():
             if token.session_id == session_id and not token.is_revoked:
                 token.revoke()
-                self._revoked_tokens.add(token_id)
+                # Use a generous expiry since we don't have the actual token
+                expiry = datetime.utcnow() + timedelta(seconds=self.config.refresh_token_expires)
+                self._add_to_revoked(token_id, expiry)
                 count += 1
         return count
 

@@ -32,7 +32,7 @@ class TestUserManagement:
         """Test creating a user model."""
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
-        credentials = UserCredentials.create("secure_password123!")
+        credentials = UserCredentials.create("SecureP@ssw0rd123!")
 
         user = User(
             id="usr_001",
@@ -54,16 +54,16 @@ class TestUserManagement:
         """Test password verification."""
         from stance.auth.models import UserCredentials
 
-        credentials = UserCredentials.create("my_secure_password!")
+        credentials = UserCredentials.create("MySecure_P@ss123!")
 
-        assert credentials.verify_password("my_secure_password!")
+        assert credentials.verify_password("MySecure_P@ss123!")
         assert not credentials.verify_password("wrong_password")
 
     def test_user_lockout(self):
         """Test account lockout after failed attempts."""
         from stance.auth.models import UserCredentials
 
-        credentials = UserCredentials.create("password123!")
+        credentials = UserCredentials.create("SecureP@ssw0rd123!")
 
         # Record failed attempts (3 times, lockout threshold defaults to 5)
         for _ in range(5):
@@ -251,16 +251,16 @@ class TestJWTManagement:
 
     def test_jwt_token_generation(self):
         """Test generating JWT tokens."""
-        from stance.auth.jwt_manager import JWTManager
+        from stance.auth.jwt_manager import JWTManager, JWTConfig
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
-        manager = JWTManager()
+        manager = JWTManager(JWTConfig(allow_dev_mode=True))
 
         user = User(
             id="usr_001",
             email="jwt@example.com",
             username="jwtuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.ADMIN},
             status=UserStatus.ACTIVE,
         )
@@ -273,16 +273,16 @@ class TestJWTManagement:
 
     def test_jwt_token_validation(self):
         """Test validating JWT tokens."""
-        from stance.auth.jwt_manager import JWTManager
+        from stance.auth.jwt_manager import JWTManager, JWTConfig
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
-        manager = JWTManager()
+        manager = JWTManager(JWTConfig(allow_dev_mode=True))
 
         user = User(
             id="usr_001",
             email="validate@example.com",
             username="validateuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.SECURITY_ANALYST},
             status=UserStatus.ACTIVE,
         )
@@ -295,16 +295,16 @@ class TestJWTManagement:
 
     def test_jwt_token_refresh(self):
         """Test refreshing JWT tokens."""
-        from stance.auth.jwt_manager import JWTManager
+        from stance.auth.jwt_manager import JWTManager, JWTConfig
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
-        manager = JWTManager()
+        manager = JWTManager(JWTConfig(allow_dev_mode=True))
 
         user = User(
             id="usr_001",
             email="refresh@example.com",
             username="refreshuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -316,16 +316,16 @@ class TestJWTManagement:
 
     def test_jwt_token_revocation(self):
         """Test revoking JWT tokens."""
-        from stance.auth.jwt_manager import JWTManager, InvalidTokenError
+        from stance.auth.jwt_manager import JWTManager, JWTConfig, InvalidTokenError
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus
 
-        manager = JWTManager()
+        manager = JWTManager(JWTConfig(allow_dev_mode=True))
 
         user = User(
             id="usr_001",
             email="revoke@example.com",
             username="revokeuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -448,7 +448,7 @@ class TestRBAC:
             id="usr_001",
             email="rbac@example.com",
             username="rbacuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.SECURITY_ANALYST},
             status=UserStatus.ACTIVE,
         )
@@ -468,7 +468,7 @@ class TestRBAC:
             id="usr_001",
             email="viewer@example.com",
             username="vieweruser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -488,7 +488,7 @@ class TestRBAC:
             id="usr_001",
             email="admin@example.com",
             username="adminuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.ADMIN},
             status=UserStatus.ACTIVE,
         )
@@ -509,7 +509,7 @@ class TestRBAC:
             id="usr_001",
             email="multi@example.com",
             username="multiuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.SECURITY_ANALYST, UserRole.VIEWER},
             status=UserStatus.ACTIVE,
         )
@@ -671,10 +671,10 @@ class TestAuthMiddleware:
     def test_middleware_jwt_auth(self):
         """Test JWT authentication via middleware."""
         from stance.auth.middleware import AuthMiddleware, AuthConfig
-        from stance.auth.jwt_manager import JWTManager
+        from stance.auth.jwt_manager import JWTManager, JWTConfig
         from stance.auth.models import User, UserCredentials, UserRole, UserStatus, AuthMethod
 
-        jwt_manager = JWTManager()
+        jwt_manager = JWTManager(JWTConfig(allow_dev_mode=True))
         config = AuthConfig()
         middleware = AuthMiddleware(config, jwt_manager=jwt_manager)
 
@@ -683,7 +683,7 @@ class TestAuthMiddleware:
             id="usr_001",
             email="middleware@example.com",
             username="middlewareuser",
-            credentials=UserCredentials.create("test_password"),
+            credentials=UserCredentials.create("TestP@ssw0rd123!"),
             roles={UserRole.ADMIN},
             status=UserStatus.ACTIVE,
         )

@@ -9,6 +9,7 @@ Part of Phase 92: API Gateway & Authentication
 from __future__ import annotations
 
 import hashlib
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -91,11 +92,80 @@ class RateLimitEntry:
 
 
 class RateLimiter:
-    """Simple in-memory rate limiter."""
+    """
+    Thread-safe in-memory rate limiter.
+
+    Uses locking to prevent race conditions in concurrent access.
+    """
 
     def __init__(self, window_seconds: int = 60):
         self.window_seconds = window_seconds
         self._entries: Dict[str, RateLimitEntry] = {}
+        self._lock = threading.Lock()
+
+    def check_and_record(
+        self,
+        key_id: str,
+        limit_per_minute: int,
+        limit_per_day: int,
+    ) -> tuple[bool, Dict[str, Any]]:
+        """
+        Atomically check rate limits and record request if allowed.
+
+        This combines check and record into a single atomic operation to
+        prevent TOCTOU race conditions.
+
+        Returns:
+            Tuple of (allowed, info_dict)
+        """
+        with self._lock:
+            now = datetime.utcnow()
+
+            if key_id not in self._entries:
+                self._entries[key_id] = RateLimitEntry()
+
+            entry = self._entries[key_id]
+
+            # Reset daily counter if needed
+            if now >= entry.daily_reset:
+                entry.daily_count = 0
+                entry.daily_reset = now.replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                ) + timedelta(days=1)
+
+            # Clean old requests from window
+            window_start = now - timedelta(seconds=self.window_seconds)
+            entry.requests = [r for r in entry.requests if r > window_start]
+
+            # Check limits
+            minute_count = len(entry.requests)
+            daily_count = entry.daily_count
+
+            info = {
+                "minute_remaining": max(0, limit_per_minute - minute_count),
+                "minute_limit": limit_per_minute,
+                "daily_remaining": max(0, limit_per_day - daily_count),
+                "daily_limit": limit_per_day,
+                "reset_at": entry.daily_reset.isoformat(),
+            }
+
+            if minute_count >= limit_per_minute:
+                info["retry_after"] = self.window_seconds
+                return False, info
+
+            if daily_count >= limit_per_day:
+                info["retry_after"] = int((entry.daily_reset - now).total_seconds())
+                return False, info
+
+            # Record the request atomically within the same lock
+            entry.requests.append(now)
+            entry.daily_count += 1
+
+            # Update remaining counts after recording
+            info["minute_remaining"] = max(0, limit_per_minute - len(entry.requests))
+            info["daily_remaining"] = max(0, limit_per_day - entry.daily_count)
+
+            return True, info
 
     def check_rate_limit(
         self,
@@ -104,61 +174,70 @@ class RateLimiter:
         limit_per_day: int,
     ) -> tuple[bool, Dict[str, Any]]:
         """
-        Check if request is within rate limits.
+        Check if request is within rate limits (read-only).
+
+        NOTE: For atomic check-and-record, use check_and_record() instead.
+        This method is provided for read-only rate limit inspection.
 
         Returns:
             Tuple of (allowed, info_dict)
         """
-        now = datetime.utcnow()
+        with self._lock:
+            now = datetime.utcnow()
 
-        if key_id not in self._entries:
-            self._entries[key_id] = RateLimitEntry()
+            if key_id not in self._entries:
+                self._entries[key_id] = RateLimitEntry()
 
-        entry = self._entries[key_id]
+            entry = self._entries[key_id]
 
-        # Reset daily counter if needed
-        if now >= entry.daily_reset:
-            entry.daily_count = 0
-            entry.daily_reset = now.replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) + timedelta(days=1)
+            # Reset daily counter if needed
+            if now >= entry.daily_reset:
+                entry.daily_count = 0
+                entry.daily_reset = now.replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                ) + timedelta(days=1)
 
-        # Clean old requests from window
-        window_start = now - timedelta(seconds=self.window_seconds)
-        entry.requests = [r for r in entry.requests if r > window_start]
+            # Clean old requests from window
+            window_start = now - timedelta(seconds=self.window_seconds)
+            entry.requests = [r for r in entry.requests if r > window_start]
 
-        # Check limits
-        minute_count = len(entry.requests)
-        daily_count = entry.daily_count
+            # Check limits
+            minute_count = len(entry.requests)
+            daily_count = entry.daily_count
 
-        info = {
-            "minute_remaining": max(0, limit_per_minute - minute_count),
-            "minute_limit": limit_per_minute,
-            "daily_remaining": max(0, limit_per_day - daily_count),
-            "daily_limit": limit_per_day,
-            "reset_at": entry.daily_reset.isoformat(),
-        }
+            info = {
+                "minute_remaining": max(0, limit_per_minute - minute_count),
+                "minute_limit": limit_per_minute,
+                "daily_remaining": max(0, limit_per_day - daily_count),
+                "daily_limit": limit_per_day,
+                "reset_at": entry.daily_reset.isoformat(),
+            }
 
-        if minute_count >= limit_per_minute:
-            info["retry_after"] = self.window_seconds
-            return False, info
+            if minute_count >= limit_per_minute:
+                info["retry_after"] = self.window_seconds
+                return False, info
 
-        if daily_count >= limit_per_day:
-            info["retry_after"] = int((entry.daily_reset - now).total_seconds())
-            return False, info
+            if daily_count >= limit_per_day:
+                info["retry_after"] = int((entry.daily_reset - now).total_seconds())
+                return False, info
 
-        return True, info
+            return True, info
 
     def record_request(self, key_id: str) -> None:
-        """Record a request for rate limiting."""
-        now = datetime.utcnow()
+        """
+        Record a request for rate limiting.
 
-        if key_id not in self._entries:
-            self._entries[key_id] = RateLimitEntry()
+        NOTE: For atomic check-and-record, use check_and_record() instead.
+        """
+        with self._lock:
+            now = datetime.utcnow()
 
-        entry = self._entries[key_id]
-        entry.requests.append(now)
-        entry.daily_count += 1
+            if key_id not in self._entries:
+                self._entries[key_id] = RateLimitEntry()
+
+            entry = self._entries[key_id]
+            entry.requests.append(now)
+            entry.daily_count += 1
 
 
 # =============================================================================

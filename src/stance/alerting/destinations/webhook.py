@@ -7,8 +7,11 @@ Sends alerts to configurable HTTP endpoints.
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
 import logging
+import os
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,12 +23,163 @@ from stance.alerting.destinations.base import BaseDestination
 logger = logging.getLogger(__name__)
 
 
+def _is_ssrf_check_disabled() -> bool:
+    """
+    Check if SSRF DNS check is disabled.
+
+    This is ONLY allowed in test environments with explicit safeguards.
+    In production, this always returns False to ensure SSRF protection.
+    """
+    # Check for production environment first - never disable in production
+    production_indicators = [
+        os.environ.get("STANCE_ENV", "").lower() == "production",
+        os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+        os.environ.get("ENV", "").lower() == "production",
+        os.environ.get("ENVIRONMENT", "").lower() == "production",
+        os.environ.get("NODE_ENV", "").lower() == "production",
+    ]
+    if any(production_indicators):
+        return False  # Never disable SSRF check in production
+
+    # Only allow disabling in test environments
+    test_indicators = [
+        os.environ.get("PYTEST_CURRENT_TEST"),  # Running under pytest
+        os.environ.get("STANCE_TEST_MODE", "").lower() in ("1", "true", "yes"),
+    ]
+    env_var_set = os.environ.get("STANCE_SKIP_SSRF_DNS_CHECK", "").lower() in ("1", "true", "yes")
+
+    # Only disable if BOTH test mode is detected AND the env var is set
+    if env_var_set and any(test_indicators):
+        return True
+
+    # Log warning if env var is set but we're not in test mode
+    if env_var_set and not any(test_indicators):
+        logger.warning(
+            "STANCE_SKIP_SSRF_DNS_CHECK is set but test environment not detected. "
+            "SSRF protection remains ENABLED for security. "
+            "Set STANCE_TEST_MODE=1 or run under pytest to disable in tests."
+        )
+
+    return False
+
+
 class WebhookError(Exception):
     """Exception raised when a webhook request fails."""
 
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
+
+
+class SSRFError(Exception):
+    """Exception raised when SSRF protection blocks a request."""
+
+    pass
+
+
+def _is_private_ip(ip_str: str) -> bool:
+    """Check if an IP address is private/internal."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        # Check for private, loopback, link-local, multicast
+        return (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+            # AWS/Cloud metadata endpoints
+            or ip_str.startswith("169.254.")
+        )
+    except ValueError:
+        return False
+
+
+def _validate_webhook_url(url: str) -> None:
+    """
+    Validate a webhook URL to prevent SSRF attacks.
+
+    Args:
+        url: The URL to validate
+
+    Raises:
+        SSRFError: If the URL fails validation
+    """
+    if not url:
+        raise SSRFError("URL is empty")
+
+    # Parse the URL
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception as e:
+        raise SSRFError(f"Invalid URL format: {e}")
+
+    # Check scheme - only allow HTTPS (and HTTP for local dev)
+    if parsed.scheme not in ("https", "http"):
+        raise SSRFError(f"Invalid URL scheme: {parsed.scheme}. Only https:// and http:// are allowed.")
+
+    # Check for empty hostname
+    if not parsed.hostname:
+        raise SSRFError("URL must have a hostname")
+
+    hostname = parsed.hostname.lower()
+
+    # Block localhost and common local aliases
+    blocked_hostnames = {
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "[::1]",
+        "metadata.google.internal",
+        "metadata.google",
+        "kubernetes.default",
+        "kubernetes.default.svc",
+    }
+
+    if hostname in blocked_hostnames:
+        raise SSRFError(f"Blocked hostname: {hostname}")
+
+    # Block IPs directly in URL
+    try:
+        if _is_private_ip(hostname):
+            raise SSRFError(f"Private/internal IP addresses are not allowed: {hostname}")
+    except ValueError:
+        pass  # Not an IP, continue with DNS resolution
+
+    # Resolve hostname and check all IPs
+    # Skip DNS resolution check in test environments only (with safeguards)
+    if _is_ssrf_check_disabled():
+        logger.debug("SSRF DNS check skipped in test environment")
+        return
+
+    try:
+        # Get all IP addresses for the hostname
+        addr_info = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
+        for family, socktype, proto, canonname, sockaddr in addr_info:
+            ip = sockaddr[0]
+            if _is_private_ip(ip):
+                raise SSRFError(
+                    f"Hostname {hostname} resolves to private/internal IP {ip}. "
+                    "This is not allowed for security reasons."
+                )
+    except socket.gaierror as e:
+        raise SSRFError(f"Cannot resolve hostname: {hostname}: {e}")
+
+
+def _sanitize_header_value(value: str) -> str:
+    """
+    Sanitize a header value to prevent header injection.
+
+    Args:
+        value: The header value to sanitize
+
+    Returns:
+        Sanitized header value
+    """
+    # Remove CR and LF characters that could enable header injection
+    return value.replace("\r", "").replace("\n", "")
 
 
 class WebhookDestination(BaseDestination):
@@ -56,6 +210,9 @@ class WebhookDestination(BaseDestination):
         Args:
             name: Destination name
             config: Webhook configuration
+
+        Raises:
+            SSRFError: If the configured URL fails SSRF validation
         """
         config = config or {}
         super().__init__(name, config)
@@ -69,6 +226,10 @@ class WebhookDestination(BaseDestination):
         self._payload_format = config.get("payload_format", "json")
         self._custom_fields = config.get("custom_fields", {})
         self._timeout = config.get("timeout", 30)
+
+        # Validate URL to prevent SSRF attacks
+        if self._url:
+            _validate_webhook_url(self._url)
 
     def send(self, finding: Finding, context: dict[str, Any]) -> bool:
         """Send alert via webhook."""
@@ -131,11 +292,15 @@ class WebhookDestination(BaseDestination):
 
     def _send_request(self, payload: dict[str, Any]) -> None:
         """Send HTTP request."""
-        headers = dict(self._headers)
+        # Sanitize custom headers to prevent header injection
+        headers = {
+            _sanitize_header_value(k): _sanitize_header_value(str(v))
+            for k, v in self._headers.items()
+        }
 
         # Add authentication
         if self._auth_type == "bearer":
-            headers["Authorization"] = f"Bearer {self._auth_token}"
+            headers["Authorization"] = f"Bearer {_sanitize_header_value(self._auth_token)}"
         elif self._auth_type == "basic":
             credentials = base64.b64encode(
                 f"{self._auth_user}:{self._auth_password}".encode()
@@ -186,10 +351,17 @@ class TeamsDestination(BaseDestination):
         Args:
             name: Destination name
             config: Teams configuration
+
+        Raises:
+            SSRFError: If the configured URL fails SSRF validation
         """
         config = config or {}
         super().__init__(name, config)
         self._webhook_url = config.get("webhook_url", "")
+
+        # Validate URL to prevent SSRF attacks
+        if self._webhook_url:
+            _validate_webhook_url(self._webhook_url)
 
     def send(self, finding: Finding, context: dict[str, Any]) -> bool:
         """Send alert to Teams."""
@@ -345,6 +517,9 @@ class JiraDestination(BaseDestination):
         Args:
             name: Destination name
             config: Jira configuration
+
+        Raises:
+            SSRFError: If the configured URL fails SSRF validation
         """
         config = config or {}
         super().__init__(name, config)
@@ -361,6 +536,10 @@ class JiraDestination(BaseDestination):
             "low": "Low",
             "info": "Lowest",
         })
+
+        # Validate URL to prevent SSRF attacks
+        if self._url:
+            _validate_webhook_url(self._url)
 
     def send(self, finding: Finding, context: dict[str, Any]) -> bool:
         """Create Jira issue for finding."""

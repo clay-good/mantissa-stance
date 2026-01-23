@@ -11,11 +11,57 @@ import argparse
 import functools
 import json
 import logging
+import os
+import secrets
 import sys
 import traceback
 from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
+
+
+def _is_production_environment() -> bool:
+    """Check if running in a production environment."""
+    return any([
+        os.environ.get("STANCE_ENV", "").lower() == "production",
+        os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+        os.environ.get("ENV", "").lower() == "production",
+        os.environ.get("ENVIRONMENT", "").lower() == "production",
+    ])
+
+
+def _sanitize_cli_error(error: Exception) -> tuple[str, str]:
+    """
+    Sanitize an error message for CLI output to prevent information leakage.
+
+    In production, returns a generic error message with an error ID.
+    In development, returns the error type and message without stack traces.
+
+    Args:
+        error: The exception to sanitize
+
+    Returns:
+        Tuple of (user_message, error_id)
+    """
+    error_id = secrets.token_hex(8)
+    error_str = str(error)
+
+    # Always log the full error including stack trace for debugging
+    logger.error(
+        "Error [%s] (%s): %s\n%s",
+        error_id,
+        type(error).__name__,
+        error_str,
+        traceback.format_exc(),
+    )
+
+    if _is_production_environment():
+        # In production, return generic message with error ID for correlation
+        return f"An error occurred (ref: {error_id}). Check logs for details.", error_id
+    else:
+        # In development, return type and message but NOT stack traces in output
+        # Stack traces are logged, not returned to user
+        return f"{type(error).__name__}: {error_str}", error_id
 
 # Type variable for command handlers
 F = TypeVar("F", bound=Callable[..., int])
@@ -64,20 +110,17 @@ def cli_command(func: F) -> F:
                 print("\nOperation cancelled.")
             return 130  # Standard exit code for SIGINT
         except Exception as e:
-            logger.exception(f"Command {func.__name__} failed: {e}")
+            # Sanitize error message for user output - full details go to logs only
+            user_message, error_id = _sanitize_cli_error(e)
             format_type = getattr(args, "format", "table")
             if format_type == "json":
                 error_data = {
-                    "error": str(e),
-                    "type": type(e).__name__,
+                    "error": user_message,
+                    "error_id": error_id,
                 }
-                if logger.isEnabledFor(logging.DEBUG):
-                    error_data["traceback"] = traceback.format_exc()
                 print(json.dumps(error_data, indent=2))
             else:
-                print(f"Error: {e}", file=sys.stderr)
-                if logger.isEnabledFor(logging.DEBUG):
-                    traceback.print_exc()
+                print(f"Error: {user_message}", file=sys.stderr)
             return 1
 
     return wrapper  # type: ignore
@@ -122,16 +165,16 @@ def require_storage(storage_getter: Callable[..., Any] | None = None) -> Callabl
                     storage = get_storage(storage_name)
                 return func(args, storage)
             except ImportError as e:
-                logger.error(f"Storage module not available: {e}")
-                print(f"Error: Storage backend not available: {e}", file=sys.stderr)
+                user_message, error_id = _sanitize_cli_error(e)
+                print(f"Error: Storage backend not available (ref: {error_id})", file=sys.stderr)
                 return 1
             except Exception as e:
-                logger.exception(f"Failed to initialize storage: {e}")
+                user_message, error_id = _sanitize_cli_error(e)
                 format_type = getattr(args, "format", "table")
                 if format_type == "json":
-                    print(json.dumps({"error": f"Storage error: {e}"}, indent=2))
+                    print(json.dumps({"error": user_message, "error_id": error_id}, indent=2))
                 else:
-                    print(f"Error: Failed to initialize storage: {e}", file=sys.stderr)
+                    print(f"Error: {user_message}", file=sys.stderr)
                 return 1
 
         return wrapper  # type: ignore
@@ -191,8 +234,8 @@ def require_scan_data(func: F) -> F:
 
             return func(args)
         except Exception as e:
-            logger.exception(f"Failed to check scan data: {e}")
-            print(f"Error: {e}", file=sys.stderr)
+            user_message, _ = _sanitize_cli_error(e)
+            print(f"Error: {user_message}", file=sys.stderr)
             return 1
 
     return wrapper  # type: ignore
@@ -236,8 +279,9 @@ def with_output_handling(func: F) -> F:
                 logger.info(f"Output written to {output_path}")
                 return result
             except IOError as e:
-                logger.error(f"Failed to write output file: {e}")
-                print(f"Error: Could not write to {output_path}: {e}", file=sys.stderr)
+                # For IO errors, it's safe to show the path but sanitize the error
+                user_message, error_id = _sanitize_cli_error(e)
+                print(f"Error: Could not write to output file (ref: {error_id})", file=sys.stderr)
                 return 1
         else:
             return func(args)

@@ -192,6 +192,27 @@ class PortScanner:
         """Get the audit log of all scans."""
         return self._audit_log
 
+    def _create_ssl_context(self) -> ssl.SSLContext:
+        """
+        Create SSL context based on configuration.
+
+        For ASM port scanning, TLS verification is typically disabled to allow
+        detection of services with self-signed or expired certificates.
+        This is intentional and controlled by the verify_tls_certificates config.
+
+        Returns:
+            Configured SSL context
+        """
+        ctx = ssl.create_default_context()
+
+        if not self._config.verify_tls_certificates:
+            # Disable verification for ASM scanning - this is intentional
+            # to discover services regardless of certificate validity
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+        return ctx
+
     def verify_ownership(self, domain: str) -> bool:
         """
         Verify ownership of a domain before scanning.
@@ -582,9 +603,7 @@ class PortScanner:
             Dictionary with TLS info or None
         """
         try:
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+            context = self._create_ssl_context()
 
             with socket.create_connection(
                 (ip_address, port), timeout=5

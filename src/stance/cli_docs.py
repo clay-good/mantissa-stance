@@ -10,8 +10,70 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
+
+
+def _validate_module_name(module_name: str) -> str:
+    """
+    Validate a Python module name to prevent path traversal.
+
+    Args:
+        module_name: The module name to validate (e.g., "stance.scanner.trivy")
+
+    Returns:
+        The validated module name
+
+    Raises:
+        ValueError: If module name contains invalid characters
+    """
+    if not module_name:
+        raise ValueError("Module name cannot be empty")
+
+    # Module names should only contain alphanumeric, underscores, and dots
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$", module_name):
+        raise ValueError(
+            f"Invalid module name: {module_name!r}. "
+            "Module names must be valid Python identifiers separated by dots."
+        )
+
+    # Block any path traversal attempts
+    if ".." in module_name or module_name.startswith("."):
+        raise ValueError(f"Invalid module name: path traversal not allowed: {module_name}")
+
+    return module_name
+
+
+def _validate_path_within_base(path: str, base_dir: str, context: str = "path") -> Path:
+    """
+    Validate that a path is within the base directory.
+
+    Args:
+        path: The path to validate
+        base_dir: The base directory that path must be within
+        context: Description of the path for error messages
+
+    Returns:
+        The resolved, validated Path object
+
+    Raises:
+        ValueError: If path escapes the base directory
+    """
+    # Resolve both paths to absolute, following symlinks
+    base_resolved = Path(base_dir).resolve()
+    path_resolved = Path(path).resolve()
+
+    # Check if path is within base directory
+    try:
+        path_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise ValueError(
+            f"Invalid {context}: path escapes base directory. "
+            f"Path must be within {base_resolved}"
+        )
+
+    return path_resolved
 
 
 def add_docs_parser(subparsers: Any) -> None:
@@ -454,12 +516,33 @@ def _handle_module(args: argparse.Namespace) -> int:
     """Handle module command."""
     from stance.docs import SourceAnalyzer
 
+    # Validate module name to prevent path traversal
+    try:
+        validated_module = _validate_module_name(args.module_name)
+    except ValueError as e:
+        if args.json:
+            print(json.dumps({"error": str(e)}))
+        else:
+            print(f"Error: {e}")
+        return 1
+
     # Convert module name to file path
-    module_path = args.module_name.replace(".", os.sep) + ".py"
+    module_path = validated_module.replace(".", os.sep) + ".py"
     full_path = os.path.join(args.source_dir, module_path)
 
     # Also try as package __init__.py
-    init_path = os.path.join(args.source_dir, args.module_name.replace(".", os.sep), "__init__.py")
+    init_path = os.path.join(args.source_dir, validated_module.replace(".", os.sep), "__init__.py")
+
+    # Validate paths are within source directory
+    try:
+        _validate_path_within_base(full_path, args.source_dir, "module path")
+        _validate_path_within_base(init_path, args.source_dir, "module path")
+    except ValueError as e:
+        if args.json:
+            print(json.dumps({"error": str(e)}))
+        else:
+            print(f"Error: {e}")
+        return 1
 
     if os.path.exists(full_path):
         source_path = full_path
@@ -467,9 +550,9 @@ def _handle_module(args: argparse.Namespace) -> int:
         source_path = init_path
     else:
         if args.json:
-            print(json.dumps({"error": f"Module not found: {args.module_name}"}))
+            print(json.dumps({"error": f"Module not found: {validated_module}"}))
         else:
-            print(f"Error: Module not found: {args.module_name}")
+            print(f"Error: Module not found: {validated_module}")
             print(f"  Tried: {full_path}")
             print(f"  Tried: {init_path}")
         return 1
@@ -537,13 +620,42 @@ def _handle_class(args: argparse.Namespace) -> int:
             print("Error: Class name must be fully qualified (e.g., stance.config.ScanConfiguration)")
         return 1
 
-    module_name, class_name = parts
+    module_name, class_name_str = parts
+
+    # Validate module name to prevent path traversal
+    try:
+        validated_module = _validate_module_name(module_name)
+    except ValueError as e:
+        if args.json:
+            print(json.dumps({"error": str(e)}))
+        else:
+            print(f"Error: {e}")
+        return 1
+
+    # Validate class name (must be a valid Python identifier)
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", class_name_str):
+        if args.json:
+            print(json.dumps({"error": f"Invalid class name: {class_name_str}"}))
+        else:
+            print(f"Error: Invalid class name: {class_name_str}")
+        return 1
 
     # Find the module file
-    module_path = module_name.replace(".", os.sep) + ".py"
+    module_path = validated_module.replace(".", os.sep) + ".py"
     full_path = os.path.join(args.source_dir, module_path)
 
-    init_path = os.path.join(args.source_dir, module_name.replace(".", os.sep), "__init__.py")
+    init_path = os.path.join(args.source_dir, validated_module.replace(".", os.sep), "__init__.py")
+
+    # Validate paths are within source directory
+    try:
+        _validate_path_within_base(full_path, args.source_dir, "module path")
+        _validate_path_within_base(init_path, args.source_dir, "module path")
+    except ValueError as e:
+        if args.json:
+            print(json.dumps({"error": str(e)}))
+        else:
+            print(f"Error: {e}")
+        return 1
 
     if os.path.exists(full_path):
         source_path = full_path
@@ -551,9 +663,9 @@ def _handle_class(args: argparse.Namespace) -> int:
         source_path = init_path
     else:
         if args.json:
-            print(json.dumps({"error": f"Module not found: {module_name}"}))
+            print(json.dumps({"error": f"Module not found: {validated_module}"}))
         else:
-            print(f"Error: Module not found: {module_name}")
+            print(f"Error: Module not found: {validated_module}")
         return 1
 
     try:
@@ -563,21 +675,21 @@ def _handle_class(args: argparse.Namespace) -> int:
         # Find the class
         class_info = None
         for cls in module_info.classes:
-            if cls.name == class_name:
+            if cls.name == class_name_str:
                 class_info = cls
                 break
 
         if not class_info:
             if args.json:
-                print(json.dumps({"error": f"Class not found: {class_name}"}))
+                print(json.dumps({"error": f"Class not found: {class_name_str}"}))
             else:
-                print(f"Error: Class '{class_name}' not found in module '{module_name}'")
+                print(f"Error: Class '{class_name_str}' not found in module '{validated_module}'")
             return 1
 
         if args.json:
             output = {
                 "name": class_info.name,
-                "module": module_name,
+                "module": validated_module,
                 "bases": class_info.bases,
                 "docstring": class_info.docstring,
                 "is_dataclass": class_info.is_dataclass,

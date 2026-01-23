@@ -9,13 +9,234 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import re
+import secrets
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Error Sanitization Utilities
+# =============================================================================
+
+def _is_production_environment() -> bool:
+    """Check if running in a production environment."""
+    return any([
+        os.environ.get("STANCE_ENV", "").lower() == "production",
+        os.environ.get("STANCE_PRODUCTION", "").lower() in ("1", "true", "yes"),
+        os.environ.get("ENV", "").lower() == "production",
+        os.environ.get("ENVIRONMENT", "").lower() == "production",
+        os.environ.get("NODE_ENV", "").lower() == "production",
+    ])
+
+
+def sanitize_error_message(
+    error: Exception | str,
+    include_type: bool = False,
+) -> tuple[str, str]:
+    """
+    Sanitize an error message to prevent information leakage.
+
+    In production, returns a generic error message with a unique error ID.
+    In development, returns the full error message for debugging.
+
+    Args:
+        error: The exception or error message
+        include_type: Whether to include exception type in dev mode
+
+    Returns:
+        Tuple of (user_message, error_id) where:
+        - user_message: Safe message to return to the user
+        - error_id: Unique ID for correlating with logs
+    """
+    error_id = secrets.token_hex(8)
+    error_str = str(error)
+
+    # Always log the full error for debugging
+    if isinstance(error, Exception):
+        logger.error(
+            "Error [%s] (%s): %s",
+            error_id,
+            type(error).__name__,
+            error_str,
+        )
+    else:
+        logger.error("Error [%s]: %s", error_id, error_str)
+
+    if _is_production_environment():
+        # In production, return generic message with error ID
+        return f"An internal error occurred (ref: {error_id})", error_id
+    else:
+        # In development, return more details
+        if include_type and isinstance(error, Exception):
+            return f"{type(error).__name__}: {error_str}", error_id
+        return error_str, error_id
+
+
+def get_safe_error_response(
+    error: Exception | str,
+    default_message: str = "An internal error occurred",
+) -> str:
+    """
+    Get a safe error message for HTTP responses.
+
+    Args:
+        error: The exception or error message
+        default_message: Default message to use in production
+
+    Returns:
+        Safe error message string
+    """
+    user_message, _ = sanitize_error_message(error)
+    return user_message
+
+
+# =============================================================================
+# Path Validation Utilities
+# =============================================================================
+
+class PathValidationError(ValueError):
+    """Raised when path validation fails."""
+    pass
+
+
+def validate_safe_path(
+    path: str,
+    base_dir: str | None = None,
+    allow_absolute: bool = False,
+    allow_parent_refs: bool = False,
+    allowed_extensions: list[str] | None = None,
+    max_length: int = 4096,
+) -> str:
+    """
+    Validate and sanitize a file path to prevent path traversal attacks.
+
+    Args:
+        path: The path to validate
+        base_dir: Optional base directory that the path must stay within
+        allow_absolute: Whether to allow absolute paths (default: False)
+        allow_parent_refs: Whether to allow .. references (default: False)
+        allowed_extensions: Optional list of allowed file extensions
+        max_length: Maximum path length
+
+    Returns:
+        The validated/normalized path
+
+    Raises:
+        PathValidationError: If the path is invalid or unsafe
+    """
+    if not path:
+        raise PathValidationError("Path cannot be empty")
+
+    # Check length
+    if len(path) > max_length:
+        raise PathValidationError(f"Path exceeds maximum length of {max_length}")
+
+    # Check for null bytes (path truncation attack)
+    if "\x00" in path:
+        raise PathValidationError("Path contains null bytes")
+
+    # Check for dangerous characters that could be used in attacks
+    dangerous_patterns = [
+        r"[\x00-\x1f]",  # Control characters
+        r"[<>:\"|?*]",   # Invalid on Windows and potentially dangerous
+    ]
+    for pattern in dangerous_patterns:
+        if re.search(pattern, path):
+            raise PathValidationError("Path contains invalid characters")
+
+    # Check for parent directory references (path traversal)
+    if not allow_parent_refs:
+        # Normalize and check for traversal attempts
+        normalized = os.path.normpath(path)
+        if normalized.startswith("..") or "/.." in normalized or "\\.." in normalized:
+            raise PathValidationError("Path traversal detected (..)")
+
+        # Also check the raw path for encoded traversals
+        traversal_patterns = [
+            r"\.\./",           # ../
+            r"\.\.\\",          # ..\
+            r"%2e%2e%2f",       # ../  URL encoded
+            r"%2e%2e/",         # ../  partially encoded
+            r"\.%2e/",          # ../  mixed encoding
+            r"%2e\./",          # ../  mixed encoding
+            r"%2e%2e%5c",       # ..\  URL encoded
+            r"\.\.%5c",         # ..\  partially encoded
+            r"\.\.%c0%af",      # ../ overlong UTF-8
+            r"\.\.%c1%9c",      # ..\ overlong UTF-8
+        ]
+        path_lower = path.lower()
+        for pattern in traversal_patterns:
+            if re.search(pattern, path_lower, re.IGNORECASE):
+                raise PathValidationError("Path traversal attempt detected")
+
+    # Check absolute path
+    if not allow_absolute and os.path.isabs(path):
+        raise PathValidationError("Absolute paths are not allowed")
+
+    # Validate against base directory if provided
+    if base_dir:
+        base_resolved = os.path.realpath(base_dir)
+        if os.path.isabs(path):
+            full_path = os.path.realpath(path)
+        else:
+            full_path = os.path.realpath(os.path.join(base_dir, path))
+
+        # Ensure the resolved path is within the base directory
+        if not full_path.startswith(base_resolved + os.sep) and full_path != base_resolved:
+            raise PathValidationError(
+                f"Path resolves outside allowed directory"
+            )
+
+    # Check file extension if restrictions provided
+    if allowed_extensions:
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in [e.lower() for e in allowed_extensions]:
+            raise PathValidationError(
+                f"File extension '{ext}' not allowed. "
+                f"Allowed: {allowed_extensions}"
+            )
+
+    return path
+
+
+def sanitize_filename(filename: str, max_length: int = 255) -> str:
+    """
+    Sanitize a filename to remove dangerous characters.
+
+    Args:
+        filename: The filename to sanitize
+        max_length: Maximum filename length
+
+    Returns:
+        Sanitized filename
+    """
+    if not filename:
+        return "unnamed"
+
+    # Remove path separators and null bytes
+    sanitized = filename.replace("/", "_").replace("\\", "_").replace("\x00", "")
+
+    # Remove other dangerous characters
+    sanitized = re.sub(r'[<>:"|?*\x00-\x1f]', "_", sanitized)
+
+    # Prevent hidden files on Unix
+    while sanitized.startswith("."):
+        sanitized = sanitized[1:] or "unnamed"
+
+    # Limit length
+    if len(sanitized) > max_length:
+        name, ext = os.path.splitext(sanitized)
+        sanitized = name[: max_length - len(ext)] + ext
+
+    return sanitized or "unnamed"
 
 
 class HttpStatus(int, Enum):
@@ -31,6 +252,7 @@ class HttpStatus(int, Enum):
     METHOD_NOT_ALLOWED = 405
     CONFLICT = 409
     UNPROCESSABLE_ENTITY = 422
+    TOO_MANY_REQUESTS = 429
     INTERNAL_SERVER_ERROR = 500
     SERVICE_UNAVAILABLE = 503
 
@@ -101,9 +323,26 @@ class HandlerResponse:
         return cls.error(message, HttpStatus.FORBIDDEN)
 
     @classmethod
-    def server_error(cls, message: str = "Internal server error") -> "HandlerResponse":
-        """Create a 500 server error response."""
-        return cls.error(message, HttpStatus.INTERNAL_SERVER_ERROR)
+    def server_error(
+        cls,
+        message: str | Exception = "Internal server error",
+        sanitize: bool = True,
+    ) -> "HandlerResponse":
+        """
+        Create a 500 server error response.
+
+        Args:
+            message: Error message or exception
+            sanitize: Whether to sanitize the error message (default: True)
+
+        Returns:
+            HandlerResponse with error status
+        """
+        if sanitize:
+            safe_message = get_safe_error_response(message)
+        else:
+            safe_message = str(message)
+        return cls.error(safe_message, HttpStatus.INTERNAL_SERVER_ERROR)
 
 
 class BaseHandler:
@@ -342,6 +581,68 @@ class BaseHandler:
             return snapshot_id
         storage = self.require_storage()
         return storage.get_latest_snapshot_id()
+
+    def validate_path_param(
+        self,
+        params: dict[str, list[str]],
+        name: str,
+        base_dir: str | None = None,
+        allowed_extensions: list[str] | None = None,
+        required: bool = True,
+    ) -> str | None:
+        """
+        Get and validate a path parameter safely.
+
+        Args:
+            params: Query parameters dict
+            name: Parameter name
+            base_dir: Optional base directory for path containment
+            allowed_extensions: Optional list of allowed file extensions
+            required: Whether the parameter is required
+
+        Returns:
+            Validated path or None if not required and not provided
+
+        Raises:
+            PathValidationError: If path validation fails
+        """
+        path = self.get_param(params, name)
+        if not path:
+            if required:
+                raise PathValidationError(f"Required parameter '{name}' is missing")
+            return None
+
+        return validate_safe_path(
+            path,
+            base_dir=base_dir,
+            allowed_extensions=allowed_extensions,
+        )
+
+    def get_safe_path(
+        self,
+        path: str,
+        base_dir: str | None = None,
+        allowed_extensions: list[str] | None = None,
+    ) -> str:
+        """
+        Validate a path value safely.
+
+        Args:
+            path: Path to validate
+            base_dir: Optional base directory for path containment
+            allowed_extensions: Optional list of allowed file extensions
+
+        Returns:
+            Validated path
+
+        Raises:
+            PathValidationError: If path validation fails
+        """
+        return validate_safe_path(
+            path,
+            base_dir=base_dir,
+            allowed_extensions=allowed_extensions,
+        )
 
 
 class HandlerRegistry:
