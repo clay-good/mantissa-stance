@@ -445,8 +445,8 @@ class CrossCloudSync:
 
     def _get_finding_path(self, finding_id: str, account_id: str) -> str:
         """Get storage path for a finding."""
-        # Use hash prefix for distribution
-        prefix_hash = hashlib.md5(finding_id.encode()).hexdigest()[:4]
+        # Use hash prefix for distribution (SHA256 for consistency)
+        prefix_hash = hashlib.sha256(finding_id.encode()).hexdigest()[:4]
         return (
             f"{self._config.central_prefix}/findings/"
             f"{prefix_hash}/{account_id}/{finding_id}.json"
@@ -456,7 +456,7 @@ class CrossCloudSync:
         """Get storage path for an asset."""
         # Sanitize asset_id for use in path
         safe_id = asset_id.replace("/", "_").replace(":", "_")
-        prefix_hash = hashlib.md5(asset_id.encode()).hexdigest()[:4]
+        prefix_hash = hashlib.sha256(asset_id.encode()).hexdigest()[:4]
         return (
             f"{self._config.central_prefix}/assets/"
             f"{prefix_hash}/{account_id}/{safe_id}.json"

@@ -554,7 +554,7 @@ class CertTransparencyCollector:
         """Get the cache file path for a domain."""
         # Create a safe filename from domain
         safe_name = domain.replace(".", "_").replace("/", "_")
-        cache_hash = hashlib.md5(domain.encode()).hexdigest()[:8]
+        cache_hash = hashlib.sha256(domain.encode()).hexdigest()[:8]
         return self._cache_dir / f"{safe_name}_{cache_hash}.json"
 
     def _load_from_cache(self, domain: str) -> CertTransparencyResult | None:

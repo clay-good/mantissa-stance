@@ -471,25 +471,26 @@ class UserManager:
         Raises:
             UserNotFoundError: If user not found
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        token = secrets.token_urlsafe(32)
-        token_hash = self._hash_token(token)
+            token = secrets.token_urlsafe(32)
+            token_hash = self._hash_token(token)
 
-        verification = EmailVerificationToken(
-            token_hash=token_hash,
-            user_id=user_id,
-            email=user.email,
-            expires_at=datetime.utcnow() + timedelta(
-                hours=self.config.verification_token_expiry_hours
-            ),
-        )
+            verification = EmailVerificationToken(
+                token_hash=token_hash,
+                user_id=user_id,
+                email=user.email,
+                expires_at=datetime.utcnow() + timedelta(
+                    hours=self.config.verification_token_expiry_hours
+                ),
+            )
 
-        self._email_verification_tokens[token_hash] = verification
+            self._email_verification_tokens[token_hash] = verification
 
-        return token
+            return token
 
     def verify_email(self, token: str) -> User:
         """
@@ -505,30 +506,32 @@ class UserManager:
             UserError: If verification fails
         """
         token_hash = self._hash_token(token)
-        verification = self._email_verification_tokens.get(token_hash)
 
-        if verification is None:
-            raise UserError("Invalid verification token")
+        with self._lock:
+            verification = self._email_verification_tokens.get(token_hash)
 
-        if verification.used:
-            raise UserError("Token already used")
+            if verification is None:
+                raise UserError("Invalid verification token")
 
-        if datetime.utcnow() >= verification.expires_at:
-            raise UserError("Verification token expired")
+            if verification.used:
+                raise UserError("Token already used")
 
-        user = self._users.get(verification.user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+            if datetime.utcnow() >= verification.expires_at:
+                raise UserError("Verification token expired")
 
-        # Mark token as used
-        verification.used = True
+            user = self._users.get(verification.user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        # Activate user
-        user.status = UserStatus.ACTIVE
-        user.email_verified = True
-        user.email_verified_at = datetime.utcnow()
+            # Mark token as used
+            verification.used = True
 
-        return user
+            # Activate user
+            user.status = UserStatus.ACTIVE
+            user.email_verified = True
+            user.email_verified_at = datetime.utcnow()
+
+            return user
 
     # =========================================================================
     # Password Reset
@@ -548,26 +551,28 @@ class UserManager:
             return None
 
         email_lower = email.lower()
-        user_id = self._email_index.get(email_lower)
 
-        if user_id is None:
-            # Don't reveal if user exists
-            return None
+        with self._lock:
+            user_id = self._email_index.get(email_lower)
 
-        token = secrets.token_urlsafe(32)
-        token_hash = self._hash_token(token)
+            if user_id is None:
+                # Don't reveal if user exists
+                return None
 
-        reset = PasswordResetToken(
-            token_hash=token_hash,
-            user_id=user_id,
-            expires_at=datetime.utcnow() + timedelta(
-                hours=self.config.password_reset_expiry_hours
-            ),
-        )
+            token = secrets.token_urlsafe(32)
+            token_hash = self._hash_token(token)
 
-        self._password_reset_tokens[token_hash] = reset
+            reset = PasswordResetToken(
+                token_hash=token_hash,
+                user_id=user_id,
+                expires_at=datetime.utcnow() + timedelta(
+                    hours=self.config.password_reset_expiry_hours
+                ),
+            )
 
-        return token
+            self._password_reset_tokens[token_hash] = reset
+
+            return token
 
     def reset_password(self, token: str, new_password: str) -> User:
         """
@@ -584,39 +589,41 @@ class UserManager:
             UserError: If reset fails
         """
         token_hash = self._hash_token(token)
-        reset = self._password_reset_tokens.get(token_hash)
 
-        if reset is None:
-            raise UserError("Invalid reset token")
+        with self._lock:
+            reset = self._password_reset_tokens.get(token_hash)
 
-        if reset.used:
-            raise UserError("Token already used")
+            if reset is None:
+                raise UserError("Invalid reset token")
 
-        if datetime.utcnow() >= reset.expires_at:
-            raise UserError("Reset token expired")
+            if reset.used:
+                raise UserError("Token already used")
 
-        user = self._users.get(reset.user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+            if datetime.utcnow() >= reset.expires_at:
+                raise UserError("Reset token expired")
 
-        # Validate new password (check history)
-        self._validate_password(new_password, user.id)
+            user = self._users.get(reset.user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        # Mark token as used
-        reset.used = True
+            # Validate new password (check history)
+            self._validate_password(new_password, user.id)
 
-        # Update password
-        user.credentials.update_password(new_password)
-        user.credentials.reset_failed_logins()
+            # Mark token as used
+            reset.used = True
 
-        # Update password history
-        history = self._password_history.get(user.id, [])
-        history.append(user.credentials.password_hash)
-        if len(history) > self.config.password_history_count:
-            history = history[-self.config.password_history_count:]
-        self._password_history[user.id] = history
+            # Update password
+            user.credentials.update_password(new_password)
+            user.credentials.reset_failed_logins()
 
-        return user
+            # Update password history
+            history = self._password_history.get(user.id, [])
+            history.append(user.credentials.password_hash)
+            if len(history) > self.config.password_history_count:
+                history = history[-self.config.password_history_count:]
+            self._password_history[user.id] = history
+
+            return user
 
     def change_password(
         self,
@@ -640,28 +647,29 @@ class UserManager:
             InvalidCredentialsError: If current password invalid
             PasswordValidationError: If new password invalid
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        # Verify current password
-        if not user.credentials.verify_password(current_password):
-            raise InvalidCredentialsError("Current password is incorrect")
+            # Verify current password
+            if not user.credentials.verify_password(current_password):
+                raise InvalidCredentialsError("Current password is incorrect")
 
-        # Validate new password
-        self._validate_password(new_password, user_id)
+            # Validate new password
+            self._validate_password(new_password, user_id)
 
-        # Update password
-        user.credentials.update_password(new_password)
+            # Update password
+            user.credentials.update_password(new_password)
 
-        # Update password history
-        history = self._password_history.get(user_id, [])
-        history.append(user.credentials.password_hash)
-        if len(history) > self.config.password_history_count:
-            history = history[-self.config.password_history_count:]
-        self._password_history[user_id] = history
+            # Update password history
+            history = self._password_history.get(user_id, [])
+            history.append(user.credentials.password_hash)
+            if len(history) > self.config.password_history_count:
+                history = history[-self.config.password_history_count:]
+            self._password_history[user_id] = history
 
-        return user
+            return user
 
     def _hash_token(self, token: str) -> str:
         """Hash a token for storage."""
@@ -812,16 +820,17 @@ class UserManager:
         Returns:
             Updated User
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        user.status = UserStatus.SUSPENDED
-        user.metadata["suspension_reason"] = reason
-        user.metadata["suspended_at"] = datetime.utcnow().isoformat()
-        user.updated_at = datetime.utcnow()
+            user.status = UserStatus.SUSPENDED
+            user.metadata["suspension_reason"] = reason
+            user.metadata["suspended_at"] = datetime.utcnow().isoformat()
+            user.updated_at = datetime.utcnow()
 
-        return user
+            return user
 
     def reactivate_user(self, user_id: str) -> User:
         """
@@ -833,16 +842,17 @@ class UserManager:
         Returns:
             Updated User
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        user.status = UserStatus.ACTIVE
-        user.metadata.pop("suspension_reason", None)
-        user.metadata.pop("suspended_at", None)
-        user.updated_at = datetime.utcnow()
+            user.status = UserStatus.ACTIVE
+            user.metadata.pop("suspension_reason", None)
+            user.metadata.pop("suspended_at", None)
+            user.updated_at = datetime.utcnow()
 
-        return user
+            return user
 
     def delete_user(self, user_id: str) -> bool:
         """
@@ -993,42 +1003,44 @@ class UserManager:
         Returns:
             MFA setup data (secret, QR code, etc.)
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        # Generate proper base32-encoded TOTP secret
-        secret = _generate_totp_secret()
+            # Generate proper base32-encoded TOTP secret
+            secret = _generate_totp_secret()
 
-        user.credentials.mfa_enabled = True
-        user.credentials.mfa_secret = secret
-        user.updated_at = datetime.utcnow()
+            user.credentials.mfa_enabled = True
+            user.credentials.mfa_secret = secret
+            user.updated_at = datetime.utcnow()
 
-        # Build otpauth URI for QR code generation
-        # Format: otpauth://totp/LABEL?secret=SECRET&issuer=ISSUER
-        otpauth_uri = (
-            f"otpauth://totp/MantissaStance:{user.email}"
-            f"?secret={secret}&issuer=MantissaStance&algorithm=SHA1&digits=6&period=30"
-        )
+            # Build otpauth URI for QR code generation
+            # Format: otpauth://totp/LABEL?secret=SECRET&issuer=ISSUER
+            otpauth_uri = (
+                f"otpauth://totp/MantissaStance:{user.email}"
+                f"?secret={secret}&issuer=MantissaStance&algorithm=SHA1&digits=6&period=30"
+            )
 
-        return {
-            "method": method,
-            "secret": secret,
-            "otpauth_uri": otpauth_uri,
-            "message": "MFA enabled - use authenticator app to scan QR code",
-        }
+            return {
+                "method": method,
+                "secret": secret,
+                "otpauth_uri": otpauth_uri,
+                "message": "MFA enabled - use authenticator app to scan QR code",
+            }
 
     def disable_mfa(self, user_id: str) -> User:
         """Disable MFA for user."""
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        user.credentials.mfa_enabled = False
-        user.credentials.mfa_secret = None
-        user.updated_at = datetime.utcnow()
+            user.credentials.mfa_enabled = False
+            user.credentials.mfa_secret = None
+            user.updated_at = datetime.utcnow()
 
-        return user
+            return user
 
     def verify_mfa(self, user_id: str, code: str) -> bool:
         """
@@ -1041,15 +1053,18 @@ class UserManager:
         Returns:
             True if valid
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        if not user.credentials.mfa_enabled or not user.credentials.mfa_secret:
-            return False
+            if not user.credentials.mfa_enabled or not user.credentials.mfa_secret:
+                return False
 
-        # Verify TOTP code using RFC 6238 implementation
-        return _verify_totp(user.credentials.mfa_secret, code)
+            mfa_secret = user.credentials.mfa_secret
+
+        # Verify TOTP code using RFC 6238 implementation (outside lock - pure computation)
+        return _verify_totp(mfa_secret, code)
 
 
 def create_user_manager(

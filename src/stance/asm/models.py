@@ -70,6 +70,7 @@ class CertificateInfo:
     key_algorithm: str = "RSA"
     key_size: int = 2048
     serial_number: str = ""
+    signature_algorithm: str = ""
 
     @property
     def is_expired(self) -> bool:
@@ -102,9 +103,12 @@ class CertificateInfo:
     @property
     def is_weak_algorithm(self) -> bool:
         """Check if certificate uses weak algorithms (SHA1, MD5)."""
-        # This would need to be determined from the signature algorithm
-        # which isn't captured here, but we can check key algorithm
-        return False  # Placeholder - would need signature_algorithm field
+        if not self.signature_algorithm:
+            return False
+        sig_upper = self.signature_algorithm.upper()
+        # Detect weak signature algorithms
+        weak_patterns = ("MD5", "MD2", "SHA1", "SHA-1")
+        return any(weak in sig_upper for weak in weak_patterns)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
@@ -119,9 +123,11 @@ class CertificateInfo:
             "key_algorithm": self.key_algorithm,
             "key_size": self.key_size,
             "serial_number": self.serial_number,
+            "signature_algorithm": self.signature_algorithm,
             "is_expired": self.is_expired,
             "is_expiring_soon": self.is_expiring_soon,
             "days_until_expiry": self.days_until_expiry,
+            "is_weak_algorithm": self.is_weak_algorithm,
         }
 
     @classmethod
@@ -154,6 +160,7 @@ class CertificateInfo:
             key_algorithm=data.get("key_algorithm", "RSA"),
             key_size=data.get("key_size", 2048),
             serial_number=data.get("serial_number", ""),
+            signature_algorithm=data.get("signature_algorithm", ""),
         )
 
 
