@@ -130,6 +130,7 @@ class CloudWatchMetricsBackend(MetricsBackend):
     AWS CloudWatch metrics backend.
 
     Sends metrics to CloudWatch for monitoring and alerting.
+    Thread-safe for concurrent access.
     """
 
     def __init__(
@@ -149,6 +150,7 @@ class CloudWatchMetricsBackend(MetricsBackend):
         self.namespace = namespace
         self.region = region
         self.buffer_size = buffer_size
+        self._lock = threading.Lock()
         self._buffer: list[MetricValue] = []
         self._client = None
 
@@ -162,20 +164,26 @@ class CloudWatchMetricsBackend(MetricsBackend):
 
     def record(self, metric: MetricValue) -> None:
         """Record a metric value."""
-        self._buffer.append(metric)
-        if len(self._buffer) >= self.buffer_size:
+        with self._lock:
+            self._buffer.append(metric)
+            should_flush = len(self._buffer) >= self.buffer_size
+        if should_flush:
             self.flush()
 
     def flush(self) -> None:
         """Send buffered metrics to CloudWatch."""
-        if not self._buffer:
-            return
+        with self._lock:
+            if not self._buffer:
+                return
+            # Take ownership of the buffer for sending
+            metrics_to_send = list(self._buffer)
+            self._buffer.clear()
 
         try:
             client = self._get_client()
 
             metric_data = []
-            for metric in self._buffer:
+            for metric in metrics_to_send:
                 data = {
                     "MetricName": metric.name,
                     "Value": metric.value,
@@ -194,8 +202,6 @@ class CloudWatchMetricsBackend(MetricsBackend):
             for i in range(0, len(metric_data), 1000):
                 batch = metric_data[i : i + 1000]
                 client.put_metric_data(Namespace=self.namespace, MetricData=batch)
-
-            self._buffer.clear()
 
         except Exception:
             # Log error but don't fail
@@ -219,6 +225,7 @@ class StanceMetrics:
     High-level metrics collection for Stance.
 
     Provides convenient methods for recording common metrics.
+    Thread-safe for concurrent access.
     """
 
     def __init__(self, backend: MetricsBackend | None = None):
@@ -229,11 +236,13 @@ class StanceMetrics:
             backend: Metrics backend (default: InMemoryMetricsBackend)
         """
         self.backend = backend or InMemoryMetricsBackend()
+        self._tags_lock = threading.Lock()
         self._default_tags: dict[str, str] = {}
 
     def set_default_tags(self, **tags: str) -> None:
         """Set default tags for all metrics."""
-        self._default_tags.update(tags)
+        with self._tags_lock:
+            self._default_tags.update(tags)
 
     def _record(
         self,
@@ -244,7 +253,8 @@ class StanceMetrics:
         **tags: str,
     ) -> None:
         """Record a metric with merged tags."""
-        all_tags = {**self._default_tags, **tags}
+        with self._tags_lock:
+            all_tags = {**self._default_tags, **tags}
         metric = MetricValue(
             name=name,
             value=value,

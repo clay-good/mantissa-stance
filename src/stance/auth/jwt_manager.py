@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import secrets
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -198,6 +199,7 @@ class JWTManager:
             config: JWT configuration
         """
         self.config = config or JWTConfig()
+        self._lock = threading.Lock()
         self._refresh_tokens: Dict[str, RefreshToken] = {}
         self._revoked_tokens: set[str] = set()
         # Track when tokens were revoked for cleanup
@@ -264,7 +266,8 @@ class JWTManager:
             session_id=session_id,
             expires_at=refresh_payload.exp,
         )
-        self._refresh_tokens[refresh_record.id] = refresh_record
+        with self._lock:
+            self._refresh_tokens[refresh_record.id] = refresh_record
 
         return TokenPair(
             access_token=access_token,
@@ -293,7 +296,9 @@ class JWTManager:
             raise InvalidTokenError(f"Failed to decode token: {e}")
 
         # Check if token is revoked
-        if payload.jti in self._revoked_tokens:
+        with self._lock:
+            is_revoked = payload.jti in self._revoked_tokens
+        if is_revoked:
             raise InvalidTokenError("Token has been revoked")
 
         # Check expiration
@@ -373,8 +378,9 @@ class JWTManager:
             self._add_to_revoked(payload.jti, payload.exp)
 
             # If it's a refresh token, also revoke in store
-            if payload.jti in self._refresh_tokens:
-                self._refresh_tokens[payload.jti].revoke()
+            with self._lock:
+                if payload.jti in self._refresh_tokens:
+                    self._refresh_tokens[payload.jti].revoke()
         except Exception as e:
             logger.debug("Error revoking token (may be invalid): %s", e)
 
@@ -386,12 +392,13 @@ class JWTManager:
             token_id: Token JTI to revoke
             expiry: Token expiration time (for cleanup)
         """
-        self._revoked_tokens.add(token_id)
-        self._revoked_token_expiry[token_id] = expiry
+        with self._lock:
+            self._revoked_tokens.add(token_id)
+            self._revoked_token_expiry[token_id] = expiry
 
-        # Cleanup if we exceed the maximum
-        if len(self._revoked_tokens) > self._max_revoked_tokens:
-            self._cleanup_expired_revocations()
+            # Cleanup if we exceed the maximum
+            if len(self._revoked_tokens) > self._max_revoked_tokens:
+                self._cleanup_expired_revocations_unlocked()
 
     def _cleanup_expired_revocations(self) -> int:
         """
@@ -399,6 +406,16 @@ class JWTManager:
 
         Tokens only need to be tracked until they expire naturally.
         After expiry, they're invalid anyway.
+
+        Returns:
+            Number of entries cleaned up
+        """
+        with self._lock:
+            return self._cleanup_expired_revocations_unlocked()
+
+    def _cleanup_expired_revocations_unlocked(self) -> int:
+        """
+        Remove expired tokens from the revocation list (caller must hold lock).
 
         Returns:
             Number of entries cleaned up
@@ -431,13 +448,15 @@ class JWTManager:
             Number of tokens revoked
         """
         count = 0
-        for token_id, token in self._refresh_tokens.items():
-            if token.user_id == user_id and not token.is_revoked:
-                token.revoke()
-                # Use a generous expiry since we don't have the actual token
-                expiry = datetime.utcnow() + timedelta(seconds=self.config.refresh_token_expires)
-                self._add_to_revoked(token_id, expiry)
-                count += 1
+        with self._lock:
+            for token_id, token in self._refresh_tokens.items():
+                if token.user_id == user_id and not token.is_revoked:
+                    token.revoke()
+                    # Use a generous expiry since we don't have the actual token
+                    expiry = datetime.utcnow() + timedelta(seconds=self.config.refresh_token_expires)
+                    self._revoked_tokens.add(token_id)
+                    self._revoked_token_expiry[token_id] = expiry
+                    count += 1
         return count
 
     def revoke_session_tokens(self, session_id: str) -> int:
@@ -451,13 +470,15 @@ class JWTManager:
             Number of tokens revoked
         """
         count = 0
-        for token_id, token in self._refresh_tokens.items():
-            if token.session_id == session_id and not token.is_revoked:
-                token.revoke()
-                # Use a generous expiry since we don't have the actual token
-                expiry = datetime.utcnow() + timedelta(seconds=self.config.refresh_token_expires)
-                self._add_to_revoked(token_id, expiry)
-                count += 1
+        with self._lock:
+            for token_id, token in self._refresh_tokens.items():
+                if token.session_id == session_id and not token.is_revoked:
+                    token.revoke()
+                    # Use a generous expiry since we don't have the actual token
+                    expiry = datetime.utcnow() + timedelta(seconds=self.config.refresh_token_expires)
+                    self._revoked_tokens.add(token_id)
+                    self._revoked_token_expiry[token_id] = expiry
+                    count += 1
         return count
 
     def cleanup_expired_tokens(self) -> int:
@@ -468,13 +489,14 @@ class JWTManager:
             Number of tokens cleaned up
         """
         now = datetime.utcnow()
-        expired = [
-            token_id for token_id, token in self._refresh_tokens.items()
-            if now >= token.expires_at
-        ]
-        for token_id in expired:
-            del self._refresh_tokens[token_id]
-            self._revoked_tokens.discard(token_id)
+        with self._lock:
+            expired = [
+                token_id for token_id, token in self._refresh_tokens.items()
+                if now >= token.expires_at
+            ]
+            for token_id in expired:
+                del self._refresh_tokens[token_id]
+                self._revoked_tokens.discard(token_id)
         return len(expired)
 
     def _encode_token(self, payload: TokenPayload) -> str:
@@ -579,14 +601,17 @@ class JWTManager:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get JWT manager statistics."""
-        active_refresh = sum(
-            1 for t in self._refresh_tokens.values()
-            if t.is_valid()
-        )
+        with self._lock:
+            active_refresh = sum(
+                1 for t in self._refresh_tokens.values()
+                if t.is_valid()
+            )
+            total_refresh = len(self._refresh_tokens)
+            revoked_count = len(self._revoked_tokens)
         return {
-            "total_refresh_tokens": len(self._refresh_tokens),
+            "total_refresh_tokens": total_refresh,
             "active_refresh_tokens": active_refresh,
-            "revoked_tokens": len(self._revoked_tokens),
+            "revoked_tokens": revoked_count,
             "algorithm": self.config.algorithm,
             "access_token_expires_seconds": self.config.access_token_expires,
             "refresh_token_expires_seconds": self.config.refresh_token_expires,
