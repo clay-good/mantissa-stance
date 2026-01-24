@@ -501,10 +501,11 @@ class SupplyChainAnalyzer:
                 return False  # These are often legitimate
 
         # - Character swaps (adjacent characters)
-        for i in range(len(name) - 1):
-            swapped = name[:i] + name[i + 1] + name[i] + name[i + 2:]
-            if swapped == target:
-                return True
+        if len(name) >= 2:
+            for i in range(len(name) - 1):
+                swapped = name[:i] + name[i + 1] + name[i] + name[i + 2:]
+                if swapped == target:
+                    return True
 
         return False
 
