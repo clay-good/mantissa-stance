@@ -453,9 +453,10 @@ class FederatedQuery:
 
         elif strategy == MergeStrategy.PRIORITY:
             # Use results from highest priority backend that has data
+            # Only include backends that are properly registered
             sorted_backends = sorted(
-                [(name, results[name]) for name in results],
-                key=lambda x: self._backends.get(x[0], BackendConfig(x[0], None, "")).priority  # type: ignore
+                [(name, results[name]) for name in results if name in self._backends],
+                key=lambda x: self._backends[x[0]].priority
             )
             for backend_name, result in sorted_backends:
                 if result.rows and not result.metadata.get("error"):

@@ -779,25 +779,27 @@ class UserManager:
 
     def add_user_role(self, user_id: str, role: UserRole) -> User:
         """Add a role to user."""
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        user.roles.add(role)
-        user.updated_at = datetime.utcnow()
+            user.roles.add(role)
+            user.updated_at = datetime.utcnow()
 
-        return user
+            return user
 
     def remove_user_role(self, user_id: str, role: UserRole) -> User:
         """Remove a role from user."""
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        user.roles.discard(role)
-        user.updated_at = datetime.utcnow()
+            user.roles.discard(role)
+            user.updated_at = datetime.utcnow()
 
-        return user
+            return user
 
     def suspend_user(self, user_id: str, reason: str = "") -> User:
         """
@@ -857,10 +859,11 @@ class UserManager:
             if user is None:
                 return False
 
-            # Remove from indexes atomically
-            del self._email_index[user.email.lower()]
-            del self._username_index[user.username.lower()]
-            del self._users[user_id]
+            # Remove from indexes atomically using pop to avoid KeyError
+            # if indexes are out of sync (defensive programming)
+            self._email_index.pop(user.email.lower(), None)
+            self._username_index.pop(user.username.lower(), None)
+            self._users.pop(user_id, None)
 
             # Clean up password history
             self._password_history.pop(user_id, None)

@@ -283,6 +283,16 @@ class CrossCloudSync:
                     conflict_result = self._resolve_conflict(existing, record_data)
                     if conflict_result == "skip":
                         result.records_skipped += 1
+                        # Track that we checked this record even if skipped
+                        self._sync_state[finding.id] = SyncRecord(
+                            id=finding.id,
+                            record_type="finding",
+                            source_account=account_id,
+                            source_provider=provider,
+                            synced_at=datetime.utcnow(),
+                            checksum=self._compute_checksum(existing),  # Use existing checksum
+                            version=existing.get("_version", 1),
+                        )
                         continue
                     elif conflict_result == "resolved":
                         result.conflicts_resolved += 1
@@ -474,15 +484,28 @@ class CrossCloudSync:
             new_time = new.get("last_seen") or new.get("_synced_at")
 
             if existing_time and new_time:
-                # Parse timestamps and compare
+                # Parse timestamps and compare - handle both string and datetime types
                 try:
-                    existing_dt = datetime.fromisoformat(existing_time.replace("Z", "+00:00"))
-                    new_dt = datetime.fromisoformat(new_time.replace("Z", "+00:00"))
+                    # Convert to datetime if necessary
+                    if isinstance(existing_time, datetime):
+                        existing_dt = existing_time
+                    elif isinstance(existing_time, str):
+                        existing_dt = datetime.fromisoformat(existing_time.replace("Z", "+00:00"))
+                    else:
+                        raise ValueError(f"Unsupported time type: {type(existing_time)}")
+
+                    if isinstance(new_time, datetime):
+                        new_dt = new_time
+                    elif isinstance(new_time, str):
+                        new_dt = datetime.fromisoformat(new_time.replace("Z", "+00:00"))
+                    else:
+                        raise ValueError(f"Unsupported time type: {type(new_time)}")
+
                     if new_dt > existing_dt:
                         return "resolved"
                     else:
                         return "skip"
-                except (ValueError, AttributeError) as e:
+                except (ValueError, AttributeError, TypeError) as e:
                     logger.debug(f"Could not parse timestamps for conflict resolution: {e}")
                     # Fall through to default "resolved" for NEWER strategy
 

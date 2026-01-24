@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 
 # =============================================================================
@@ -131,13 +131,13 @@ class UserCredentials:
     password_algorithm: str = "pbkdf2_sha256"
     password_iterations: int = DEFAULT_PASSWORD_ITERATIONS
     mfa_enabled: bool = False
-    mfa_secret: Optional[str] = None
-    mfa_backup_codes: List[str] = field(default_factory=list)
-    last_password_change: Optional[datetime] = None
-    password_expires_at: Optional[datetime] = None
+    mfa_secret: str | None = None
+    mfa_backup_codes: list[str] = field(default_factory=list)
+    last_password_change: datetime | None = None
+    password_expires_at: datetime | None = None
     failed_login_attempts: int = 0
-    last_failed_login: Optional[datetime] = None
-    lockout_until: Optional[datetime] = None
+    last_failed_login: datetime | None = None
+    lockout_until: datetime | None = None
 
     @classmethod
     def create(cls, password: str, validate: bool = True) -> "UserCredentials":
@@ -293,28 +293,28 @@ class User:
     email: str
     username: str
     status: UserStatus = UserStatus.PENDING
-    roles: Set[UserRole] = field(default_factory=set)
-    custom_roles: Set[str] = field(default_factory=set)
-    permissions: Set[str] = field(default_factory=set)
-    tenant_id: Optional[str] = None
-    workspace_ids: List[str] = field(default_factory=list)
+    roles: set[UserRole] = field(default_factory=set)
+    custom_roles: set[str] = field(default_factory=set)
+    permissions: set[str] = field(default_factory=set)
+    tenant_id: str | None = None
+    workspace_ids: list[str] = field(default_factory=list)
     display_name: str = ""
     first_name: str = ""
     last_name: str = ""
     avatar_url: str = ""
     timezone: str = "UTC"
     locale: str = "en-US"
-    credentials: Optional[UserCredentials] = None
-    oauth_provider: Optional[str] = None
-    oauth_subject: Optional[str] = None
+    credentials: UserCredentials | None = None
+    oauth_provider: str | None = None
+    oauth_subject: str | None = None
     email_verified: bool = False
     phone: str = ""
     phone_verified: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
-    last_login_at: Optional[datetime] = None
-    last_activity_at: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    last_login_at: datetime | None = None
+    last_activity_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.id:
@@ -332,7 +332,7 @@ class User:
         """Check if user has a specific role."""
         return role in self.roles
 
-    def has_any_role(self, roles: List[UserRole]) -> bool:
+    def has_any_role(self, roles: list[UserRole]) -> bool:
         """Check if user has any of the specified roles."""
         return bool(self.roles.intersection(roles))
 
@@ -378,7 +378,7 @@ class User:
         """Record user activity."""
         self.last_activity_at = datetime.utcnow()
 
-    def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:
+    def to_dict(self, include_sensitive: bool = False) -> dict[str, Any]:
         """Convert to dictionary."""
         result = {
             "id": self.id,
@@ -415,12 +415,12 @@ class UserSession:
     token_hash: str
     ip_address: str = ""
     user_agent: str = ""
-    device_info: Dict[str, Any] = field(default_factory=dict)
+    device_info: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + timedelta(hours=24))
     last_activity_at: datetime = field(default_factory=datetime.utcnow)
     is_active: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.id:
@@ -443,7 +443,7 @@ class UserSession:
         """Terminate the session."""
         self.is_active = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "id": self.id,
@@ -468,10 +468,10 @@ class APIKeyScope:
 
     Defines what operations an API key can perform.
     """
-    resources: List[str] = field(default_factory=lambda: ["*"])
-    actions: List[str] = field(default_factory=lambda: ["read"])
-    workspaces: List[str] = field(default_factory=lambda: ["*"])
-    ip_whitelist: List[str] = field(default_factory=list)
+    resources: list[str] = field(default_factory=lambda: ["*"])
+    actions: list[str] = field(default_factory=lambda: ["read"])
+    workspaces: list[str] = field(default_factory=lambda: ["*"])
+    ip_whitelist: list[str] = field(default_factory=list)
     rate_limit_per_minute: int = 60
     rate_limit_per_day: int = 10000
 
@@ -500,7 +500,7 @@ class APIKeyScope:
             return True
         return ip_address in self.ip_whitelist
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "resources": self.resources,
@@ -524,18 +524,18 @@ class APIKey:
     key_prefix: str
     key_hash: str
     user_id: str
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
     status: APIKeyStatus = APIKeyStatus.ACTIVE
     scope: APIKeyScope = field(default_factory=APIKeyScope)
     description: str = ""
     created_at: datetime = field(default_factory=datetime.utcnow)
-    expires_at: Optional[datetime] = None
-    last_used_at: Optional[datetime] = None
+    expires_at: datetime | None = None
+    last_used_at: datetime | None = None
     use_count: int = 0
-    revoked_at: Optional[datetime] = None
-    revoked_by: Optional[str] = None
+    revoked_at: datetime | None = None
+    revoked_by: str | None = None
     revoke_reason: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.id:
@@ -546,9 +546,9 @@ class APIKey:
         cls,
         name: str,
         user_id: str,
-        tenant_id: Optional[str] = None,
-        scope: Optional[APIKeyScope] = None,
-        expires_in_days: Optional[int] = None,
+        tenant_id: str | None = None,
+        scope: APIKeyScope | None = None,
+        expires_in_days: int | None = None,
     ) -> tuple["APIKey", str]:
         """
         Generate a new API key.
@@ -617,7 +617,7 @@ class APIKey:
         self.revoked_by = revoked_by
         self.revoke_reason = reason
 
-    def to_dict(self, include_prefix: bool = True) -> Dict[str, Any]:
+    def to_dict(self, include_prefix: bool = True) -> dict[str, Any]:
         """Convert to dictionary."""
         result = {
             "id": self.id,
@@ -652,21 +652,21 @@ class TokenPayload:
     type: TokenType = TokenType.ACCESS
     iss: str = "mantissa-stance"
     aud: str = "mantissa-stance-api"
-    exp: Optional[datetime] = None
+    exp: datetime | None = None
     iat: datetime = field(default_factory=datetime.utcnow)
-    nbf: Optional[datetime] = None
+    nbf: datetime | None = None
     jti: str = field(default_factory=lambda: str(uuid.uuid4()))
     email: str = ""
     username: str = ""
-    roles: List[str] = field(default_factory=list)
-    permissions: List[str] = field(default_factory=list)
-    tenant_id: Optional[str] = None
-    workspace_id: Optional[str] = None
-    session_id: Optional[str] = None
-    impersonator_id: Optional[str] = None
-    custom_claims: Dict[str, Any] = field(default_factory=dict)
+    roles: list[str] = field(default_factory=list)
+    permissions: list[str] = field(default_factory=list)
+    tenant_id: str | None = None
+    workspace_id: str | None = None
+    session_id: str | None = None
+    impersonator_id: str | None = None
+    custom_claims: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to JWT claims dictionary."""
         claims = {
             "sub": self.sub,
@@ -701,7 +701,7 @@ class TokenPayload:
         return claims
 
     @classmethod
-    def from_dict(cls, claims: Dict[str, Any]) -> "TokenPayload":
+    def from_dict(cls, claims: dict[str, Any]) -> "TokenPayload":
         """Create from JWT claims dictionary."""
         return cls(
             sub=claims.get("sub", ""),
@@ -737,7 +737,7 @@ class TokenPair:
     refresh_expires_in: int = 86400
     scope: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to OAuth2-style response."""
         return {
             "access_token": self.access_token,
@@ -759,12 +759,12 @@ class RefreshToken:
     id: str
     token_hash: str
     user_id: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + timedelta(days=7))
     is_revoked: bool = False
-    revoked_at: Optional[datetime] = None
-    replaced_by: Optional[str] = None
+    revoked_at: datetime | None = None
+    replaced_by: str | None = None
 
     def __post_init__(self):
         if not self.id:
@@ -778,7 +778,7 @@ class RefreshToken:
             return False
         return True
 
-    def revoke(self, replaced_by: Optional[str] = None) -> None:
+    def revoke(self, replaced_by: str | None = None) -> None:
         """Revoke the refresh token."""
         self.is_revoked = True
         self.revoked_at = datetime.utcnow()
@@ -799,24 +799,24 @@ class AuditEvent:
     id: str
     event_type: AuditEventType
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    user_id: Optional[str] = None
-    username: Optional[str] = None
-    tenant_id: Optional[str] = None
+    user_id: str | None = None
+    username: str | None = None
+    tenant_id: str | None = None
     ip_address: str = ""
     user_agent: str = ""
     resource: str = ""
     action: str = ""
     success: bool = True
     error_message: str = ""
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     request_id: str = ""
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
     def __post_init__(self):
         if not self.id:
             self.id = str(uuid.uuid4())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for logging/storage."""
         return {
             "id": self.id,

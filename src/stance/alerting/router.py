@@ -415,9 +415,10 @@ class AlertRouter:
         if rule.asm_domains:
             asm_domain = context.get("asm_domain", "")
             if not asm_domain:
-                # Try to extract from finding metadata
-                if finding.metadata:
-                    asm_domain = finding.metadata.get("domain", "")
+                # Try to extract domain from context metadata if available
+                metadata = context.get("metadata", {})
+                if isinstance(metadata, dict):
+                    asm_domain = metadata.get("domain", "")
 
             if not asm_domain:
                 return False
@@ -434,8 +435,11 @@ class AlertRouter:
         # Check ASM risk threshold
         if rule.asm_risk_threshold is not None:
             asm_risk_score = context.get("asm_risk_score", 0.0)
-            if not asm_risk_score and finding.metadata:
-                asm_risk_score = finding.metadata.get("risk_score", 0.0)
+            if not asm_risk_score:
+                # Try to extract from context metadata if available
+                metadata = context.get("metadata", {})
+                if isinstance(metadata, dict):
+                    asm_risk_score = metadata.get("risk_score", 0.0)
 
             if asm_risk_score < rule.asm_risk_threshold:
                 return False

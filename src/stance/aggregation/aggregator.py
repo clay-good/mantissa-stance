@@ -482,15 +482,17 @@ class FindingsAggregator:
             elif new.last_seen < existing.last_seen:
                 return False
 
-        # Prefer higher severity
-        severity_order = [
-            Severity.INFO,
-            Severity.LOW,
-            Severity.MEDIUM,
-            Severity.HIGH,
-            Severity.CRITICAL,
-        ]
-        if severity_order.index(new.severity) > severity_order.index(existing.severity):
+        # Prefer higher severity - use dict for O(1) lookup and handle unknown values
+        severity_rank = {
+            Severity.INFO: 0,
+            Severity.LOW: 1,
+            Severity.MEDIUM: 2,
+            Severity.HIGH: 3,
+            Severity.CRITICAL: 4,
+        }
+        new_rank = severity_rank.get(new.severity, -1)
+        existing_rank = severity_rank.get(existing.severity, -1)
+        if new_rank > existing_rank:
             return True
 
         # Prefer more detail
