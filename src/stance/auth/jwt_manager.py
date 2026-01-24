@@ -199,7 +199,7 @@ class JWTManager:
         """
         self.config = config or JWTConfig()
         self._refresh_tokens: Dict[str, RefreshToken] = {}
-        self._revoked_tokens: set = set()
+        self._revoked_tokens: set[str] = set()
         # Track when tokens were revoked for cleanup
         self._revoked_token_expiry: Dict[str, datetime] = {}
         # Maximum revoked tokens to keep (prevents unbounded growth)

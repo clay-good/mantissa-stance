@@ -69,6 +69,11 @@ class TrivyScanner(ImageScanner):
         r"$"
     )
 
+    # Shell metacharacters that must never appear in image references
+    # These could be used for command injection if shell=True were ever enabled
+    FORBIDDEN_SHELL_CHARS = frozenset("$`|&;()<>\\!\"'*?[]{}#~")
+
+
     def __init__(
         self,
         trivy_path: str | None = None,
@@ -178,6 +183,15 @@ class TrivyScanner(ImageScanner):
         # Check for newlines (could be used for log injection)
         if "\n" in image_reference or "\r" in image_reference:
             raise ValueError("Image reference contains invalid characters")
+
+        # Explicitly check for shell metacharacters (defense in depth)
+        # Even though subprocess.run with list args doesn't use shell,
+        # this prevents any future regressions if shell=True were enabled
+        found_forbidden = set(image_reference) & self.FORBIDDEN_SHELL_CHARS
+        if found_forbidden:
+            raise ValueError(
+                f"Image reference contains forbidden characters: {found_forbidden!r}"
+            )
 
         # Validate against allowed pattern
         if not self.IMAGE_REFERENCE_PATTERN.match(image_reference):

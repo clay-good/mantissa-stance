@@ -428,7 +428,7 @@ class TestImageReferenceValidation:
             'nginx "double quoted"',
         ]
         for ref in malicious_refs:
-            with pytest.raises(ValueError, match="Invalid image reference"):
+            with pytest.raises(ValueError, match="(Invalid image reference|forbidden characters)"):
                 scanner._validate_image_reference(ref)
 
     def test_reference_starting_with_special_char(self):
@@ -451,5 +451,5 @@ class TestImageReferenceValidation:
         with pytest.raises(ValueError, match="invalid characters"):
             scanner.scan("nginx:latest\nmalicious")
 
-        with pytest.raises(ValueError, match="Invalid image reference"):
+        with pytest.raises(ValueError, match="(Invalid image reference|forbidden characters)"):
             scanner.scan("nginx; rm -rf /")

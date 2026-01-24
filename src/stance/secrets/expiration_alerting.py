@@ -729,7 +729,8 @@ class ExpirationAlerter:
     ) -> str:
         """Generate a unique alert ID for deduplication."""
         content = f"{secret.id}:{rule.rule_id}:{threshold}"
-        return f"alert-{hashlib.md5(content.encode()).hexdigest()[:12]}"
+        # Use SHA-256 instead of MD5 for better collision resistance
+        return f"alert-{hashlib.sha256(content.encode()).hexdigest()[:12]}"
 
     def _send_alert(self, alert: ExpirationAlert) -> None:
         """Send alert to appropriate recipients."""

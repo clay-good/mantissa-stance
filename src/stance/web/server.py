@@ -1153,7 +1153,10 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             self._send_json(data)
 
         except Exception as e:
-            self._send_error(500, str(e))
+            # Log full error details server-side for debugging
+            logger.exception("Error handling GET request for path: %s", path)
+            # Return generic error to client to avoid information disclosure
+            self._send_error(500, "Internal server error")
 
     def do_POST(self):
         """Handle POST requests."""
@@ -1333,7 +1336,10 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
             self._send_json(data)
 
         except Exception as e:
-            self._send_error(500, str(e))
+            # Log full error details server-side for debugging
+            logger.exception("Error handling POST request for path: %s", path)
+            # Return generic error to client to avoid information disclosure
+            self._send_error(500, "Internal server error")
 
     def _get_snapshot_id(self, params: dict[str, list[str]]) -> str | None:
         """Get snapshot ID from params or use latest."""

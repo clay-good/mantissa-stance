@@ -1670,7 +1670,7 @@ def cmd_image_scan(args: argparse.Namespace) -> int:
     return 0
 
 
-def _output_scan_table(results: list) -> None:
+def _output_scan_table(results: list[Any]) -> None:
     """Output scan results as a formatted table."""
     for result in results:
         print(f"\n{'='*60}")
@@ -1711,7 +1711,7 @@ def _output_scan_table(results: list) -> None:
                 print(f"  ... and {len(by_severity[severity]) - 10} more")
 
 
-def _output_scan_json(results: list) -> str:
+def _output_scan_json(results: list[Any]) -> str:
     """Output scan results as JSON."""
     output = []
     for result in results:
@@ -1746,7 +1746,7 @@ def _output_scan_json(results: list) -> str:
     return json.dumps(output, indent=2)
 
 
-def _output_scan_sarif(results: list) -> str:
+def _output_scan_sarif(results: list[Any]) -> str:
     """Output scan results in SARIF format for CI/CD integration."""
     sarif = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
@@ -1956,7 +1956,7 @@ def cmd_iac_scan(args: argparse.Namespace) -> int:
     return 0
 
 
-def _output_iac_table(findings: list, files_scanned: int, files_with_issues: int) -> None:
+def _output_iac_table(findings: list[Any], files_scanned: int, files_with_issues: int) -> None:
     """Output IaC scan results as a formatted table."""
     print(f"\n{'='*60}")
     print(f"IaC Scan Results")
@@ -2002,7 +2002,7 @@ def _output_iac_table(findings: list, files_scanned: int, files_with_issues: int
             print(f"    ... and {len(file_findings) - 10} more")
 
 
-def _output_iac_json(findings: list, files_scanned: int, files_with_issues: int) -> str:
+def _output_iac_json(findings: list[Any], files_scanned: int, files_with_issues: int) -> str:
     """Output IaC scan results as JSON."""
     output = {
         "summary": {
@@ -2044,7 +2044,7 @@ def _output_iac_json(findings: list, files_scanned: int, files_with_issues: int)
     return json.dumps(output, indent=2)
 
 
-def _output_iac_sarif(findings: list, files_scanned: int) -> str:
+def _output_iac_sarif(findings: list[Any], files_scanned: int) -> str:
     """Output IaC scan results in SARIF format."""
     sarif = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
@@ -2223,7 +2223,7 @@ def cmd_secrets_scan(args: argparse.Namespace) -> int:
     return 0
 
 
-def _output_secrets_table(matches: list, files_scanned: int, files_with_secrets: int) -> None:
+def _output_secrets_table(matches: list[Any], files_scanned: int, files_with_secrets: int) -> None:
     """Output secrets scan results as a formatted table."""
     print(f"\n{'='*60}")
     print(f"Secrets Scan Results")
@@ -2267,7 +2267,7 @@ def _output_secrets_table(matches: list, files_scanned: int, files_with_secrets:
             print(f"    ... and {len(file_matches) - 5} more")
 
 
-def _output_secrets_json(matches: list, files_scanned: int, files_with_secrets: int) -> str:
+def _output_secrets_json(matches: list[Any], files_scanned: int, files_with_secrets: int) -> str:
     """Output secrets scan results as JSON."""
     output = {
         "summary": {
