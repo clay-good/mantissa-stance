@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -114,74 +115,82 @@ class InMemoryAlertState(AlertStateBackend):
     In-memory alert state backend.
 
     Suitable for development and testing. Data is lost on restart.
+    Thread-safe for concurrent access.
     """
 
     def __init__(self) -> None:
         """Initialize in-memory state."""
+        self._lock = threading.Lock()
         self._alerts: dict[str, AlertRecord] = {}
         self._by_finding: dict[str, list[str]] = {}
         self._by_dedup_key: dict[str, datetime] = {}
 
     def record_alert(self, record: AlertRecord) -> None:
         """Record a sent alert."""
-        self._alerts[record.id] = record
+        with self._lock:
+            self._alerts[record.id] = record
 
-        # Index by finding
-        if record.finding_id not in self._by_finding:
-            self._by_finding[record.finding_id] = []
-        self._by_finding[record.finding_id].append(record.id)
+            # Index by finding
+            if record.finding_id not in self._by_finding:
+                self._by_finding[record.finding_id] = []
+            self._by_finding[record.finding_id].append(record.id)
 
-        # Record dedup key
-        if record.dedup_key:
-            self._by_dedup_key[record.dedup_key] = record.sent_at
+            # Record dedup key
+            if record.dedup_key:
+                self._by_dedup_key[record.dedup_key] = record.sent_at
 
         logger.debug(f"Recorded alert: {record.id}")
 
     def get_alert(self, alert_id: str) -> AlertRecord | None:
         """Get an alert record by ID."""
-        return self._alerts.get(alert_id)
+        with self._lock:
+            return self._alerts.get(alert_id)
 
     def get_alerts_for_finding(self, finding_id: str) -> list[AlertRecord]:
         """Get all alerts for a finding."""
-        alert_ids = self._by_finding.get(finding_id, [])
-        return [self._alerts[aid] for aid in alert_ids if aid in self._alerts]
+        with self._lock:
+            alert_ids = self._by_finding.get(finding_id, [])
+            return [self._alerts[aid] for aid in alert_ids if aid in self._alerts]
 
     def check_dedup(self, dedup_key: str, window: timedelta) -> bool:
         """Check if alert was recently sent."""
-        if dedup_key not in self._by_dedup_key:
-            return False
+        with self._lock:
+            if dedup_key not in self._by_dedup_key:
+                return False
 
-        sent_at = self._by_dedup_key[dedup_key]
-        return datetime.utcnow() - sent_at < window
+            sent_at = self._by_dedup_key[dedup_key]
+            return datetime.utcnow() - sent_at < window
 
     def acknowledge(self, alert_id: str, by: str) -> bool:
         """Acknowledge an alert."""
-        if alert_id not in self._alerts:
-            return False
+        with self._lock:
+            if alert_id not in self._alerts:
+                return False
 
-        self._alerts[alert_id].acknowledged_at = datetime.utcnow()
-        self._alerts[alert_id].acknowledged_by = by
-        self._alerts[alert_id].status = "acknowledged"
+            self._alerts[alert_id].acknowledged_at = datetime.utcnow()
+            self._alerts[alert_id].acknowledged_by = by
+            self._alerts[alert_id].status = "acknowledged"
         logger.info(f"Alert {alert_id} acknowledged by {by}")
         return True
 
     def expire_old_alerts(self, before: datetime) -> int:
         """Expire old alert records."""
-        to_expire = [
-            aid for aid, record in self._alerts.items()
-            if record.sent_at < before and record.status == "sent"
-        ]
+        with self._lock:
+            to_expire = [
+                aid for aid, record in self._alerts.items()
+                if record.sent_at < before and record.status == "sent"
+            ]
 
-        for aid in to_expire:
-            self._alerts[aid].status = "expired"
+            for aid in to_expire:
+                self._alerts[aid].status = "expired"
 
-        # Clean up dedup keys
-        to_remove = [
-            key for key, ts in self._by_dedup_key.items()
-            if ts < before
-        ]
-        for key in to_remove:
-            del self._by_dedup_key[key]
+            # Clean up dedup keys
+            to_remove = [
+                key for key, ts in self._by_dedup_key.items()
+                if ts < before
+            ]
+            for key in to_remove:
+                del self._by_dedup_key[key]
 
         logger.info(f"Expired {len(to_expire)} alerts")
         return len(to_expire)

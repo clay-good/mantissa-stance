@@ -572,6 +572,7 @@ class DashboardStreamManager:
     Manager for dashboard real-time streaming.
 
     Handles subscriptions and updates for dashboard widgets.
+    Thread-safe for concurrent access.
 
     Example:
         >>> manager = DashboardStreamManager(event_bus)
@@ -582,6 +583,7 @@ class DashboardStreamManager:
     def __init__(self, event_bus: EventBus | None = None) -> None:
         """Initialize the stream manager."""
         self._event_bus = event_bus or EventBus()
+        self._lock = threading.Lock()
         self._widget_data: dict[str, dict[str, Any]] = {}
         self._refresh_intervals: dict[str, int] = {}  # widget_id -> seconds
         self._running = False
@@ -623,7 +625,11 @@ class DashboardStreamManager:
             try:
                 now = time.time()
 
-                for widget_id, interval in self._refresh_intervals.items():
+                # Take a snapshot of refresh intervals to avoid holding lock during iteration
+                with self._lock:
+                    intervals_snapshot = dict(self._refresh_intervals)
+
+                for widget_id, interval in intervals_snapshot.items():
                     last = last_refresh.get(widget_id, 0)
                     if now - last >= interval:
                         self._trigger_widget_refresh(widget_id)
@@ -636,7 +642,8 @@ class DashboardStreamManager:
 
     def _trigger_widget_refresh(self, widget_id: str) -> None:
         """Trigger a widget refresh event."""
-        data = self._widget_data.get(widget_id, {})
+        with self._lock:
+            data = self._widget_data.get(widget_id, {}).copy()
 
         event = RealtimeEvent(
             id=str(uuid.uuid4()),
@@ -731,7 +738,8 @@ class DashboardStreamManager:
             widget_id: Widget ID
             interval_seconds: Refresh interval in seconds
         """
-        self._refresh_intervals[widget_id] = interval_seconds
+        with self._lock:
+            self._refresh_intervals[widget_id] = interval_seconds
 
     def update_widget_data(
         self,
@@ -747,7 +755,8 @@ class DashboardStreamManager:
             data: New widget data
             push_update: Whether to push update to clients
         """
-        self._widget_data[widget_id] = data
+        with self._lock:
+            self._widget_data[widget_id] = data
 
         if push_update:
             self._trigger_widget_refresh(widget_id)

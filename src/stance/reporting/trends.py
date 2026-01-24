@@ -8,6 +8,7 @@ and statistical metrics.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -932,7 +933,7 @@ class TrendAnalyzer:
         sum_xx = sum(xi * xi for xi in x)
 
         denominator = n * sum_xx - sum_x * sum_x
-        if denominator == 0:
+        if math.isclose(denominator, 0.0, abs_tol=1e-10):
             return 0.0, sum_y / n
 
         slope = (n * sum_xy - sum_x * sum_y) / denominator
@@ -954,7 +955,7 @@ class TrendAnalyzer:
         y_mean = sum(y) / len(y)
         ss_tot = sum((yi - y_mean) ** 2 for yi in y)
 
-        if ss_tot == 0:
+        if math.isclose(ss_tot, 0.0, abs_tol=1e-10):
             return 1.0  # All values are the same
 
         ss_res = sum((yi - (slope * xi + intercept)) ** 2 for xi, yi in zip(x, y))

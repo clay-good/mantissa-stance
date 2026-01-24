@@ -556,9 +556,12 @@ def _execute_demo_query(sql: str) -> QueryResult:
     if "LIMIT" in sql_upper:
         try:
             limit_idx = sql_upper.index("LIMIT")
-            limit_str = sql[limit_idx + 5:].strip().split()[0]
-            limit = int(limit_str)
-            rows = rows[:limit]
+            after_limit = sql[limit_idx + 5:].strip()
+            parts = after_limit.split()
+            if parts:
+                limit_str = parts[0]
+                limit = int(limit_str)
+                rows = rows[:limit]
         except (ValueError, IndexError):
             pass
 

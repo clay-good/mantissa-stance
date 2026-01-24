@@ -8,6 +8,7 @@ scan performance, finding trends, and system health.
 from __future__ import annotations
 
 import os
+import threading
 import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -68,6 +69,7 @@ class InMemoryMetricsBackend(MetricsBackend):
     In-memory metrics backend for testing and local development.
 
     Stores metrics in memory and provides query methods.
+    Thread-safe for concurrent access.
     """
 
     def __init__(self, max_size: int = 10000):
@@ -77,14 +79,16 @@ class InMemoryMetricsBackend(MetricsBackend):
         Args:
             max_size: Maximum number of metrics to store
         """
+        self._lock = threading.Lock()
         self.max_size = max_size
         self.metrics: list[MetricValue] = []
 
     def record(self, metric: MetricValue) -> None:
         """Record a metric value."""
-        self.metrics.append(metric)
-        if len(self.metrics) > self.max_size:
-            self.metrics = self.metrics[-self.max_size :]
+        with self._lock:
+            self.metrics.append(metric)
+            if len(self.metrics) > self.max_size:
+                self.metrics = self.metrics[-self.max_size :]
 
     def flush(self) -> None:
         """No-op for in-memory backend."""
@@ -105,18 +109,20 @@ class InMemoryMetricsBackend(MetricsBackend):
         Returns:
             List of matching metrics
         """
-        result = []
-        for metric in self.metrics:
-            if name and metric.name != name:
-                continue
-            if since and metric.timestamp < since:
-                continue
-            result.append(metric)
-        return result
+        with self._lock:
+            result = []
+            for metric in self.metrics:
+                if name and metric.name != name:
+                    continue
+                if since and metric.timestamp < since:
+                    continue
+                result.append(metric)
+            return result
 
     def clear(self) -> None:
         """Clear all stored metrics."""
-        self.metrics.clear()
+        with self._lock:
+            self.metrics.clear()
 
 
 class CloudWatchMetricsBackend(MetricsBackend):
@@ -413,29 +419,36 @@ class StanceMetrics:
         self.backend.flush()
 
 
-# Global metrics instance
+# Global metrics instance with thread-safe initialization
 _metrics: StanceMetrics | None = None
+_metrics_lock = threading.Lock()
 
 
 def get_metrics() -> StanceMetrics:
     """
     Get the global metrics instance.
 
+    Uses double-checked locking for thread-safe lazy initialization.
+
     Returns:
         StanceMetrics instance
     """
     global _metrics
+    # First check without lock for performance
     if _metrics is None:
-        # Configure based on environment
-        backend_type = os.getenv("STANCE_METRICS_BACKEND", "memory")
-        if backend_type == "cloudwatch":
-            backend = CloudWatchMetricsBackend(
-                namespace=os.getenv("STANCE_METRICS_NAMESPACE", "MantissaStance"),
-                region=os.getenv("AWS_REGION", "us-east-1"),
-            )
-        else:
-            backend = InMemoryMetricsBackend()
-        _metrics = StanceMetrics(backend=backend)
+        with _metrics_lock:
+            # Second check with lock for thread safety
+            if _metrics is None:
+                # Configure based on environment
+                backend_type = os.getenv("STANCE_METRICS_BACKEND", "memory")
+                if backend_type == "cloudwatch":
+                    backend = CloudWatchMetricsBackend(
+                        namespace=os.getenv("STANCE_METRICS_NAMESPACE", "MantissaStance"),
+                        region=os.getenv("AWS_REGION", "us-east-1"),
+                    )
+                else:
+                    backend = InMemoryMetricsBackend()
+                _metrics = StanceMetrics(backend=backend)
     return _metrics
 
 
@@ -450,5 +463,6 @@ def configure_metrics(backend: MetricsBackend) -> StanceMetrics:
         Configured StanceMetrics instance
     """
     global _metrics
-    _metrics = StanceMetrics(backend=backend)
-    return _metrics
+    with _metrics_lock:
+        _metrics = StanceMetrics(backend=backend)
+        return _metrics
