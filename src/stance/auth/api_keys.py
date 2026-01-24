@@ -249,6 +249,7 @@ class APIKeyManager:
     API key manager.
 
     Handles API key lifecycle, validation, and rate limiting.
+    Thread-safe for multi-threaded environments.
     """
 
     def __init__(self, config: Optional[APIKeyConfig] = None):
@@ -263,6 +264,7 @@ class APIKeyManager:
         self._key_hash_index: Dict[str, str] = {}  # hash -> key_id
         self._user_keys: Dict[str, List[str]] = {}  # user_id -> [key_ids]
         self._rate_limiter = RateLimiter(self.config.rate_limit_window)
+        self._lock = threading.RLock()  # Reentrant lock for thread safety
 
     def create_key(
         self,
@@ -291,13 +293,6 @@ class APIKeyManager:
         Raises:
             APIKeyError: If user has too many keys
         """
-        # Check key limit
-        user_key_count = len(self._user_keys.get(user_id, []))
-        if user_key_count >= self.config.max_keys_per_user:
-            raise APIKeyError(
-                f"User has reached maximum of {self.config.max_keys_per_user} API keys"
-            )
-
         # Use default expiration if not specified
         if expires_in_days is None:
             expires_in_days = self.config.default_expires_days
@@ -309,7 +304,7 @@ class APIKeyManager:
                 rate_limit_per_day=self.config.default_rate_limit_per_day,
             )
 
-        # Generate the key
+        # Generate the key outside the lock (expensive operation)
         api_key, plaintext = APIKey.generate(
             name=name,
             user_id=user_id,
@@ -319,16 +314,24 @@ class APIKeyManager:
         )
         api_key.description = description
 
-        # Store the key
-        self._keys[api_key.id] = api_key
-        self._key_hash_index[api_key.key_hash] = api_key.id
+        with self._lock:
+            # Check key limit atomically with insertion
+            user_key_count = len(self._user_keys.get(user_id, []))
+            if user_key_count >= self.config.max_keys_per_user:
+                raise APIKeyError(
+                    f"User has reached maximum of {self.config.max_keys_per_user} API keys"
+                )
 
-        # Track user's keys
-        if user_id not in self._user_keys:
-            self._user_keys[user_id] = []
-        self._user_keys[user_id].append(api_key.id)
+            # Store the key atomically
+            self._keys[api_key.id] = api_key
+            self._key_hash_index[api_key.key_hash] = api_key.id
 
-        return api_key, plaintext
+            # Track user's keys
+            if user_id not in self._user_keys:
+                self._user_keys[user_id] = []
+            self._user_keys[user_id].append(api_key.id)
+
+            return api_key, plaintext
 
     def validate_key(
         self,
@@ -353,47 +356,48 @@ class APIKeyManager:
             APIKeyRevokedError: If key has been revoked
             APIKeyRateLimitError: If rate limit exceeded
         """
-        # Hash the key to look it up
+        # Hash the key outside the lock (can be slow)
         key_hash = APIKey.hash_key(plaintext_key)
 
-        if key_hash not in self._key_hash_index:
-            raise APIKeyNotFoundError("API key not found")
+        with self._lock:
+            if key_hash not in self._key_hash_index:
+                raise APIKeyNotFoundError("API key not found")
 
-        key_id = self._key_hash_index[key_hash]
-        api_key = self._keys.get(key_id)
+            key_id = self._key_hash_index[key_hash]
+            api_key = self._keys.get(key_id)
 
-        if api_key is None:
-            raise APIKeyNotFoundError("API key not found")
+            if api_key is None:
+                raise APIKeyNotFoundError("API key not found")
 
-        # Check status
-        if api_key.status == APIKeyStatus.REVOKED:
-            raise APIKeyRevokedError("API key has been revoked")
+            # Check status
+            if api_key.status == APIKeyStatus.REVOKED:
+                raise APIKeyRevokedError("API key has been revoked")
 
-        if api_key.status == APIKeyStatus.DISABLED:
-            raise APIKeyRevokedError("API key is disabled")
+            if api_key.status == APIKeyStatus.DISABLED:
+                raise APIKeyRevokedError("API key is disabled")
 
-        # Check expiration
-        if api_key.is_expired():
-            api_key.status = APIKeyStatus.EXPIRED
-            raise APIKeyExpiredError("API key has expired")
+            # Check expiration
+            if api_key.is_expired():
+                api_key.status = APIKeyStatus.EXPIRED
+                raise APIKeyExpiredError("API key has expired")
 
-        # Check IP restriction
-        if ip_address and not api_key.scope.allows_ip(ip_address):
-            raise APIKeyError(f"IP address {ip_address} not allowed")
+            # Check IP restriction
+            if ip_address and not api_key.scope.allows_ip(ip_address):
+                raise APIKeyError(f"IP address {ip_address} not allowed")
 
-        # Check rate limit
-        if check_rate_limit:
-            allowed, info = self._rate_limiter.check_rate_limit(
-                api_key.id,
-                api_key.scope.rate_limit_per_minute,
-                api_key.scope.rate_limit_per_day,
-            )
-            if not allowed:
-                raise APIKeyRateLimitError(
-                    f"Rate limit exceeded. Retry after {info.get('retry_after', 60)} seconds"
+            # Check rate limit (rate limiter has its own lock)
+            if check_rate_limit:
+                allowed, info = self._rate_limiter.check_rate_limit(
+                    api_key.id,
+                    api_key.scope.rate_limit_per_minute,
+                    api_key.scope.rate_limit_per_day,
                 )
+                if not allowed:
+                    raise APIKeyRateLimitError(
+                        f"Rate limit exceeded. Retry after {info.get('retry_after', 60)} seconds"
+                    )
 
-        return api_key
+            return api_key
 
     def use_key(self, api_key: APIKey) -> None:
         """
@@ -402,28 +406,34 @@ class APIKeyManager:
         Args:
             api_key: The key being used
         """
-        api_key.record_use()
+        with self._lock:
+            api_key.record_use()
+        # Rate limiter has its own lock
         self._rate_limiter.record_request(api_key.id)
 
     def get_key(self, key_id: str) -> Optional[APIKey]:
         """Get an API key by ID."""
-        return self._keys.get(key_id)
+        with self._lock:
+            return self._keys.get(key_id)
 
     def get_key_by_prefix(self, prefix: str) -> Optional[APIKey]:
         """Get an API key by its prefix."""
-        for key in self._keys.values():
-            if key.key_prefix == prefix:
-                return key
-        return None
+        with self._lock:
+            for key in self._keys.values():
+                if key.key_prefix == prefix:
+                    return key
+            return None
 
     def list_user_keys(self, user_id: str) -> List[APIKey]:
         """List all API keys for a user."""
-        key_ids = self._user_keys.get(user_id, [])
-        return [self._keys[kid] for kid in key_ids if kid in self._keys]
+        with self._lock:
+            key_ids = self._user_keys.get(user_id, [])
+            return [self._keys[kid] for kid in key_ids if kid in self._keys]
 
     def list_tenant_keys(self, tenant_id: str) -> List[APIKey]:
         """List all API keys for a tenant."""
-        return [k for k in self._keys.values() if k.tenant_id == tenant_id]
+        with self._lock:
+            return [k for k in self._keys.values() if k.tenant_id == tenant_id]
 
     def revoke_key(
         self,
@@ -445,12 +455,13 @@ class APIKeyManager:
         Raises:
             APIKeyNotFoundError: If key not found
         """
-        api_key = self._keys.get(key_id)
-        if api_key is None:
-            raise APIKeyNotFoundError(f"API key not found: {key_id}")
+        with self._lock:
+            api_key = self._keys.get(key_id)
+            if api_key is None:
+                raise APIKeyNotFoundError(f"API key not found: {key_id}")
 
-        api_key.revoke(revoked_by, reason)
-        return api_key
+            api_key.revoke(revoked_by, reason)
+            return api_key
 
     def revoke_all_user_keys(
         self,
@@ -464,12 +475,15 @@ class APIKeyManager:
         Returns:
             Number of keys revoked
         """
-        count = 0
-        for key in self.list_user_keys(user_id):
-            if key.status == APIKeyStatus.ACTIVE:
-                key.revoke(revoked_by, reason)
-                count += 1
-        return count
+        with self._lock:
+            count = 0
+            key_ids = self._user_keys.get(user_id, [])
+            for kid in key_ids:
+                key = self._keys.get(kid)
+                if key and key.status == APIKeyStatus.ACTIVE:
+                    key.revoke(revoked_by, reason)
+                    count += 1
+            return count
 
     def delete_key(self, key_id: str) -> bool:
         """
@@ -481,20 +495,21 @@ class APIKeyManager:
         Returns:
             True if deleted, False if not found
         """
-        api_key = self._keys.get(key_id)
-        if api_key is None:
-            return False
+        with self._lock:
+            api_key = self._keys.get(key_id)
+            if api_key is None:
+                return False
 
-        # Remove from all indexes
-        del self._keys[key_id]
-        if api_key.key_hash in self._key_hash_index:
-            del self._key_hash_index[api_key.key_hash]
-        if api_key.user_id in self._user_keys:
-            self._user_keys[api_key.user_id] = [
-                k for k in self._user_keys[api_key.user_id] if k != key_id
-            ]
+            # Remove from all indexes atomically
+            del self._keys[key_id]
+            if api_key.key_hash in self._key_hash_index:
+                del self._key_hash_index[api_key.key_hash]
+            if api_key.user_id in self._user_keys:
+                self._user_keys[api_key.user_id] = [
+                    k for k in self._user_keys[api_key.user_id] if k != key_id
+                ]
 
-        return True
+            return True
 
     def cleanup_expired_keys(self, delete: bool = False) -> int:
         """
@@ -507,17 +522,38 @@ class APIKeyManager:
             Number of keys cleaned up
         """
         now = datetime.utcnow()
-        count = 0
+        with self._lock:
+            count = 0
+            keys_to_delete = []
 
-        for key in list(self._keys.values()):
-            if key.expires_at and now >= key.expires_at:
-                if key.status == APIKeyStatus.ACTIVE:
-                    key.status = APIKeyStatus.EXPIRED
-                    count += 1
-                if delete:
-                    self.delete_key(key.id)
+            for key in self._keys.values():
+                if key.expires_at and now >= key.expires_at:
+                    if key.status == APIKeyStatus.ACTIVE:
+                        key.status = APIKeyStatus.EXPIRED
+                        count += 1
+                    if delete:
+                        keys_to_delete.append(key.id)
 
-        return count
+            # Delete outside the iteration
+            for key_id in keys_to_delete:
+                self._delete_key_internal(key_id)
+
+            return count
+
+    def _delete_key_internal(self, key_id: str) -> bool:
+        """Internal delete (must be called with lock held)."""
+        api_key = self._keys.get(key_id)
+        if api_key is None:
+            return False
+
+        del self._keys[key_id]
+        if api_key.key_hash in self._key_hash_index:
+            del self._key_hash_index[api_key.key_hash]
+        if api_key.user_id in self._user_keys:
+            self._user_keys[api_key.user_id] = [
+                k for k in self._user_keys[api_key.user_id] if k != key_id
+            ]
+        return True
 
     def rotate_key(
         self,
@@ -540,55 +576,71 @@ class APIKeyManager:
             APIKeyNotFoundError: If key not found
             APIKeyError: If key doesn't belong to user
         """
-        old_key = self._keys.get(key_id)
-        if old_key is None:
-            raise APIKeyNotFoundError(f"API key not found: {key_id}")
+        with self._lock:
+            old_key = self._keys.get(key_id)
+            if old_key is None:
+                raise APIKeyNotFoundError(f"API key not found: {key_id}")
 
-        if old_key.user_id != user_id:
-            raise APIKeyError("API key does not belong to user")
+            if old_key.user_id != user_id:
+                raise APIKeyError("API key does not belong to user")
 
-        # Create new key with same settings
+            # Store settings before creating new key
+            old_name = old_key.name
+            old_tenant_id = old_key.tenant_id
+            old_scope = old_key.scope
+            old_prefix = old_key.key_prefix
+
+        # create_key acquires its own lock (RLock allows this)
         new_key, plaintext = self.create_key(
-            name=old_key.name,
-            user_id=old_key.user_id,
-            tenant_id=old_key.tenant_id,
-            description=f"Rotated from {old_key.key_prefix}",
+            name=old_name,
+            user_id=user_id,
+            tenant_id=old_tenant_id,
+            description=f"Rotated from {old_prefix}",
             expires_in_days=expires_in_days,
-            scope=old_key.scope,
+            scope=old_scope,
         )
 
-        # Revoke old key
-        old_key.revoke(user_id, f"Rotated to {new_key.key_prefix}")
+        with self._lock:
+            # Revoke old key
+            old_key = self._keys.get(key_id)
+            if old_key:
+                old_key.revoke(user_id, f"Rotated to {new_key.key_prefix}")
 
         return new_key, plaintext
 
     def get_rate_limit_info(self, key_id: str) -> Dict[str, Any]:
         """Get rate limit information for a key."""
-        api_key = self._keys.get(key_id)
-        if api_key is None:
-            return {}
+        with self._lock:
+            api_key = self._keys.get(key_id)
+            if api_key is None:
+                return {}
 
+            rate_limit_minute = api_key.scope.rate_limit_per_minute
+            rate_limit_day = api_key.scope.rate_limit_per_day
+
+        # Rate limiter has its own lock
         _, info = self._rate_limiter.check_rate_limit(
             key_id,
-            api_key.scope.rate_limit_per_minute,
-            api_key.scope.rate_limit_per_day,
+            rate_limit_minute,
+            rate_limit_day,
         )
         return info
 
     def get_stats(self) -> Dict[str, Any]:
         """Get API key manager statistics."""
-        active = sum(1 for k in self._keys.values() if k.status == APIKeyStatus.ACTIVE)
-        expired = sum(1 for k in self._keys.values() if k.status == APIKeyStatus.EXPIRED)
-        revoked = sum(1 for k in self._keys.values() if k.status == APIKeyStatus.REVOKED)
+        with self._lock:
+            active = sum(1 for k in self._keys.values() if k.status == APIKeyStatus.ACTIVE)
+            expired = sum(1 for k in self._keys.values() if k.status == APIKeyStatus.EXPIRED)
+            revoked = sum(1 for k in self._keys.values() if k.status == APIKeyStatus.REVOKED)
 
-        return {
-            "total_keys": len(self._keys),
-            "active_keys": active,
-            "expired_keys": expired,
-            "revoked_keys": revoked,
-            "total_users_with_keys": len(self._user_keys),
-            "max_keys_per_user": self.config.max_keys_per_user,
-        }
+            return {
+                "total_keys": len(self._keys),
+                "active_keys": active,
+                "expired_keys": expired,
+                "revoked_keys": revoked,
+                "total_users_with_keys": len(self._user_keys),
+                "max_keys_per_user": self.config.max_keys_per_user,
+            }
 
 
 def create_api_key_manager(

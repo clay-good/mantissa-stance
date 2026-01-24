@@ -8,6 +8,7 @@ Part of Phase 92: API Gateway & Authentication
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -174,6 +175,7 @@ class RBACManager:
     Role-Based Access Control manager.
 
     Handles role management and permission checking.
+    Thread-safe for multi-threaded environments.
     """
 
     def __init__(self, config: Optional[RBACConfig] = None):
@@ -187,6 +189,7 @@ class RBACManager:
         self._roles: Dict[str, Role] = {}
         self._permissions: Dict[str, Permission] = {}
         self._permission_cache: Dict[str, Set[str]] = {}
+        self._lock = threading.RLock()  # Reentrant lock for thread safety
 
         # Initialize default roles and permissions
         self._init_default_permissions()
@@ -265,9 +268,10 @@ class RBACManager:
 
     def list_roles(self, include_system: bool = True) -> List[Role]:
         """List all roles."""
-        if include_system:
-            return list(self._roles.values())
-        return [r for r in self._roles.values() if not r.is_system_role]
+        with self._lock:
+            if include_system:
+                return list(self._roles.values())
+            return [r for r in self._roles.values() if not r.is_system_role]
 
     def create_role(
         self,
@@ -290,18 +294,19 @@ class RBACManager:
         Returns:
             Created Role
         """
-        if role_id in self._roles:
-            raise RBACError(f"Role already exists: {role_id}")
+        with self._lock:
+            if role_id in self._roles:
+                raise RBACError(f"Role already exists: {role_id}")
 
-        role = Role(
-            id=role_id,
-            name=name,
-            description=description,
-            permissions=set(permissions or []),
-            inherits_from=inherits_from or [],
-        )
-        self._roles[role_id] = role
-        return role
+            role = Role(
+                id=role_id,
+                name=name,
+                description=description,
+                permissions=set(permissions or []),
+                inherits_from=inherits_from or [],
+            )
+            self._roles[role_id] = role
+            return role
 
     def update_role(
         self,
@@ -311,37 +316,39 @@ class RBACManager:
         permissions: Optional[List[str]] = None,
     ) -> Role:
         """Update an existing role."""
-        role = self._roles.get(role_id)
-        if role is None:
-            raise RoleNotFoundError(f"Role not found: {role_id}")
+        with self._lock:
+            role = self._roles.get(role_id)
+            if role is None:
+                raise RoleNotFoundError(f"Role not found: {role_id}")
 
-        if role.is_system_role:
-            raise RBACError("Cannot modify system roles")
+            if role.is_system_role:
+                raise RBACError("Cannot modify system roles")
 
-        if name is not None:
-            role.name = name
-        if description is not None:
-            role.description = description
-        if permissions is not None:
-            role.permissions = set(permissions)
+            if name is not None:
+                role.name = name
+            if description is not None:
+                role.description = description
+            if permissions is not None:
+                role.permissions = set(permissions)
 
-        # Clear cache
-        self._permission_cache.clear()
+            # Clear cache
+            self._permission_cache.clear()
 
-        return role
+            return role
 
     def delete_role(self, role_id: str) -> bool:
         """Delete a role."""
-        role = self._roles.get(role_id)
-        if role is None:
-            return False
+        with self._lock:
+            role = self._roles.get(role_id)
+            if role is None:
+                return False
 
-        if role.is_system_role:
-            raise RBACError("Cannot delete system roles")
+            if role.is_system_role:
+                raise RBACError("Cannot delete system roles")
 
-        del self._roles[role_id]
-        self._permission_cache.clear()
-        return True
+            del self._roles[role_id]
+            self._permission_cache.clear()
+            return True
 
     def get_role_permissions(self, role_id: str, resolve_inheritance: bool = True) -> Set[str]:
         """
@@ -354,43 +361,46 @@ class RBACManager:
         Returns:
             Set of permission strings
         """
-        # Check cache
-        cache_key = f"{role_id}:{resolve_inheritance}"
-        if self.config.cache_permissions and cache_key in self._permission_cache:
-            return self._permission_cache[cache_key].copy()
+        with self._lock:
+            # Check cache
+            cache_key = f"{role_id}:{resolve_inheritance}"
+            if self.config.cache_permissions and cache_key in self._permission_cache:
+                return self._permission_cache[cache_key].copy()
 
-        role = self._roles.get(role_id)
-        if role is None:
-            return set()
+            role = self._roles.get(role_id)
+            if role is None:
+                return set()
 
-        permissions = role.permissions.copy()
+            permissions = role.permissions.copy()
 
-        if resolve_inheritance:
-            for parent_id in role.inherits_from:
-                parent_perms = self.get_role_permissions(parent_id, resolve_inheritance=True)
-                permissions.update(parent_perms)
+            if resolve_inheritance:
+                for parent_id in role.inherits_from:
+                    # Recursive call will acquire lock (RLock allows this)
+                    parent_perms = self.get_role_permissions(parent_id, resolve_inheritance=True)
+                    permissions.update(parent_perms)
 
-        # Cache result
-        if self.config.cache_permissions:
-            self._permission_cache[cache_key] = permissions.copy()
+            # Cache result
+            if self.config.cache_permissions:
+                self._permission_cache[cache_key] = permissions.copy()
 
-        return permissions
+            return permissions
 
     def get_user_permissions(self, user: User) -> Set[str]:
         """Get all permissions for a user."""
-        permissions = user.permissions.copy()
+        with self._lock:
+            permissions = user.permissions.copy()
 
-        # Add permissions from built-in roles
-        for role in user.roles:
-            role_obj = self._roles.get(role.value)
-            if role_obj:
-                permissions.update(self.get_role_permissions(role_obj.id))
+            # Add permissions from built-in roles
+            for role in user.roles:
+                role_obj = self._roles.get(role.value)
+                if role_obj:
+                    permissions.update(self.get_role_permissions(role_obj.id))
 
-        # Add permissions from custom roles
-        for role_id in user.custom_roles:
-            permissions.update(self.get_role_permissions(role_id))
+            # Add permissions from custom roles
+            for role_id in user.custom_roles:
+                permissions.update(self.get_role_permissions(role_id))
 
-        return permissions
+            return permissions
 
     def check_permission(
         self,

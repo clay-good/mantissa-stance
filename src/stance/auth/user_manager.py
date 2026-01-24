@@ -15,6 +15,7 @@ import hmac
 import re
 import secrets
 import struct
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -237,6 +238,7 @@ class UserManager:
     User lifecycle manager.
 
     Handles user registration, authentication, and profile management.
+    Thread-safe for multi-threaded environments.
     """
 
     def __init__(self, config: Optional[UserConfig] = None):
@@ -253,6 +255,7 @@ class UserManager:
         self._password_reset_tokens: Dict[str, PasswordResetToken] = {}
         self._email_verification_tokens: Dict[str, EmailVerificationToken] = {}
         self._password_history: Dict[str, List[str]] = {}  # user_id -> [password_hashes]
+        self._lock = threading.RLock()  # Reentrant lock for thread safety
 
     # =========================================================================
     # Registration
@@ -288,45 +291,46 @@ class UserManager:
             PasswordValidationError: If password is invalid
             EmailValidationError: If email is invalid
         """
-        # Validate email
+        # Validate email (can be done outside lock)
         self._validate_email(email)
 
-        # Check for existing user
+        # Validate password (can be done outside lock)
+        self._validate_password(password)
+
+        # Create credentials (can be done outside lock - expensive hashing)
+        credentials = UserCredentials.create(password)
+
         email_lower = email.lower()
         username_lower = username.lower()
 
-        if email_lower in self._email_index:
-            raise UserExistsError(f"User with email {email} already exists")
+        with self._lock:
+            # Check for existing user (must be atomic with insert)
+            if email_lower in self._email_index:
+                raise UserExistsError(f"User with email {email} already exists")
 
-        if username_lower in self._username_index:
-            raise UserExistsError(f"User with username {username} already exists")
+            if username_lower in self._username_index:
+                raise UserExistsError(f"User with username {username} already exists")
 
-        # Validate password
-        self._validate_password(password)
+            # Create user
+            user = User(
+                id=secrets.token_hex(16),
+                email=email,
+                username=username,
+                display_name=display_name or username,
+                credentials=credentials,
+                roles=roles or {UserRole.VIEWER},
+                status=UserStatus.PENDING if self.config.email_verification_required else UserStatus.ACTIVE,
+                tenant_id=tenant_id,
+                metadata=metadata or {},
+            )
 
-        # Create credentials
-        credentials = UserCredentials.create(password)
+            # Store user atomically
+            self._users[user.id] = user
+            self._email_index[email_lower] = user.id
+            self._username_index[username_lower] = user.id
 
-        # Create user
-        user = User(
-            id=secrets.token_hex(16),
-            email=email,
-            username=username,
-            display_name=display_name or username,
-            credentials=credentials,
-            roles=roles or {UserRole.VIEWER},
-            status=UserStatus.PENDING if self.config.email_verification_required else UserStatus.ACTIVE,
-            tenant_id=tenant_id,
-            metadata=metadata or {},
-        )
-
-        # Store user
-        self._users[user.id] = user
-        self._email_index[email_lower] = user.id
-        self._username_index[username_lower] = user.id
-
-        # Initialize password history
-        self._password_history[user.id] = [credentials.password_hash]
+            # Initialize password history
+            self._password_history[user.id] = [credentials.password_hash]
 
         return user
 
@@ -400,41 +404,42 @@ class UserManager:
             InvalidCredentialsError: If credentials invalid
             AccountLockedError: If account is locked
         """
-        # Find user
-        user = self._find_user_by_identifier(identifier)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            # Find user
+            user = self._find_user_by_identifier(identifier)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        # Check if account is active
-        if user.status == UserStatus.SUSPENDED:
-            raise AccountLockedError("Account is suspended")
+            # Check if account is active
+            if user.status == UserStatus.SUSPENDED:
+                raise AccountLockedError("Account is suspended")
 
-        if user.status == UserStatus.PENDING:
-            raise AccountLockedError("Email verification required")
+            if user.status == UserStatus.PENDING:
+                raise AccountLockedError("Email verification required")
 
-        # Check lockout
-        if user.credentials.is_locked():
-            raise AccountLockedError(
-                f"Account is locked. Try again in {self.config.lockout_duration_minutes} minutes"
-            )
+            # Check lockout
+            if user.credentials.is_locked():
+                raise AccountLockedError(
+                    f"Account is locked. Try again in {self.config.lockout_duration_minutes} minutes"
+                )
 
-        # Verify password
-        if not user.credentials.verify_password(password):
-            user.credentials.record_failed_login(
-                lockout_threshold=self.config.max_login_attempts,
-                lockout_duration=self.config.lockout_duration_minutes * 60,
-            )
-            raise InvalidCredentialsError("Invalid credentials")
+            # Verify password
+            if not user.credentials.verify_password(password):
+                user.credentials.record_failed_login(
+                    lockout_threshold=self.config.max_login_attempts,
+                    lockout_duration=self.config.lockout_duration_minutes * 60,
+                )
+                raise InvalidCredentialsError("Invalid credentials")
 
-        # Clear failed attempts on success
-        user.credentials.reset_failed_logins()
-        user.last_login_at = datetime.utcnow()
-        user.metadata["last_login_ip"] = ip_address
+            # Clear failed attempts on success
+            user.credentials.reset_failed_logins()
+            user.last_login_at = datetime.utcnow()
+            user.metadata["last_login_ip"] = ip_address
 
-        return user
+            return user
 
     def _find_user_by_identifier(self, identifier: str) -> Optional[User]:
-        """Find user by email or username."""
+        """Find user by email or username. Must be called with lock held."""
         identifier_lower = identifier.lower()
 
         # Try email first
@@ -669,21 +674,24 @@ class UserManager:
 
     def get_user(self, user_id: str) -> Optional[User]:
         """Get user by ID."""
-        return self._users.get(user_id)
+        with self._lock:
+            return self._users.get(user_id)
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email."""
-        user_id = self._email_index.get(email.lower())
-        if user_id:
-            return self._users.get(user_id)
-        return None
+        with self._lock:
+            user_id = self._email_index.get(email.lower())
+            if user_id:
+                return self._users.get(user_id)
+            return None
 
     def get_user_by_username(self, username: str) -> Optional[User]:
         """Get user by username."""
-        user_id = self._username_index.get(username.lower())
-        if user_id:
-            return self._users.get(user_id)
-        return None
+        with self._lock:
+            user_id = self._username_index.get(username.lower())
+            if user_id:
+                return self._users.get(user_id)
+            return None
 
     def update_user(
         self,
@@ -708,34 +716,38 @@ class UserManager:
             UserNotFoundError: If user not found
             UserExistsError: If new email already exists
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
-
-        if display_name:
-            user.display_name = display_name
-
-        if email and email.lower() != user.email.lower():
+        # Validate email outside lock if provided
+        if email:
             self._validate_email(email)
-            email_lower = email.lower()
 
-            if email_lower in self._email_index:
-                raise UserExistsError(f"Email {email} already in use")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-            # Update email index
-            del self._email_index[user.email.lower()]
-            self._email_index[email_lower] = user_id
+            if display_name:
+                user.display_name = display_name
 
-            user.email = email
-            user.email_verified = False
-            user.email_verified_at = None
+            if email and email.lower() != user.email.lower():
+                email_lower = email.lower()
 
-        if metadata:
-            user.metadata.update(metadata)
+                if email_lower in self._email_index:
+                    raise UserExistsError(f"Email {email} already in use")
 
-        user.updated_at = datetime.utcnow()
+                # Update email index atomically
+                del self._email_index[user.email.lower()]
+                self._email_index[email_lower] = user_id
 
-        return user
+                user.email = email
+                user.email_verified = False
+                user.email_verified_at = None
+
+            if metadata:
+                user.metadata.update(metadata)
+
+            user.updated_at = datetime.utcnow()
+
+            return user
 
     def update_user_roles(
         self,
@@ -755,12 +767,13 @@ class UserManager:
         Raises:
             UserNotFoundError: If user not found
         """
-        user = self._users.get(user_id)
-        if user is None:
-            raise UserNotFoundError("User not found")
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                raise UserNotFoundError("User not found")
 
-        user.roles = roles
-        user.updated_at = datetime.utcnow()
+            user.roles = roles
+            user.updated_at = datetime.utcnow()
 
         return user
 
@@ -839,19 +852,20 @@ class UserManager:
         Returns:
             True if deleted
         """
-        user = self._users.get(user_id)
-        if user is None:
-            return False
+        with self._lock:
+            user = self._users.get(user_id)
+            if user is None:
+                return False
 
-        # Remove from indexes
-        del self._email_index[user.email.lower()]
-        del self._username_index[user.username.lower()]
-        del self._users[user_id]
+            # Remove from indexes atomically
+            del self._email_index[user.email.lower()]
+            del self._username_index[user.username.lower()]
+            del self._users[user_id]
 
-        # Clean up password history
-        self._password_history.pop(user_id, None)
+            # Clean up password history
+            self._password_history.pop(user_id, None)
 
-        return True
+            return True
 
     # =========================================================================
     # Query Methods
@@ -878,21 +892,22 @@ class UserManager:
         Returns:
             List of Users
         """
-        results = []
+        with self._lock:
+            results = []
 
-        for user in self._users.values():
-            if tenant_id and user.tenant_id != tenant_id:
-                continue
-            if status and user.status != status:
-                continue
-            if role and role not in user.roles:
-                continue
-            results.append(user)
+            for user in self._users.values():
+                if tenant_id and user.tenant_id != tenant_id:
+                    continue
+                if status and user.status != status:
+                    continue
+                if role and role not in user.roles:
+                    continue
+                results.append(user)
 
-        # Sort by created_at descending
-        results.sort(key=lambda u: u.created_at, reverse=True)
+            # Sort by created_at descending
+            results.sort(key=lambda u: u.created_at, reverse=True)
 
-        return results[offset:offset + limit]
+            return results[offset:offset + limit]
 
     def search_users(
         self,
@@ -912,46 +927,48 @@ class UserManager:
             Matching Users
         """
         query_lower = query.lower()
-        results = []
+        with self._lock:
+            results = []
 
-        for user in self._users.values():
-            if tenant_id and user.tenant_id != tenant_id:
-                continue
+            for user in self._users.values():
+                if tenant_id and user.tenant_id != tenant_id:
+                    continue
 
-            if (
-                query_lower in user.email.lower()
-                or query_lower in user.username.lower()
-                or query_lower in user.display_name.lower()
-            ):
-                results.append(user)
+                if (
+                    query_lower in user.email.lower()
+                    or query_lower in user.username.lower()
+                    or query_lower in user.display_name.lower()
+                ):
+                    results.append(user)
 
-                if len(results) >= limit:
-                    break
+                    if len(results) >= limit:
+                        break
 
         return results
 
     def get_stats(self) -> Dict[str, Any]:
         """Get user statistics."""
-        status_counts = {}
-        role_counts = {}
+        with self._lock:
+            status_counts: Dict[str, int] = {}
+            role_counts: Dict[str, int] = {}
 
-        for user in self._users.values():
-            status = user.status.value
-            status_counts[status] = status_counts.get(status, 0) + 1
+            for user in self._users.values():
+                status = user.status.value
+                status_counts[status] = status_counts.get(status, 0) + 1
 
-            for role in user.roles:
-                role_name = role.value
-                role_counts[role_name] = role_counts.get(role_name, 0) + 1
+                for role in user.roles:
+                    role_name = role.value
+                    role_counts[role_name] = role_counts.get(role_name, 0) + 1
 
-        return {
-            "total_users": len(self._users),
-            "status_counts": status_counts,
-            "role_counts": role_counts,
-            "pending_verifications": sum(
-                1 for u in self._users.values()
-                if u.status == UserStatus.PENDING
-            ),
-        }
+            return {
+                "total_users": len(self._users),
+                "status_counts": status_counts,
+                "role_counts": role_counts,
+                "pending_verifications": sum(
+                    1 for u in self._users.values()
+                    if u.status == UserStatus.PENDING
+                ),
+            }
 
     # =========================================================================
     # MFA Support (placeholder for future)
