@@ -7,7 +7,7 @@ HTML markup used by both the web dashboard and static exports.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Callable
 from html import escape as html_escape
@@ -23,11 +23,7 @@ class ComponentBuilder:
     Provides a fluent interface for constructing complex HTML structures.
     """
 
-    _html_parts: List[str] = None
-
-    def __post_init__(self):
-        if self._html_parts is None:
-            self._html_parts = []
+    _html_parts: List[str] = field(default_factory=list)
 
     def add(self, html: str) -> "ComponentBuilder":
         """Add HTML content."""

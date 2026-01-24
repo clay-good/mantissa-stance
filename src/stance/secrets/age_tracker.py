@@ -871,7 +871,7 @@ class SecretAgeTracker:
     def calculate_rotation_compliance(
         self,
         inventory: SecretInventory,
-        max_rotation_days: Dict[SecretType, int] = None,
+        max_rotation_days: Optional[Dict[SecretType, int]] = None,
     ) -> Dict[str, Any]:
         """
         Calculate rotation compliance metrics.
