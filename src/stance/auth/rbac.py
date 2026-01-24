@@ -58,10 +58,10 @@ class Permission:
         if not self.id:
             self.id = f"{self.resource}:{self.action}"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.id)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Permission):
             return self.id == other.id
         return False

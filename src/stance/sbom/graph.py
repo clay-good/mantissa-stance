@@ -69,10 +69,10 @@ class GraphNode:
     purl: str | None = None
     properties: dict[str, Any] = field(default_factory=dict)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.id)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, GraphNode):
             return self.id == other.id
         return False
