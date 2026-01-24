@@ -41,13 +41,24 @@ def _validate_config_name(name: str) -> tuple[bool, str]:
     if len(name) > MAX_CONFIG_NAME_LENGTH:
         return False, f"Configuration name too long (max {MAX_CONFIG_NAME_LENGTH} characters)"
 
-    # Check for path traversal attempts
-    if ".." in name or "/" in name or "\\" in name:
+    # Check for null bytes (injection attempt)
+    if "\x00" in name:
         return False, "Configuration name contains invalid characters"
 
-    # Check for reserved names
-    reserved_names = {"con", "prn", "aux", "nul", "com1", "lpt1", ".", ".."}
-    if name.lower() in reserved_names:
+    # Check for path traversal attempts (including URL-encoded variants)
+    traversal_patterns = ["..", "/", "\\", "%2e", "%2f", "%5c"]
+    name_lower = name.lower()
+    for pattern in traversal_patterns:
+        if pattern in name_lower:
+            return False, "Configuration name contains invalid characters"
+
+    # Check for reserved names (Windows and Unix)
+    reserved_names = {
+        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4",
+        "lpt1", "lpt2", "lpt3", "lpt4", ".", "..",
+        ".git", ".env", ".ssh", ".aws", ".config"
+    }
+    if name_lower in reserved_names:
         return False, f"Configuration name '{name}' is reserved"
 
     # Validate pattern
@@ -206,6 +217,11 @@ class ConfigHandler(RoutedHandler):
         try:
             name = self.get_param(params, "name", "default")
             section = self.get_param(params, "section", "")
+
+            # Validate configuration name
+            is_valid, error = _validate_config_name(name)
+            if not is_valid:
+                return HandlerResponse.error(error, HttpStatus.BAD_REQUEST)
 
             # Demo configuration data
             config_data = {

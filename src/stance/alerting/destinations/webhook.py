@@ -113,7 +113,7 @@ def _validate_webhook_url(url: str) -> None:
     try:
         parsed = urllib.parse.urlparse(url)
     except Exception as e:
-        raise SSRFError(f"Invalid URL format: {e}")
+        raise SSRFError(f"Invalid URL format: {e}") from e
 
     # Check scheme - only allow HTTPS (and HTTP for local dev)
     if parsed.scheme not in ("https", "http"):
@@ -165,7 +165,7 @@ def _validate_webhook_url(url: str) -> None:
                     "This is not allowed for security reasons."
                 )
     except socket.gaierror as e:
-        raise SSRFError(f"Cannot resolve hostname: {hostname}: {e}")
+        raise SSRFError(f"Cannot resolve hostname: {hostname}: {e}") from e
 
 
 def _sanitize_header_value(value: str) -> str:

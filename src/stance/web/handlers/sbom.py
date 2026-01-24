@@ -443,8 +443,22 @@ class SbomHandler(RoutedHandler):
             builder = DependencyGraphBuilder()
             graph = builder.build_from_file(dep_file)
 
-            # Convert max_depth to int if provided
-            depth = int(max_depth_str) if max_depth_str else None
+            # Convert max_depth to int if provided with bounds validation
+            depth = None
+            if max_depth_str:
+                try:
+                    depth = int(max_depth_str)
+                    # Reasonable bounds: 1 to 100 levels deep
+                    if depth < 1 or depth > 100:
+                        return HandlerResponse.error(
+                            "max_depth must be between 1 and 100",
+                            HttpStatus.BAD_REQUEST
+                        )
+                except ValueError:
+                    return HandlerResponse.error(
+                        f"Invalid max_depth value: {max_depth_str}",
+                        HttpStatus.BAD_REQUEST
+                    )
 
             # Return in requested format
             if output_format == "tree":

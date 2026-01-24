@@ -72,8 +72,10 @@ def _validate_oauth_url(url: str, context: str = "OAuth") -> None:
     Raises:
         OAuth2Error: If the URL fails validation
     """
-    if not url:
+    if not url or not url.strip():
         raise OAuth2Error(f"{context} URL is empty")
+
+    url = url.strip()
 
     # Parse the URL
     try:
@@ -639,6 +641,7 @@ class OAuth2Provider:
         """
         self.config = config
         self._states: Dict[str, OAuth2State] = {}
+        self._states_lock = threading.RLock()  # Protect state dictionary from race conditions
         self._http_client: Optional[Any] = None
 
     def _get_http_client(self) -> Any:
@@ -702,7 +705,8 @@ class OAuth2Provider:
             metadata=state_metadata or {},
             expires_at=datetime.utcnow() + timedelta(seconds=self.config.state_timeout),
         )
-        self._states[state_value] = state
+        with self._states_lock:
+            self._states[state_value] = state
 
         # Build authorization URL
         params = {
@@ -750,20 +754,21 @@ class OAuth2Provider:
         stored_state: Optional[OAuth2State] = None
         state_key: Optional[str] = None
 
-        for key, value in self._states.items():
-            # Use hmac.compare_digest for constant-time string comparison
-            # This prevents timing attacks that could reveal valid state values
-            if hmac.compare_digest(key.encode("utf-8"), state.encode("utf-8")):
-                stored_state = value
-                state_key = key
-                break
+        with self._states_lock:
+            for key, value in self._states.items():
+                # Use hmac.compare_digest for constant-time string comparison
+                # This prevents timing attacks that could reveal valid state values
+                if hmac.compare_digest(key.encode("utf-8"), state.encode("utf-8")):
+                    stored_state = value
+                    state_key = key
+                    break
 
-        if stored_state is None:
-            raise OAuth2Error("Invalid or expired state parameter")
+            if stored_state is None:
+                raise OAuth2Error("Invalid or expired state parameter")
 
-        if stored_state.is_expired():
-            del self._states[state_key]
-            raise OAuth2Error("State parameter has expired")
+            if stored_state.is_expired():
+                del self._states[state_key]
+                raise OAuth2Error("State parameter has expired")
 
         if self.config.response_type == OAuth2ResponseType.CODE and not code:
             raise OAuth2Error("Missing authorization code")
@@ -789,8 +794,9 @@ class OAuth2Provider:
             OAuth2TokenError: If token exchange fails
         """
         # Clean up used state
-        if state.state in self._states:
-            del self._states[state.state]
+        with self._states_lock:
+            if state.state in self._states:
+                del self._states[state.state]
 
         # Build token request
         token_data = {
@@ -973,17 +979,19 @@ class OAuth2Provider:
 
     def cleanup_expired_states(self) -> int:
         """Clean up expired state parameters."""
-        now = datetime.utcnow()
-        expired = [s for s, state in self._states.items() if state.is_expired()]
-        for s in expired:
-            del self._states[s]
-        return len(expired)
+        with self._states_lock:
+            expired = [s for s, state in self._states.items() if state.is_expired()]
+            for s in expired:
+                del self._states[s]
+            return len(expired)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get provider statistics."""
+        with self._states_lock:
+            pending_states = len(self._states)
         return {
             "provider_name": self.config.provider_name,
-            "pending_states": len(self._states),
+            "pending_states": pending_states,
             "pkce_required": self.config.pkce_required,
             "scopes": self.config.scopes,
         }
@@ -1143,12 +1151,22 @@ class OIDCProvider(OAuth2Provider):
             exp = claims.get("exp")
             if exp is None:
                 raise OAuth2TokenError("ID token missing required 'exp' claim")
+            # Validate timestamp is a number in valid range
+            if not isinstance(exp, (int, float)):
+                raise OAuth2TokenError("ID token 'exp' claim is not a valid timestamp")
+            # Valid Unix timestamp range: 0 to year 3000 approximately
+            if exp < 0 or exp > 32503680000:  # Jan 1, 3000 UTC
+                raise OAuth2TokenError("ID token 'exp' timestamp is out of valid range")
             if datetime.utcfromtimestamp(exp) < datetime.utcnow():
                 raise OAuth2TokenError("ID token has expired")
 
             # Validate issued-at time (iat) - token shouldn't be from far future
             iat = claims.get("iat")
             if iat is not None:
+                if not isinstance(iat, (int, float)):
+                    raise OAuth2TokenError("ID token 'iat' claim is not a valid timestamp")
+                if iat < 0 or iat > 32503680000:  # Jan 1, 3000 UTC
+                    raise OAuth2TokenError("ID token 'iat' timestamp is out of valid range")
                 iat_time = datetime.utcfromtimestamp(iat)
                 # Allow 5 minutes of clock skew
                 if iat_time > datetime.utcnow() + timedelta(minutes=5):

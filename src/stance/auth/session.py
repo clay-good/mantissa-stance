@@ -102,6 +102,9 @@ class Session:
 
     def is_idle_timeout(self, idle_hours: int) -> bool:
         """Check if session has timed out due to inactivity."""
+        # Ensure idle_hours is positive to prevent immediate timeout
+        if idle_hours <= 0:
+            idle_hours = 1  # Minimum 1 hour idle timeout
         idle_deadline = self.last_activity_at + timedelta(hours=idle_hours)
         return datetime.utcnow() >= idle_deadline
 
@@ -111,6 +114,9 @@ class Session:
             return False
         if self.is_expired():
             return False
+        # Ensure idle_timeout_hours is positive
+        if idle_timeout_hours <= 0:
+            idle_timeout_hours = 1  # Minimum 1 hour
         if self.is_idle_timeout(idle_timeout_hours):
             return False
         return True

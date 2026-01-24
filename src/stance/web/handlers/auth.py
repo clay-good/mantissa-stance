@@ -875,12 +875,16 @@ class AuthHandler(RoutedHandler):
                     HttpStatus.UNAUTHORIZED
                 )
 
+            # Safely extract username from email
+            email_parts = email.split("@")
+            username = email_parts[0] if len(email_parts) >= 2 else email
+
             result = {
                 "success": True,
                 "user": {
                     "id": "usr_001",
                     "email": email,
-                    "username": email.split("@")[0],
+                    "username": username,
                     "roles": ["admin"],
                 },
                 "tokens": {

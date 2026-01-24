@@ -13,7 +13,6 @@ Part of Phase 94: Enhanced Visualization
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import queue
@@ -60,6 +59,7 @@ class EventType(Enum):
 
     # Dashboard events
     WIDGET_REFRESH = "widget_refresh"
+    WIDGET_UPDATE = "widget_update"
     DASHBOARD_UPDATE = "dashboard_update"
 
 
@@ -774,6 +774,35 @@ class DashboardStreamManager:
                 **finding_data,
             },
             source="finding_manager",
+        )
+        self._event_bus.publish(event)
+
+    def push_widget_update(
+        self,
+        dashboard_id: str,
+        widget_id: str,
+        data: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Push a widget update event.
+
+        Args:
+            dashboard_id: Dashboard ID containing the widget
+            widget_id: Widget ID being updated
+            data: Widget data to push
+            metadata: Optional metadata (e.g., update timing info)
+        """
+        event = RealtimeEvent(
+            id=str(uuid.uuid4()),
+            event_type=EventType.WIDGET_UPDATE,
+            data={
+                "dashboard_id": dashboard_id,
+                "widget_id": widget_id,
+                "data": data,
+                "metadata": metadata or {},
+            },
+            source="dashboard_updates",
         )
         self._event_bus.publish(event)
 

@@ -234,8 +234,8 @@ class AlertConfigLoader:
             try:
                 import yaml
                 data = yaml.safe_load(content)
-            except ImportError:
-                raise ImportError("PyYAML is required to load YAML config files")
+            except ImportError as e:
+                raise ImportError("PyYAML is required to load YAML config files") from e
         else:
             data = json.loads(content)
 
@@ -326,8 +326,8 @@ class AlertConfigLoader:
             try:
                 import yaml
                 content = yaml.dump(data, default_flow_style=False)
-            except ImportError:
-                raise ImportError("PyYAML is required to save YAML config files")
+            except ImportError as e:
+                raise ImportError("PyYAML is required to save YAML config files") from e
         else:
             content = json.dumps(data, indent=2)
 

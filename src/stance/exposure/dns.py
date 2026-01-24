@@ -872,8 +872,8 @@ class AWSRoute53Collector(BaseDNSCollector):
                     import boto3
 
                     self._session = boto3.Session()
-                except ImportError:
-                    raise ImportError("boto3 is required for AWS Route53 collection")
+                except ImportError as e:
+                    raise ImportError("boto3 is required for AWS Route53 collection") from e
             self._client = self._session.client("route53")
         return self._client
 
@@ -886,8 +886,8 @@ class AWSRoute53Collector(BaseDNSCollector):
                     import boto3
 
                     self._session = boto3.Session()
-                except ImportError:
-                    raise ImportError("boto3 is required")
+                except ImportError as e:
+                    raise ImportError("boto3 is required") from e
             sts = self._session.client("sts")
             identity = sts.get_caller_identity()
             self._account_id = identity["Account"]
@@ -1157,8 +1157,8 @@ class AzureDNSCollector(BaseDNSCollector):
                 self._dns_client = DnsManagementClient(
                     self._credential, self._subscription_id
                 )
-            except ImportError:
-                raise ImportError("azure-mgmt-dns is required for Azure DNS collection")
+            except ImportError as e:
+                raise ImportError("azure-mgmt-dns is required for Azure DNS collection") from e
         return self._dns_client
 
     def collect_zones(self) -> Iterator[DNSZone]:

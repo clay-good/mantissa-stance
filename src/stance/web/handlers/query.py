@@ -57,6 +57,13 @@ class QueryHandler(RoutedHandler):
             limit = self.get_param(params, "limit", "")
             timeout = self.get_param_int(params, "timeout", 300)
 
+            # Validate timeout bounds (1 second to 10 minutes max)
+            if timeout < 1 or timeout > 600:
+                return HandlerResponse.error(
+                    "timeout must be between 1 and 600 seconds",
+                    HttpStatus.BAD_REQUEST
+                )
+
             if not sql:
                 return HandlerResponse.error(
                     "sql parameter is required. Usage: /api/query/execute?sql=SELECT * FROM assets LIMIT 10",

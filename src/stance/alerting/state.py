@@ -220,8 +220,8 @@ class DynamoDBAlertState(AlertStateBackend):
                 self._dynamodb = boto3.resource("dynamodb", region_name=region)
 
             self._table = self._dynamodb.Table(table_name)
-        except ImportError:
-            raise ImportError("boto3 is required for DynamoDBAlertState")
+        except ImportError as e:
+            raise ImportError("boto3 is required for DynamoDBAlertState") from e
 
     def record_alert(self, record: AlertRecord) -> None:
         """Record a sent alert."""
@@ -352,8 +352,8 @@ class FirestoreAlertState(AlertStateBackend):
                 credentials=credentials,
             )
             self._collection = self._db.collection(collection)
-        except ImportError:
-            raise ImportError("google-cloud-firestore is required for FirestoreAlertState")
+        except ImportError as e:
+            raise ImportError("google-cloud-firestore is required for FirestoreAlertState") from e
 
     def record_alert(self, record: AlertRecord) -> None:
         """Record a sent alert."""
@@ -472,8 +472,8 @@ class CosmosDBAlertState(AlertStateBackend):
             self._client = CosmosClient(endpoint, key)
             self._database = self._client.get_database_client(database_name)
             self._container = self._database.get_container_client(container_name)
-        except ImportError:
-            raise ImportError("azure-cosmos is required for CosmosDBAlertState")
+        except ImportError as e:
+            raise ImportError("azure-cosmos is required for CosmosDBAlertState") from e
 
     def record_alert(self, record: AlertRecord) -> None:
         """Record a sent alert."""

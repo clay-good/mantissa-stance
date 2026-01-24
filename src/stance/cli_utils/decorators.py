@@ -12,9 +12,11 @@ import functools
 import json
 import logging
 import os
+import re
 import secrets
 import sys
 import traceback
+from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,101 @@ def _is_production_environment() -> bool:
         os.environ.get("ENV", "").lower() == "production",
         os.environ.get("ENVIRONMENT", "").lower() == "production",
     ])
+
+
+class PathValidationError(ValueError):
+    """Raised when a file path fails security validation."""
+    pass
+
+
+def validate_cli_output_path(path: str) -> Path:
+    """
+    Validate a CLI output file path for security issues.
+
+    Prevents path traversal attacks, writes to sensitive locations,
+    and other security vulnerabilities in file operations.
+
+    Args:
+        path: The path to validate
+
+    Returns:
+        Validated Path object
+
+    Raises:
+        PathValidationError: If the path fails validation
+    """
+    if not path:
+        raise PathValidationError("Output path cannot be empty")
+
+    # Check for null bytes (injection attempt)
+    if "\x00" in path:
+        raise PathValidationError("Path contains null bytes")
+
+    # Check for control characters
+    if any(ord(c) < 32 for c in path if c not in ("\t",)):
+        raise PathValidationError("Path contains control characters")
+
+    # Normalize the path
+    try:
+        normalized = Path(path).expanduser().resolve()
+    except (ValueError, OSError) as e:
+        raise PathValidationError(f"Invalid path format: {e}") from e
+
+    # Check for path traversal attempts in original path
+    # This catches attempts to bypass with encoded or unusual sequences
+    if ".." in path:
+        raise PathValidationError("Path traversal (..) is not allowed")
+
+    # Get the path string for further checks
+    path_str = str(normalized)
+
+    # Block writes to sensitive system directories
+    sensitive_dirs = [
+        "/etc",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/boot",
+        "/lib",
+        "/lib64",
+        "/var/log",
+        "/var/run",
+        "/root",
+        "/proc",
+        "/sys",
+        "/dev",
+        # Windows equivalents
+        "C:\\Windows",
+        "C:\\Program Files",
+        "C:\\Program Files (x86)",
+    ]
+
+    for sensitive in sensitive_dirs:
+        if path_str.lower().startswith(sensitive.lower()):
+            raise PathValidationError(
+                f"Cannot write to sensitive directory: {sensitive}"
+            )
+
+    # Block hidden files on Unix (common for config files)
+    filename = normalized.name
+    if filename.startswith(".") and filename not in (".", ".."):
+        # Allow common output extensions like .json, .csv
+        if not any(filename.endswith(ext) for ext in (".json", ".csv", ".txt", ".html", ".md")):
+            raise PathValidationError("Hidden files without standard extensions are not allowed")
+
+    # Validate the parent directory exists or can be created
+    parent = normalized.parent
+    if not parent.exists():
+        # Check if any parent exists (don't create arbitrary deep structures)
+        depth = 0
+        check_parent = parent
+        while not check_parent.exists() and depth < 5:
+            check_parent = check_parent.parent
+            depth += 1
+        if depth >= 5:
+            raise PathValidationError("Path requires creating too many nested directories")
+
+    return normalized
 
 
 def _sanitize_cli_error(error: Exception) -> tuple[str, str]:
@@ -248,6 +345,9 @@ def with_output_handling(func: F) -> F:
     If args.output is set, redirects stdout to the specified file.
     Otherwise, output goes to stdout as normal.
 
+    Includes security validation to prevent path traversal and writes
+    to sensitive locations.
+
     Usage:
         @with_output_handling
         def cmd_export(args: argparse.Namespace) -> int:
@@ -268,7 +368,13 @@ def with_output_handling(func: F) -> F:
 
         if output_path:
             try:
-                with open(output_path, "w") as f:
+                # Validate the output path for security
+                validated_path = validate_cli_output_path(output_path)
+
+                # Ensure parent directory exists
+                validated_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(validated_path, "w", encoding="utf-8") as f:
                     # Temporarily redirect stdout
                     old_stdout = sys.stdout
                     sys.stdout = f
@@ -276,8 +382,11 @@ def with_output_handling(func: F) -> F:
                         result = func(args)
                     finally:
                         sys.stdout = old_stdout
-                logger.info(f"Output written to {output_path}")
+                logger.info(f"Output written to {validated_path}")
                 return result
+            except PathValidationError as e:
+                print(f"Error: Invalid output path - {e}", file=sys.stderr)
+                return 1
             except IOError as e:
                 # For IO errors, it's safe to show the path but sanitize the error
                 user_message, error_id = _sanitize_cli_error(e)

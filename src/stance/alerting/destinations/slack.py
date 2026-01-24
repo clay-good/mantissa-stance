@@ -75,7 +75,7 @@ def _validate_slack_webhook_url(url: str) -> None:
     try:
         parsed = urllib.parse.urlparse(url)
     except Exception as e:
-        raise SSRFError(f"Invalid URL format: {e}")
+        raise SSRFError(f"Invalid URL format: {e}") from e
 
     # Check scheme - only allow HTTPS
     if parsed.scheme != "https":
@@ -115,7 +115,7 @@ def _validate_slack_webhook_url(url: str) -> None:
                         "This is not allowed for security reasons."
                     )
         except socket.gaierror as e:
-            raise SSRFError(f"Cannot resolve hostname {hostname}: {e}")
+            raise SSRFError(f"Cannot resolve hostname {hostname}: {e}") from e
 
 
 class SlackDestination(BaseDestination):
@@ -335,7 +335,7 @@ class SlackDestination(BaseDestination):
             _validate_slack_webhook_url(self._webhook_url)
         except SSRFError as e:
             logger.error(f"SSRF validation failed for Slack webhook: {e}")
-            raise ValueError(f"Invalid webhook URL: {e}")
+            raise ValueError(f"Invalid webhook URL: {e}") from e
 
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(

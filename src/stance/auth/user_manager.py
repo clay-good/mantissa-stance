@@ -926,7 +926,12 @@ class UserManager:
         Returns:
             Matching Users
         """
-        query_lower = query.lower()
+        # Handle empty or whitespace-only queries
+        query_stripped = query.strip()
+        if not query_stripped:
+            return []
+
+        query_lower = query_stripped.lower()
         with self._lock:
             results = []
 

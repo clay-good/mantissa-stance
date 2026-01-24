@@ -700,7 +700,7 @@ class ServiceNowClient:
             logger.info("ServiceNow OAuth token refreshed")
         except Exception as e:
             logger.error(f"Failed to get OAuth token: {e}")
-            raise ServiceNowError(f"OAuth token refresh failed: {e}")
+            raise ServiceNowError(f"OAuth token refresh failed: {e}") from e
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers."""
@@ -813,9 +813,9 @@ class ServiceNowClient:
             # Re-raise open redirect errors
             raise
         except httpx.TimeoutException as e:
-            raise ServiceNowError(f"Request timeout: {e}")
+            raise ServiceNowError(f"Request timeout: {e}") from e
         except httpx.RequestError as e:
-            raise ServiceNowError(f"Request failed: {e}")
+            raise ServiceNowError(f"Request failed: {e}") from e
 
     def close(self) -> None:
         """Close HTTP client connection."""
@@ -1183,7 +1183,7 @@ class ServiceNowClient:
             return result
 
         except httpx.RequestError as e:
-            raise ServiceNowError(f"Attachment upload failed: {e}")
+            raise ServiceNowError(f"Attachment upload failed: {e}") from e
 
     # =========================================================================
     # Connection Test

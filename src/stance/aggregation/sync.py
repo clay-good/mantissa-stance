@@ -482,8 +482,9 @@ class CrossCloudSync:
                         return "resolved"
                     else:
                         return "skip"
-                except (ValueError, AttributeError):
-                    pass
+                except (ValueError, AttributeError) as e:
+                    logger.debug(f"Could not parse timestamps for conflict resolution: {e}")
+                    # Fall through to default "resolved" for NEWER strategy
 
             return "resolved"
 
@@ -532,8 +533,8 @@ class S3StorageAdapter:
                 self._client = session.client("s3", region_name=region)
             else:
                 self._client = boto3.client("s3", region_name=region)
-        except ImportError:
-            raise ImportError("boto3 is required for S3StorageAdapter")
+        except ImportError as e:
+            raise ImportError("boto3 is required for S3StorageAdapter") from e
 
     def write_record(self, path: str, data: dict[str, Any]) -> None:
         """Write a record to S3."""
@@ -601,8 +602,8 @@ class GCSStorageAdapter:
 
             self._client = storage.Client(credentials=credentials)
             self._bucket = self._client.bucket(bucket)
-        except ImportError:
-            raise ImportError("google-cloud-storage is required for GCSStorageAdapter")
+        except ImportError as e:
+            raise ImportError("google-cloud-storage is required for GCSStorageAdapter") from e
 
     def write_record(self, path: str, data: dict[str, Any]) -> None:
         """Write a record to GCS."""
@@ -665,8 +666,8 @@ class AzureBlobStorageAdapter:
             account_url = f"https://{account_name}.blob.core.windows.net"
             self._client = BlobServiceClient(account_url, credential=credential)
             self._container = self._client.get_container_client(container)
-        except ImportError:
-            raise ImportError("azure-storage-blob is required for AzureBlobStorageAdapter")
+        except ImportError as e:
+            raise ImportError("azure-storage-blob is required for AzureBlobStorageAdapter") from e
 
     def write_record(self, path: str, data: dict[str, Any]) -> None:
         """Write a record to Azure Blob Storage."""
