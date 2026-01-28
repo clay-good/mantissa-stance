@@ -1,5 +1,5 @@
 id: aws-cloudtrail-004
-name: CloudTrail S3 bucket not publicly accessible
+name: CloudTrail S3 bucket publicly accessible
 description: |
   Ensure the S3 bucket used for CloudTrail logs is not publicly accessible.
   CloudTrail logs contain sensitive information about API activity and

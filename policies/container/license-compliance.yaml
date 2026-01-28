@@ -1,5 +1,5 @@
 id: container-015
-name: Container images should not contain high-risk licenses
+name: Container image contains high-risk licenses
 description: |
   Software licenses in container images can create legal and compliance
   risks. Certain licenses (GPL, AGPL) may require source disclosure.

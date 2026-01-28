@@ -1,5 +1,5 @@
 id: gcp-iam-004
-name: Service accounts do not have broad OAuth scopes
+name: Service account has broad OAuth scopes
 description: |
   Ensure service accounts do not use cloud-platform scope which grants
   full access to all GCP APIs. Use specific scopes required by the

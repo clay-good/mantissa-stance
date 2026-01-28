@@ -1,5 +1,5 @@
 id: k8s-pod-003
-name: Pods should not share host PID namespace
+name: Pod shares host PID namespace
 description: |
   Sharing the host PID namespace allows containers to see
   all processes on the host, potentially exposing sensitive

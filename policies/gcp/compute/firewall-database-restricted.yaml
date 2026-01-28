@@ -1,5 +1,5 @@
 id: gcp-compute-006
-name: Database ports not exposed to internet
+name: Database ports exposed to internet
 description: |
   Ensure firewall rules do not allow database port access from the
   internet (0.0.0.0/0). Exposing database ports like MySQL (3306),

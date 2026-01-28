@@ -1,5 +1,5 @@
 id: gcp-compute-010
-name: Default network deleted
+name: Default network still exists
 description: |
   Ensure the default VPC network is deleted. The default network
   has overly permissive firewall rules and should not be used for

@@ -1,5 +1,5 @@
 id: aws-ec2-008
-name: Default VPC not used for production
+name: Default VPC used for production
 description: |
   Ensure the default VPC is not used for production workloads.
   Default VPCs have permissive configurations that may not meet

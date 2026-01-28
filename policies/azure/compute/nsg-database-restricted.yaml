@@ -1,5 +1,5 @@
 id: azure-compute-005
-name: Database ports not exposed to internet
+name: Database ports exposed to internet
 description: |
   Ensure Network Security Groups do not allow database port access
   from the internet. Exposing database ports like SQL Server (1433),

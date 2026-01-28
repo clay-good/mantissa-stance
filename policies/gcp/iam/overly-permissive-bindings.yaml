@@ -1,5 +1,5 @@
 id: gcp-iam-003
-name: No overly permissive IAM bindings
+name: Overly permissive IAM bindings detected
 description: |
   Ensure IAM policies do not grant overly permissive access. Policies
   granting roles like Owner, Editor, or primitive roles to allUsers or

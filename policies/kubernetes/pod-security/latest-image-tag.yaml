@@ -1,5 +1,5 @@
 id: k8s-pod-011
-name: Container images should not use latest tag
+name: Container image uses latest tag
 description: |
   Using the 'latest' tag for container images makes deployments
   unpredictable and can lead to unexpected changes. Use specific

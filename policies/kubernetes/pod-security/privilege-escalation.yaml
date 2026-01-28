@@ -1,5 +1,5 @@
 id: k8s-pod-007
-name: Containers should not allow privilege escalation
+name: Container allows privilege escalation
 description: |
   Privilege escalation allows a process to gain more privileges
   than its parent. Disabling this prevents container escape

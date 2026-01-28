@@ -1,5 +1,5 @@
 id: aws-rds-005
-name: RDS instance not publicly accessible
+name: RDS instance publicly accessible
 description: |
   Ensure RDS database instances are not publicly accessible. Public RDS
   instances can be accessed from the internet, increasing the attack surface.

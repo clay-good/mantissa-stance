@@ -1,5 +1,5 @@
 id: container-009
-name: Container images should not run as root
+name: Container image runs as root
 description: |
   Running containers as root increases the impact of container escapes.
   If an attacker escapes the container, they may gain root on the host.

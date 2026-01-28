@@ -1,5 +1,5 @@
 id: k8s-net-004
-name: Ingress resources should not use default backends
+name: Ingress resource uses default backend
 description: |
   Default backends in Ingress resources act as catch-all routes that
   can inadvertently expose services. Explicitly defining rules for

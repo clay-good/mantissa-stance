@@ -1,5 +1,5 @@
 id: k8s-rbac-001
-name: Cluster-admin role should not be widely used
+name: Cluster-admin role widely used
 description: |
   The cluster-admin role provides full access to all resources
   in all namespaces. Bindings to this role should be limited

@@ -1,5 +1,5 @@
 id: gcp-iam-005
-name: Service accounts without user-managed keys
+name: Service account has user-managed keys
 description: |
   Ensure service accounts do not have user-managed keys when possible.
   User-managed keys pose security risks as they can be leaked or

@@ -1,5 +1,5 @@
 id: k8s-pod-002
-name: Pods should not use host networking
+name: Pod uses host networking
 description: |
   Using host networking allows the pod to access all network
   interfaces on the node, bypassing network policies and

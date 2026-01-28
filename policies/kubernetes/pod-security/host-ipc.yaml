@@ -1,5 +1,5 @@
 id: k8s-pod-004
-name: Pods should not share host IPC namespace
+name: Pod shares host IPC namespace
 description: |
   Sharing the host IPC namespace allows containers to access
   inter-process communication resources on the host, potentially

@@ -1,5 +1,5 @@
 id: container-010
-name: Container images should not contain sensitive files
+name: Container image contains sensitive files
 description: |
   Container images should not contain secrets, credentials, or private
   keys. These files may be exposed through image layers, registries,

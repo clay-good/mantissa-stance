@@ -1,5 +1,5 @@
 id: container-001
-name: Container images should not have critical vulnerabilities
+name: Container image has critical vulnerabilities
 description: |
   Container images with critical vulnerabilities pose significant security
   risks. Critical CVEs often have known exploits and can lead to complete

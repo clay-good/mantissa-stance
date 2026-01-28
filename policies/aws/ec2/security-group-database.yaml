@@ -1,5 +1,5 @@
 id: aws-ec2-006
-name: Database ports not exposed to internet
+name: Database ports exposed to internet
 description: |
   Ensure security groups do not allow unrestricted access to database
   ports from the internet. Exposing database ports like MySQL (3306),

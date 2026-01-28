@@ -1,5 +1,5 @@
 id: k8s-pod-001
-name: Containers should not run privileged
+name: Container running in privileged mode
 description: |
   Privileged containers have access to all host capabilities and
   can potentially compromise the node. Containers should not run

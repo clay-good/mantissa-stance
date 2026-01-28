@@ -1,5 +1,5 @@
 id: container-003
-name: Container images should not have CISA KEV vulnerabilities
+name: Container image has CISA KEV vulnerabilities
 description: |
   The CISA Known Exploited Vulnerabilities (KEV) catalog contains CVEs
   that are actively exploited in the wild. These vulnerabilities must

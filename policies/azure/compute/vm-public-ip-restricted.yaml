@@ -1,5 +1,5 @@
 id: azure-compute-004
-name: VMs do not have public IP addresses
+name: VM has public IP address
 description: |
   Ensure Virtual Machines do not have public IP addresses unless required.
   Public IP addresses expose VMs directly to the internet, increasing

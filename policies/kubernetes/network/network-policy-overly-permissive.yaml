@@ -1,5 +1,5 @@
 id: k8s-net-005
-name: Network policies should not allow traffic from all sources
+name: Network policy allows traffic from all sources
 description: |
   Network policies that allow traffic from all pods or all namespaces
   provide insufficient isolation. Policies should be specific about

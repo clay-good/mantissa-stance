@@ -1,5 +1,5 @@
 id: azure-identity-002
-name: Custom roles do not have wildcard permissions
+name: Custom role has wildcard permissions
 description: |
   Ensure custom role definitions do not include wildcard (*) permissions.
   Wildcard permissions grant overly broad access and violate the

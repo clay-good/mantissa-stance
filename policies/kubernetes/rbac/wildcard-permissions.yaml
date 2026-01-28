@@ -1,5 +1,5 @@
 id: k8s-rbac-002
-name: Roles should not use wildcard permissions
+name: Role uses wildcard permissions
 description: |
   Wildcard (*) permissions grant access to all resources or
   all verbs, violating the principle of least privilege.

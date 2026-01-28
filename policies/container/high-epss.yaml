@@ -1,5 +1,5 @@
 id: container-013
-name: Container images should not have high EPSS score vulnerabilities
+name: Container image has high EPSS score vulnerabilities
 description: |
   EPSS (Exploit Prediction Scoring System) predicts the likelihood of
   a vulnerability being exploited. Vulnerabilities with high EPSS scores

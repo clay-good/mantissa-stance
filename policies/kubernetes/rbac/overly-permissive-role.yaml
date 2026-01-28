@@ -1,5 +1,5 @@
 id: k8s-rbac-007
-name: Roles should not be overly permissive
+name: Role is overly permissive
 description: |
   Roles with a high risk score indicate excessive permissions
   that violate the principle of least privilege. Review and

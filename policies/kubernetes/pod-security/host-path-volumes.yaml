@@ -1,5 +1,5 @@
 id: k8s-pod-009
-name: Pods should not mount host path volumes
+name: Pod mounts host path volumes
 description: |
   Mounting host paths allows containers to access the host
   filesystem, potentially exposing sensitive data or enabling

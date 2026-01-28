@@ -1,5 +1,5 @@
 id: container-008
-name: Container images should not use latest tag
+name: Container image uses latest tag
 description: |
   The 'latest' tag is mutable and can change unexpectedly.
   Using specific version tags or digests ensures reproducibility
