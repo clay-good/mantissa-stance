@@ -183,6 +183,7 @@ class RDSCollector(BaseCollector):
                 "enhanced_monitoring_resource_arn": instance.get(
                     "EnhancedMonitoringResourceArn"
                 ),
+                "enhanced_monitoring_enabled": instance.get("MonitoringInterval", 0) > 0,
                 # Performance Insights
                 "performance_insights_enabled": instance.get(
                     "PerformanceInsightsEnabled", False

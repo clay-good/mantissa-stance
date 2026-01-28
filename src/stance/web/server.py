@@ -10724,7 +10724,7 @@ class StanceRequestHandler(SimpleHTTPRequestHandler):
                 "gcp_storage_bucket": 8,
                 "gcp_compute_instance": 10,
                 "azure_storage_account": 7,
-                "azure_vm": 9,
+                "azure_virtual_machine": 9,
             },
             "frameworks_count": 7,
             "compliance_mappings": 318,

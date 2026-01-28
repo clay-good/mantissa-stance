@@ -565,6 +565,9 @@ class K8sRBACCollector:
         has_high_risk_verbs = False
         has_secrets_access = False
         has_pod_exec_access = False
+        has_csr_approval_access = False
+        has_impersonation_access = False
+        has_node_proxy_access = False
         high_risk_combinations: list[dict[str, Any]] = []
         total_permissions = 0
 
@@ -585,6 +588,22 @@ class K8sRBACCollector:
             # Check for pod exec access
             if "pods/exec" in resources or "pods/attach" in resources or "*" in resources:
                 has_pod_exec_access = True
+
+            # Check for certificate signing request approval access
+            csr_resources = {"certificatesigningrequests", "certificatesigningrequests/approval"}
+            csr_verbs = {"update", "approve", "*"}
+            if (resources & csr_resources or "*" in resources) and (verbs & csr_verbs):
+                has_csr_approval_access = True
+
+            # Check for impersonation access
+            impersonation_resources = {"users", "groups", "serviceaccounts", "userextras"}
+            if "impersonate" in verbs and (resources & impersonation_resources or "*" in resources):
+                has_impersonation_access = True
+
+            # Check for node proxy access
+            node_proxy_verbs = {"get", "create", "*"}
+            if ("nodes/proxy" in resources or "*" in resources) and (verbs & node_proxy_verbs):
+                has_node_proxy_access = True
 
             # Check for high-risk resources
             risky_resources = resources & HIGH_RISK_RESOURCES
@@ -631,6 +650,9 @@ class K8sRBACCollector:
             "has_high_risk_verbs": has_high_risk_verbs,
             "has_secrets_access": has_secrets_access,
             "has_pod_exec_access": has_pod_exec_access,
+            "has_csr_approval_access": has_csr_approval_access,
+            "has_impersonation_access": has_impersonation_access,
+            "has_node_proxy_access": has_node_proxy_access,
             "high_risk_combinations": high_risk_combinations,
             "total_permissions": total_permissions,
             "is_overly_permissive": risk_score >= 70,

@@ -305,6 +305,13 @@ class GCPCloudFunctionsCollector(BaseCollector):
             env_var_names = list(env_vars.keys())
             has_env_vars = bool(env_vars)
 
+            # Detect potential plain-text secrets in environment variable names
+            _secret_patterns = {"SECRET", "KEY", "PASSWORD", "TOKEN", "API_KEY", "APIKEY", "CREDENTIAL", "PRIVATE"}
+            has_plain_env_secrets = any(
+                any(pattern in k.upper() for pattern in _secret_patterns)
+                for k in env_vars
+            )
+
             # Build config environment variables
             build_env_vars = func.get("buildEnvironmentVariables", {})
             build_env_var_names = list(build_env_vars.keys())
@@ -376,6 +383,7 @@ class GCPCloudFunctionsCollector(BaseCollector):
                 # Environment variables
                 "environment_variable_names": env_var_names,
                 "has_environment_variables": has_env_vars,
+                "has_plain_env_secrets": has_plain_env_secrets,
                 "build_environment_variable_names": build_env_var_names,
                 # Secrets
                 "secret_references": secret_refs,
@@ -391,6 +399,8 @@ class GCPCloudFunctionsCollector(BaseCollector):
                 "has_source_repository": bool(source_repository),
                 # Labels
                 "labels": labels,
+                # CMEK / KMS key (v1 does not have a dedicated KMS field)
+                "kms_key_name": "",
                 # Timestamps
                 "update_time": func.get("updateTime", ""),
                 "version_id": func.get("versionId", ""),
@@ -478,6 +488,13 @@ class GCPCloudFunctionsCollector(BaseCollector):
             env_var_names = list(env_vars.keys())
             has_env_vars = bool(env_vars)
 
+            # Detect potential plain-text secrets in environment variable names
+            _secret_patterns = {"SECRET", "KEY", "PASSWORD", "TOKEN", "API_KEY", "APIKEY", "CREDENTIAL", "PRIVATE"}
+            has_plain_env_secrets = any(
+                any(pattern in k.upper() for pattern in _secret_patterns)
+                for k in env_vars
+            )
+
             # Secret environment variables
             secret_env_vars = service_config.get("secretEnvironmentVariables", [])
             secret_refs = [
@@ -514,6 +531,12 @@ class GCPCloudFunctionsCollector(BaseCollector):
 
             # Labels
             labels = func.get("labels", {})
+
+            # KMS key (v2 functions may have kmsKeyName in serviceConfig or buildConfig)
+            kms_key_name = (
+                service_config.get("kmsKeyName", "")
+                or build_config.get("kmsKeyName", "")
+            )
 
             # State
             state = func.get("state", "")
@@ -556,6 +579,7 @@ class GCPCloudFunctionsCollector(BaseCollector):
                 # Environment variables
                 "environment_variable_names": env_var_names,
                 "has_environment_variables": has_env_vars,
+                "has_plain_env_secrets": has_plain_env_secrets,
                 # Secrets
                 "secret_references": secret_refs,
                 "has_secrets": has_secrets,
@@ -566,6 +590,8 @@ class GCPCloudFunctionsCollector(BaseCollector):
                 "timeout_seconds": timeout_seconds,
                 "max_instance_count": max_instance_count,
                 "min_instance_count": min_instance_count,
+                # CMEK / KMS key
+                "kms_key_name": kms_key_name,
                 # Build config
                 "docker_repository": build_config.get("dockerRepository", ""),
                 "source": build_config.get("source", {}),

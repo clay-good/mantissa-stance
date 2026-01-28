@@ -551,6 +551,9 @@ class SageMakerCollector(BaseCollector):
                 # Security settings
                 "enable_network_isolation": enable_network_isolation,
                 "enable_inter_container_traffic_encryption": enable_inter_container_encryption,
+                # Top-level alias for output encryption (for policy checks)
+                "output_kms_key_id": output_kms_key,
+                "has_output_encryption": bool(output_kms_key),
                 # Input data (channel names only)
                 "input_data_channels": [
                     c.get("ChannelName") for c in details.get("InputDataConfig", [])

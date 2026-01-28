@@ -434,6 +434,9 @@ class GCPComputeCollector(BaseCollector):
                             firewall.log_config and firewall.log_config.enable
                         ),
                     },
+                    "log_config_enabled": bool(
+                        firewall.log_config and firewall.log_config.enable
+                    ),
                     "allows_all_ingress_from_internet": allows_all_ingress,
                     "allows_all_from_internet": allows_all_ingress,
                     "allows_ssh_from_internet": allows_ssh_from_internet,
@@ -524,6 +527,10 @@ class GCPComputeCollector(BaseCollector):
                         for p in (network.peerings or [])
                     ],
                     "is_default": network_name == "default",
+                    # TODO: Enrich from Network Connectivity API or PSC endpoints
+                    # when available. Currently defaults to False as the compute
+                    # networks API does not expose PSC configuration directly.
+                    "private_service_connect_enabled": False,
                 }
 
                 created_at = None

@@ -481,6 +481,17 @@ class K8sConfigCollector:
             k.startswith("container.apparmor.security.beta.kubernetes.io/")
             for k in annotations
         )
+        # Seccomp profile can be set at pod level or container level
+        pod_has_seccomp = (
+            spec.security_context is not None
+            and spec.security_context.seccomp_profile is not None
+        )
+        all_containers_have_seccomp = all(
+            c.security_context is not None
+            and c.security_context.seccomp_profile is not None
+            for c in spec.containers
+        ) if spec.containers else False
+        has_seccomp_profile = pod_has_seccomp or all_containers_have_seccomp
 
         raw_config = {
             "name": metadata.name,
@@ -521,6 +532,7 @@ class K8sConfigCollector:
             "has_memory_requests": has_memory_requests,
             "has_valid_image_pull_policy": has_valid_image_pull_policy,
             "has_apparmor_profile": has_apparmor_profile,
+            "has_seccomp_profile": has_seccomp_profile,
             "creation_timestamp": (
                 metadata.creation_timestamp.isoformat()
                 if metadata.creation_timestamp

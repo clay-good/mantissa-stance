@@ -457,6 +457,10 @@ class AzureComputeCollector(BaseCollector):
                     "allows_winrm_from_internet": allows_winrm_from_internet,
                     "allows_all_from_internet": allows_all_from_internet,
                     "allows_database_from_internet": allows_database_from_internet,
+                    # TODO: flow_logs_enabled requires Network Watcher API integration
+                    # to determine if flow logs are configured for this NSG.
+                    # Defaulting to False until Network Watcher collector is implemented.
+                    "flow_logs_enabled": False,
                     "associated_network_interfaces": [
                         nic.id for nic in (nsg.network_interfaces or [])
                     ],

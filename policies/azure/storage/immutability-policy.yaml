@@ -8,7 +8,7 @@ description: |
 enabled: true
 severity: medium
 
-resource_type: azure_storage_container
+resource_type: azure_blob_container
 
 check:
   type: expression

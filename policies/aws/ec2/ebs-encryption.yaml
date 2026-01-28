@@ -12,7 +12,7 @@ resource_type: aws_ec2_instance
 
 check:
   type: expression
-  expression: "resource.ebs_encryption.all_encrypted == true"
+  expression: "resource.ebs_encrypted == true"
 
 compliance:
   - framework: cis-aws-foundations

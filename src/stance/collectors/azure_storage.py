@@ -228,6 +228,16 @@ class AzureStorageCollector(BaseCollector):
                     raw_config["encryption_key_source"] = "Microsoft.Storage"
                     raw_config["infrastructure_encryption_enabled"] = False
 
+                # TODO: diagnostic_settings_enabled requires Azure Monitor API
+                # integration to check if diagnostic settings are configured.
+                # Defaulting to False until Monitor API collector is implemented.
+                raw_config["diagnostic_settings_enabled"] = False
+
+                # TODO: lifecycle_management_enabled requires an additional
+                # Storage Management API call to get lifecycle management policies.
+                # Defaulting to False until lifecycle policy retrieval is implemented.
+                raw_config["lifecycle_management_enabled"] = False
+
                 # Blob service properties (soft delete, versioning)
                 try:
                     blob_props = client.blob_services.get_service_properties(

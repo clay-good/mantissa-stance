@@ -118,7 +118,7 @@ def public_azure_blob() -> Asset:
         cloud_provider="azure",
         account_id="sub-id",
         region="eastus",
-        resource_type="azure_storage_container",
+        resource_type="azure_blob_container",
         name="public-container",
         network_exposure=NETWORK_EXPOSURE_INTERNET,
         raw_config={
@@ -861,8 +861,8 @@ class TestResourceTypeMapping:
 
     def test_azure_mappings(self) -> None:
         """Test Azure resource type mappings."""
-        assert RESOURCE_TYPE_TO_EXPOSURE["azure_storage_container"] == ExposureType.PUBLIC_BUCKET
-        assert RESOURCE_TYPE_TO_EXPOSURE["azure_vm"] == ExposureType.PUBLIC_INSTANCE
+        assert RESOURCE_TYPE_TO_EXPOSURE["azure_blob_container"] == ExposureType.PUBLIC_BUCKET
+        assert RESOURCE_TYPE_TO_EXPOSURE["azure_virtual_machine"] == ExposureType.PUBLIC_INSTANCE
         assert RESOURCE_TYPE_TO_EXPOSURE["azure_sql_server"] == ExposureType.PUBLIC_DATABASE
 
 

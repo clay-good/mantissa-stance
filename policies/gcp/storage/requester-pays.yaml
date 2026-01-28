@@ -12,7 +12,7 @@ resource_type: gcp_storage_bucket
 
 check:
   type: expression
-  expression: "resource.requester_pays == true or resource.public_access == false"
+  expression: "resource.requester_pays == true or resource.has_public_access == false"
 
 compliance:
   - framework: nist-800-53

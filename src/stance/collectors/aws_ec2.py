@@ -324,6 +324,9 @@ class EC2Collector(BaseCollector):
                 "allows_all_traffic_from_internet": any(
                     r.get("allows_all_traffic") for r in dangerous_ingress
                 ),
+                "has_unrestricted_egress": self._has_unrestricted_egress(
+                    egress_rules
+                ),
             }
 
             # Determine network exposure
@@ -607,6 +610,35 @@ class EC2Collector(BaseCollector):
             to_port = rule.get("to_port") or 65535
 
             if from_port <= port <= to_port:
+                return True
+
+        return False
+
+    def _has_unrestricted_egress(
+        self, egress_rules: list[dict[str, Any]]
+    ) -> bool:
+        """
+        Check if any egress rule allows all traffic to 0.0.0.0/0.
+
+        Args:
+            egress_rules: List of processed egress security rules
+
+        Returns:
+            True if any egress rule allows all traffic to all destinations
+        """
+        for rule in egress_rules:
+            cidr_blocks = rule.get("cidr_blocks", [])
+            ip_protocol = rule.get("ip_protocol", "")
+            from_port = rule.get("from_port")
+            to_port = rule.get("to_port")
+
+            # Check for all-traffic rule (protocol -1 means all)
+            is_all_traffic = (
+                ip_protocol == "-1"
+                or (from_port == 0 and to_port == 65535)
+            )
+
+            if is_all_traffic and ("0.0.0.0/0" in cidr_blocks or "::/0" in cidr_blocks):
                 return True
 
         return False

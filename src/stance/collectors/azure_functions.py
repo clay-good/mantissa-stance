@@ -228,6 +228,18 @@ class AzureFunctionsCollector(BaseCollector):
                     raw_config["identity_type"] = None
                     raw_config["uses_system_assigned_identity"] = False
 
+                # Private endpoint connections
+                private_endpoint_connections = app.private_endpoint_connections or []
+                raw_config["private_endpoint_connections"] = [
+                    {
+                        "id": pe.id,
+                        "name": pe.name,
+                    }
+                    for pe in private_endpoint_connections
+                ]
+                raw_config["private_endpoints_count"] = len(private_endpoint_connections)
+                raw_config["has_private_endpoints"] = len(private_endpoint_connections) > 0
+
                 # Virtual network integration
                 vnet_info = app.virtual_network_subnet_id
                 raw_config["virtual_network_subnet_id"] = vnet_info

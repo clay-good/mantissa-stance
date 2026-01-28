@@ -320,10 +320,12 @@ class AzureSQLCollector(BaseCollector):
                 )
 
                 # Also add individual databases as assets
+                server_tde_protector_type = raw_config.get("tde_protector_type")
                 for db in raw_config.get("databases", []):
                     db_asset = self._create_database_asset(
                         db, server_name, resource_group, location,
-                        self._subscription_id, now, network_exposure
+                        self._subscription_id, now, network_exposure,
+                        server_tde_protector_type=server_tde_protector_type,
                     )
                     if db_asset:
                         assets.append(db_asset)
@@ -541,6 +543,7 @@ class AzureSQLCollector(BaseCollector):
         subscription_id: str,
         now: datetime,
         network_exposure: str,
+        server_tde_protector_type: str | None = None,
     ) -> Asset | None:
         """Create an asset for an individual database."""
         db_id = db.get("id")
@@ -553,6 +556,7 @@ class AzureSQLCollector(BaseCollector):
             **db,
             "server_name": server_name,
             "resource_group": resource_group,
+            "tde_protector_type": server_tde_protector_type,
         }
 
         return Asset(

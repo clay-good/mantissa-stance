@@ -8,11 +8,11 @@ description: |
 enabled: true
 severity: high
 
-resource_type: aws_sagemaker_endpoint
+resource_type: aws_sagemaker_model
 
 check:
   type: expression
-  expression: "resource.vpc_config != null and resource.vpc_config.subnets != null"
+  expression: "resource.in_vpc == true"
 
 compliance:
   - framework: cis-aws-foundations

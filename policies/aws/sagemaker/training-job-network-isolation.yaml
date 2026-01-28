@@ -12,7 +12,7 @@ resource_type: aws_sagemaker_training_job
 
 check:
   type: expression
-  expression: "resource.network_isolation == true"
+  expression: "resource.enable_network_isolation == true"
 
 compliance:
   - framework: nist-800-53

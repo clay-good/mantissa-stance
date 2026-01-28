@@ -60,8 +60,9 @@ class TestSecurityGroupSSHPolicy:
             tags={},
             network_exposure=NETWORK_EXPOSURE_INTERNAL,
             raw_config={
-                # Policy checks: '0.0.0.0/0' not_in resource.ssh_open_cidrs
+                # Policy checks: resource.allows_ssh_from_internet == false
                 # Restricted CIDRs should pass
+                "allows_ssh_from_internet": False,
                 "ssh_open_cidrs": ["10.0.0.0/8"],
             },
         )
@@ -85,8 +86,9 @@ class TestSecurityGroupSSHPolicy:
             tags={},
             network_exposure=NETWORK_EXPOSURE_INTERNET,
             raw_config={
-                # Policy checks: '0.0.0.0/0' not_in resource.ssh_open_cidrs
+                # Policy checks: resource.allows_ssh_from_internet == false
                 # 0.0.0.0/0 should generate finding
+                "allows_ssh_from_internet": True,
                 "ssh_open_cidrs": ["0.0.0.0/0"],
             },
         )
@@ -123,8 +125,9 @@ class TestSecurityGroupRDPPolicy:
             tags={},
             network_exposure=NETWORK_EXPOSURE_INTERNET,
             raw_config={
-                # Policy checks: '0.0.0.0/0' not_in resource.rdp_open_cidrs
+                # Policy checks: resource.allows_rdp_from_internet == false
                 # 0.0.0.0/0 should generate finding
+                "allows_rdp_from_internet": True,
                 "rdp_open_cidrs": ["0.0.0.0/0"],
             },
         )

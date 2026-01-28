@@ -12,7 +12,7 @@ resource_type: aws_bedrock_guardrail
 
 check:
   type: expression
-  expression: "resource.sensitive_info_policy != null and resource.sensitive_info_policy.pii_entities != null"
+  expression: "resource.sensitive_info_policy != null and resource.sensitive_info_policy.pii_entities_count > 0"
 
 compliance:
   - framework: nist-800-53

@@ -102,6 +102,9 @@ class APIGatewayCollector(BaseCollector):
                     # Get documentation parts count
                     documentation = self._get_rest_api_documentation(api_id)
 
+                    # Get domain name security policy
+                    domain_info = self._get_rest_api_domain_info(api_id)
+
                     # Determine endpoint configuration
                     endpoint_config = api.get("endpointConfiguration", {})
                     endpoint_types = endpoint_config.get("types", [])
@@ -168,6 +171,27 @@ class APIGatewayCollector(BaseCollector):
                         "authorizer_types": authorizer_types,
                         # Security
                         "has_waf": has_waf,
+                        # Stage-aggregated properties for policy checks
+                        "has_client_certificate": any(
+                            s.get("has_client_certificate") for s in stages
+                        ),
+                        "logging_level": next(
+                            (s.get("logging_level") for s in stages
+                             if s.get("logging_level") and s.get("logging_level") != "OFF"),
+                            "OFF",
+                        ),
+                        "throttling_rate_limit": max(
+                            (s.get("throttling_rate_limit", 0) for s in stages),
+                            default=0,
+                        ),
+                        "throttling_burst_limit": max(
+                            (s.get("throttling_burst_limit", 0) for s in stages),
+                            default=0,
+                        ),
+                        # Domain / TLS configuration
+                        "security_policy": domain_info.get("security_policy"),
+                        "minimum_tls_version": domain_info.get("security_policy"),
+                        "has_custom_domain": domain_info.get("has_custom_domain", False),
                         # Documentation
                         "has_documentation": documentation.get("count", 0) > 0,
                         "documentation_count": documentation.get("count", 0),
@@ -368,6 +392,14 @@ class APIGatewayCollector(BaseCollector):
                 # Get WAF association for stage
                 web_acl_arn = self._get_stage_waf(api_id, stage.get("stageName", ""))
 
+                # Extract logging level and throttling from method settings
+                method_settings = stage.get("methodSettings", {})
+                # The "*/*" key represents default settings for all methods
+                default_method = method_settings.get("*/*", {})
+                logging_level = default_method.get("loggingLevel", "OFF")
+                throttling_burst_limit = default_method.get("throttlingBurstLimit", 0)
+                throttling_rate_limit = default_method.get("throttlingRateLimit", 0.0)
+
                 stage_config = {
                     "stage_name": stage.get("stageName"),
                     "deployment_id": stage.get("deploymentId"),
@@ -391,13 +423,17 @@ class APIGatewayCollector(BaseCollector):
                     # Access logging
                     "access_log_settings": stage.get("accessLogSettings", {}),
                     "has_access_logging": bool(stage.get("accessLogSettings")),
+                    # Execution logging and throttling (from method settings)
+                    "logging_level": logging_level,
+                    "throttling_burst_limit": throttling_burst_limit,
+                    "throttling_rate_limit": throttling_rate_limit,
                     # Canary settings
                     "canary_settings": stage.get("canarySettings", {}),
                     "has_canary": bool(stage.get("canarySettings")),
                     # Tracing
                     "tracing_enabled": stage.get("tracingEnabled", False),
                     # Method settings
-                    "method_settings": stage.get("methodSettings", {}),
+                    "method_settings": method_settings,
                     # Variables
                     "variables": list(stage.get("variables", {}).keys()),
                     # WAF
@@ -411,6 +447,48 @@ class APIGatewayCollector(BaseCollector):
         except Exception as e:
             logger.debug(f"Could not get stages for API {api_id}: {e}")
             return []
+
+    def _get_rest_api_domain_info(self, api_id: str) -> dict[str, Any]:
+        """Get domain name and security policy info for a REST API."""
+        apigw_client = self._get_client("apigateway")
+        try:
+            # List domain names and find those mapped to this API
+            position = None
+            while True:
+                kwargs: dict[str, Any] = {"limit": 500}
+                if position:
+                    kwargs["position"] = position
+
+                response = apigw_client.get_domain_names(**kwargs)
+                items = response.get("items", [])
+
+                for domain in items:
+                    domain_name = domain.get("domainName", "")
+                    security_policy = domain.get("securityPolicy", "TLS_1_0")
+
+                    # Check if this domain is mapped to our API
+                    try:
+                        mappings = apigw_client.get_base_path_mappings(
+                            domainName=domain_name
+                        )
+                        for mapping in mappings.get("items", []):
+                            if mapping.get("restApiId") == api_id:
+                                return {
+                                    "security_policy": security_policy,
+                                    "has_custom_domain": True,
+                                    "domain_name": domain_name,
+                                }
+                    except Exception:
+                        continue
+
+                position = response.get("position")
+                if not position:
+                    break
+
+        except Exception as e:
+            logger.debug(f"Could not get domain info for API {api_id}: {e}")
+
+        return {"security_policy": None, "has_custom_domain": False}
 
     def _get_rest_api_authorizers(self, api_id: str) -> list[dict[str, Any]]:
         """Get authorizers for a REST API."""

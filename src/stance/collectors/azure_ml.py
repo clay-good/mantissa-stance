@@ -269,6 +269,9 @@ class AzureMLCollector(BaseCollector):
             subnet = properties.subnet if hasattr(properties, "subnet") else None
             in_vnet = bool(subnet and subnet.id)
 
+            # Enable node public IP (also available on compute instances)
+            enable_node_public_ip = properties.enable_node_public_ip if hasattr(properties, "enable_node_public_ip") else True
+
             raw_config: dict[str, Any] = {
                 "id": compute_id,
                 "name": compute_name,
@@ -291,6 +294,7 @@ class AzureMLCollector(BaseCollector):
                     "id": subnet.id if subnet else None,
                 } if subnet else None,
                 "in_vnet": in_vnet,
+                "enable_node_public_ip": enable_node_public_ip,
                 # Identity
                 "identity": {
                     "type": compute.identity.type if compute.identity else None,

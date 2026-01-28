@@ -550,7 +550,7 @@ class TestConstants:
         """Test Azure resource types exist."""
         assert "azure" in RESOURCE_TYPES
         assert "azure_storage_account" in RESOURCE_TYPES["azure"]
-        assert "azure_vm" in RESOURCE_TYPES["azure"]
+        assert "azure_virtual_machine" in RESOURCE_TYPES["azure"]
 
     def test_compliance_frameworks(self):
         """Test compliance frameworks exist."""

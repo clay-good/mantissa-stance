@@ -237,6 +237,9 @@ class GCPCloudSQLCollector(BaseCollector):
                 # User labels (tags)
                 labels = settings.get("userLabels", {})
 
+                # Deletion protection
+                deletion_protection = instance.get("deletionProtection", False)
+
                 # Replica configuration
                 replica_configuration = instance.get("replicaConfiguration", {})
                 is_replica = bool(instance.get("masterInstanceName", ""))
@@ -283,6 +286,8 @@ class GCPCloudSQLCollector(BaseCollector):
                     "log_temp_files": log_temp_files,
                     # Maintenance
                     "maintenance_window": maintenance_window,
+                    # Deletion protection
+                    "deletion_protection": deletion_protection,
                     # Replication
                     "is_replica": is_replica,
                     "master_instance": master_instance,

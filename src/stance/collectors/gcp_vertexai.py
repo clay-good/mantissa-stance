@@ -421,6 +421,7 @@ class GCPVertexAICollector(BaseCollector):
                     "enable_internet_access": enable_internet_access,
                 },
                 "has_internet_access": enable_internet_access,
+                "no_public_ip": not enable_internet_access,
                 "in_vpc": bool(network or subnetwork),
                 # Disk configuration
                 "data_persistent_disk_spec": {
@@ -432,6 +433,7 @@ class GCPVertexAICollector(BaseCollector):
                     "kms_key_name": encryption_spec.kms_key_name if encryption_spec else None,
                 },
                 "has_cmek": has_cmek,
+                "kms_key": encryption_spec.kms_key_name if encryption_spec else None,
                 # Service account
                 "service_account": template.service_account,
                 # Idle shutdown config

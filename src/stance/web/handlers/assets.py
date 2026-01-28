@@ -87,7 +87,7 @@ class AssetHandler(RoutedHandler):
                 },
                 {
                     "id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Compute/virtualMachines/vm-prod",
-                    "resource_type": "azure_vm",
+                    "resource_type": "azure_virtual_machine",
                     "name": "vm-prod",
                     "region": "eastus",
                     "network_exposure": "public",
@@ -402,7 +402,7 @@ class AssetHandler(RoutedHandler):
                     "finding_count": 20,
                 },
                 {
-                    "resource_type": "azure_vm",
+                    "resource_type": "azure_virtual_machine",
                     "cloud_provider": "azure",
                     "asset_count": 8,
                     "finding_count": 15,
@@ -489,7 +489,7 @@ class AssetHandler(RoutedHandler):
                     {"type": "aws_s3_bucket", "count": 15},
                     {"type": "gcp_storage_bucket", "count": 12},
                     {"type": "aws_rds_instance", "count": 10},
-                    {"type": "azure_vm", "count": 8},
+                    {"type": "azure_virtual_machine", "count": 8},
                 ],
                 "last_scan": "2024-12-30T10:00:00Z",
             }
@@ -516,7 +516,7 @@ class AssetHandler(RoutedHandler):
                 {"type": "gcp_storage_bucket", "cloud": "gcp", "display_name": "Cloud Storage Bucket"},
                 {"type": "gcp_compute_instance", "cloud": "gcp", "display_name": "Compute Engine Instance"},
                 {"type": "gcp_sql_instance", "cloud": "gcp", "display_name": "Cloud SQL Instance"},
-                {"type": "azure_vm", "cloud": "azure", "display_name": "Virtual Machine"},
+                {"type": "azure_virtual_machine", "cloud": "azure", "display_name": "Virtual Machine"},
                 {"type": "azure_storage_account", "cloud": "azure", "display_name": "Storage Account"},
                 {"type": "azure_sql_database", "cloud": "azure", "display_name": "SQL Database"},
             ]

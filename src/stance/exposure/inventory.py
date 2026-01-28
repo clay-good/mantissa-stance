@@ -34,12 +34,12 @@ RESOURCE_TYPE_TO_EXPOSURE: dict[str, ExposureType] = {
     # Storage
     "aws_s3_bucket": ExposureType.PUBLIC_BUCKET,
     "gcp_storage_bucket": ExposureType.PUBLIC_BUCKET,
-    "azure_storage_container": ExposureType.PUBLIC_BUCKET,
+    "azure_blob_container": ExposureType.PUBLIC_BUCKET,
     "azure_storage_account": ExposureType.PUBLIC_BUCKET,
     # Compute
     "aws_ec2_instance": ExposureType.PUBLIC_INSTANCE,
     "gcp_compute_instance": ExposureType.PUBLIC_INSTANCE,
-    "azure_vm": ExposureType.PUBLIC_INSTANCE,
+    "azure_virtual_machine": ExposureType.PUBLIC_INSTANCE,
     # Serverless
     "aws_lambda_function": ExposureType.PUBLIC_FUNCTION,
     "gcp_cloud_function": ExposureType.PUBLIC_FUNCTION,

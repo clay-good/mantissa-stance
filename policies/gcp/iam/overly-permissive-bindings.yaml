@@ -12,7 +12,7 @@ resource_type: gcp_project_iam_policy
 
 check:
   type: expression
-  expression: "resource.has_public_bindings == false"
+  expression: "resource.has_public_access == false"
 
 compliance:
   - framework: cis-gcp-foundations

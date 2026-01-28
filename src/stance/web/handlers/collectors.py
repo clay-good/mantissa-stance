@@ -387,7 +387,7 @@ class CollectorsHandler(RoutedHandler):
             ],
             "azure": [
                 {"name": "azure_storage", "category": "storage", "description": "Azure Storage accounts"},
-                {"name": "azure_vm", "category": "compute", "description": "Azure Virtual Machines"},
+                {"name": "azure_virtual_machine", "category": "compute", "description": "Azure Virtual Machines"},
                 {"name": "azure_iam", "category": "identity", "description": "Azure RBAC resources"},
             ],
         }

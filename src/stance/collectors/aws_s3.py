@@ -290,6 +290,34 @@ class S3Collector(BaseCollector):
         except Exception as e:
             logger.debug(f"Could not get lifecycle for bucket {bucket_name}: {e}")
 
+        # Get replication configuration
+        try:
+            replication = s3.get_bucket_replication(Bucket=bucket_name)
+            replication_rules = replication.get("ReplicationConfiguration", {}).get("Rules", [])
+            config["replication_enabled"] = len(replication_rules) > 0
+            config["replication_rules_count"] = len(replication_rules)
+        except s3.exceptions.ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ReplicationConfigurationNotFoundError":
+                config["replication_enabled"] = False
+                config["replication_rules_count"] = 0
+            else:
+                logger.debug(f"Could not get replication for bucket {bucket_name}: {e}")
+        except Exception as e:
+            logger.debug(f"Could not get replication for bucket {bucket_name}: {e}")
+
+        # Get Object Lock configuration
+        try:
+            object_lock = s3.get_object_lock_configuration(Bucket=bucket_name)
+            lock_config = object_lock.get("ObjectLockConfiguration", {})
+            config["object_lock_enabled"] = lock_config.get("ObjectLockEnabled") == "Enabled"
+        except s3.exceptions.ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ObjectLockConfigurationNotFoundError":
+                config["object_lock_enabled"] = False
+            else:
+                logger.debug(f"Could not get object lock for bucket {bucket_name}: {e}")
+        except Exception as e:
+            logger.debug(f"Could not get object lock for bucket {bucket_name}: {e}")
+
         return config
 
     def _check_policy_allows_public(self, policy: dict[str, Any]) -> bool:

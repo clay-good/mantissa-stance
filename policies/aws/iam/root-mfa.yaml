@@ -12,7 +12,7 @@ resource_type: aws_iam_account_summary
 
 check:
   type: expression
-  expression: "resource.account_mfa_enabled == 1"
+  expression: "resource.account_mfa_enabled == true"
 
 compliance:
   - framework: cis-aws-foundations

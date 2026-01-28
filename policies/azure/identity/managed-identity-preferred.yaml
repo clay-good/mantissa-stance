@@ -9,7 +9,7 @@ description: |
 enabled: true
 severity: medium
 
-resource_type: azure_vm
+resource_type: azure_virtual_machine
 
 check:
   type: expression

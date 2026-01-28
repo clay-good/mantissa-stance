@@ -125,6 +125,14 @@ class IAMCollector(BaseCollector):
                 raw_config["has_active_access_keys"] = any(
                     k["status"] == "Active" for k in access_keys
                 )
+                # Compute oldest access key age for policy checks
+                key_ages = [
+                    k["age_days"] for k in access_keys
+                    if k.get("age_days") is not None
+                ]
+                raw_config["oldest_access_key_age_days"] = (
+                    max(key_ages) if key_ages else 0
+                )
             except Exception as e:
                 logger.debug(f"Could not get access keys for {user_name}: {e}")
 

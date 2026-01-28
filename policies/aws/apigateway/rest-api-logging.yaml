@@ -8,7 +8,7 @@ description: |
 enabled: true
 severity: medium
 
-resource_type: aws_api_gateway_stage
+resource_type: aws_apigateway_stage
 
 check:
   type: expression

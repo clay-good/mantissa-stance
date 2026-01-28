@@ -301,6 +301,27 @@ class GCPIAMCollector(BaseCollector):
                 role in risky_roles for role in roles_used
             )
 
+            # Check KMS separation of duties: no member should have both
+            # KMS admin and KMS encrypter/decrypter roles simultaneously
+            kms_admin_roles = {"roles/cloudkms.admin"}
+            kms_crypto_roles = {
+                "roles/cloudkms.cryptoKeyEncrypter",
+                "roles/cloudkms.cryptoKeyDecrypter",
+                "roles/cloudkms.cryptoKeyEncrypterDecrypter",
+            }
+            kms_admin_members: set[str] = set()
+            kms_crypto_members: set[str] = set()
+            for binding_info in bindings_list:
+                role = binding_info["role"]
+                members = binding_info["members"]
+                if role in kms_admin_roles:
+                    kms_admin_members.update(members)
+                if role in kms_crypto_roles:
+                    kms_crypto_members.update(members)
+            has_kms_separation_violation = bool(
+                kms_admin_members & kms_crypto_members
+            )
+
             raw_config = {
                 "project_id": self._project_id,
                 "bindings": bindings_list,
@@ -312,6 +333,7 @@ class GCPIAMCollector(BaseCollector):
                 "has_external_members": len(external_members) > 0,
                 "external_members": list(external_members),
                 "has_risky_bindings": has_risky_bindings,
+                "has_kms_separation_violation": has_kms_separation_violation,
                 "etag": policy.etag.decode() if policy.etag else "",
                 "version": policy.version,
             }

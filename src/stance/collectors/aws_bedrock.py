@@ -220,11 +220,17 @@ class BedrockCollector(BaseCollector):
             vpc_config = details.get("vpcConfig", {})
             in_vpc = bool(vpc_config.get("subnetIds"))
 
+            # KMS encryption for custom model
+            kms_key_arn = details.get("modelKmsKeyId")
+
             raw_config: dict[str, Any] = {
                 "model_arn": model_arn,
                 "model_name": model_name,
                 "base_model_arn": base_model_arn,
                 "creation_time": str(details.get("creationTime", "")),
+                # KMS encryption
+                "kms_key_arn": kms_key_arn,
+                "has_kms_encryption": bool(kms_key_arn),
                 # Customization type
                 "customization_type": details.get("customizationType"),
                 # Job info
@@ -477,6 +483,20 @@ class BedrockCollector(BaseCollector):
             storage_config = kb_details.get("storageConfiguration", {})
             storage_type = storage_config.get("type", "")
 
+            # Extract KMS key from storage configuration if available
+            storage_kms_key_arn = None
+            # Check various storage type configs for KMS key
+            for config_key in [
+                "opensearchServerlessConfiguration",
+                "redisEnterpriseCloudConfiguration",
+                "rdsConfiguration",
+                "pineconeConfiguration",
+            ]:
+                sub_config = storage_config.get(config_key, {})
+                if sub_config.get("kmsKeyArn"):
+                    storage_kms_key_arn = sub_config["kmsKeyArn"]
+                    break
+
             raw_config: dict[str, Any] = {
                 "knowledge_base_id": kb_id,
                 "knowledge_base_arn": kb_details.get("knowledgeBaseArn"),
@@ -495,7 +515,11 @@ class BedrockCollector(BaseCollector):
                 # Storage
                 "storage_configuration": {
                     "type": storage_type,
+                    "kms_key_arn": storage_kms_key_arn,
                 },
+                # KMS encryption (top-level alias)
+                "kms_key_arn": storage_kms_key_arn,
+                "has_kms_encryption": bool(storage_kms_key_arn),
                 # Failure reasons
                 "failure_reasons": kb_details.get("failureReasons", []),
             }
