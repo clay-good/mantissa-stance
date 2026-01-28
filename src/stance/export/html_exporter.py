@@ -211,7 +211,7 @@ class HTMLExporter(BaseExporter):
         columns = [
             {"key": "severity", "label": "Severity", "width": "100px"},
             {"key": "finding", "label": "Finding"},
-            {"key": "asset", "label": "Asset", "width": "200px"},
+            {"key": "asset", "label": "Asset", "width": "250px"},
             {"key": "status", "label": "Status", "width": "130px"},
         ]
 
@@ -220,13 +220,32 @@ class HTMLExporter(BaseExporter):
             sev = f.severity.value
             status = f.status.value if hasattr(f.status, "value") else str(f.status)
 
+            # Build asset context string with available fields
+            asset_parts = []
+            if f.resource_name:
+                asset_parts.append(f.resource_name)
+            if f.resource_type:
+                asset_parts.append(f.resource_type)
+            asset_context = " / ".join(asset_parts) if asset_parts else f.asset_id
+            location_parts = []
+            if f.cloud_provider:
+                location_parts.append(f.cloud_provider)
+            if f.region:
+                location_parts.append(f.region)
+            if f.account_id:
+                location_parts.append(f.account_id)
+            location_str = " / ".join(location_parts)
+
             rows.append({
                 "severity": render_badge(sev, sev),
                 "finding": f"""
                     <div class="stance-table__title">{self._escape_html(f.title)}</div>
                     <div class="stance-table__subtitle">{self._escape_html(f.rule_id or 'N/A')}</div>
                 """,
-                "asset": self._escape_html(self._truncate(f.asset_id, 45)),
+                "asset": f"""
+                    <div class="stance-table__title">{self._escape_html(self._truncate(asset_context, 50))}</div>
+                    <div class="stance-table__subtitle">{self._escape_html(location_str)}</div>
+                """,
                 "status": render_status_badge(status),
             })
 

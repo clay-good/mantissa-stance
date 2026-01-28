@@ -172,6 +172,7 @@ class GCPStorageCollector(BaseCollector):
                             "condition": rule.get("condition", {}),
                         })
                 raw_config["lifecycle_rules"] = lifecycle_rules
+                raw_config["lifecycle_rules_count"] = len(lifecycle_rules)
                 raw_config["has_lifecycle_rules"] = len(lifecycle_rules) > 0
 
                 # Get logging configuration
@@ -207,6 +208,21 @@ class GCPStorageCollector(BaseCollector):
                         "is_locked": bucket.retention_policy_locked,
                     }
                 raw_config["retention_policy"] = retention_policy
+
+                # Get soft delete policy
+                soft_delete_duration = 0
+                if hasattr(bucket, "soft_delete_policy") and bucket.soft_delete_policy:
+                    duration = bucket.soft_delete_policy.get(
+                        "retentionDurationSeconds", 0
+                    )
+                    soft_delete_duration = int(duration) if duration else 0
+                raw_config["soft_delete_retention_duration"] = soft_delete_duration
+
+                # Get autoclass configuration
+                autoclass_enabled = False
+                if hasattr(bucket, "autoclass") and bucket.autoclass:
+                    autoclass_enabled = bucket.autoclass.get("enabled", False)
+                raw_config["autoclass_enabled"] = autoclass_enabled
 
                 # Check IAM policy for public access
                 is_public = False

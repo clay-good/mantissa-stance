@@ -435,8 +435,13 @@ class GCPComputeCollector(BaseCollector):
                         ),
                     },
                     "allows_all_ingress_from_internet": allows_all_ingress,
+                    "allows_all_from_internet": allows_all_ingress,
                     "allows_ssh_from_internet": allows_ssh_from_internet,
                     "allows_rdp_from_internet": allows_rdp_from_internet,
+                    "allows_database_from_internet": any(
+                        name in ("MySQL", "PostgreSQL", "MongoDB", "Redis")
+                        for name in risky_ports_open
+                    ),
                     "risky_ports_open_to_internet": risky_ports_open,
                     "is_risky": len(risky_ports_open) > 0,
                 }

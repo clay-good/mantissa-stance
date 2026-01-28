@@ -309,6 +309,18 @@ class EC2Collector(BaseCollector):
                 "allows_rdp_from_internet": self._allows_port_from_internet(
                     ingress_rules, 3389
                 ),
+                "allows_mysql_from_internet": self._allows_port_from_internet(
+                    ingress_rules, 3306
+                ),
+                "allows_postgres_from_internet": self._allows_port_from_internet(
+                    ingress_rules, 5432
+                ),
+                "allows_mssql_from_internet": self._allows_port_from_internet(
+                    ingress_rules, 1433
+                ),
+                "allows_mongodb_from_internet": self._allows_port_from_internet(
+                    ingress_rules, 27017
+                ),
                 "allows_all_traffic_from_internet": any(
                     r.get("allows_all_traffic") for r in dangerous_ingress
                 ),

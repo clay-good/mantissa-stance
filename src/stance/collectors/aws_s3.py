@@ -135,6 +135,7 @@ class S3Collector(BaseCollector):
                 config["encryption"] = {
                     "enabled": True,
                     "sse_algorithm": rule.get("SSEAlgorithm"),
+                    "type": rule.get("SSEAlgorithm"),
                     "kms_key_id": rule.get("KMSMasterKeyID"),
                 }
             else:
@@ -185,18 +186,21 @@ class S3Collector(BaseCollector):
             config["bucket_policy"] = policy_response.get("Policy")
             config["has_bucket_policy"] = True
 
-            # Analyze policy for public access
+            # Analyze policy for public access and SSL requirements
             import json
             try:
                 policy = json.loads(config["bucket_policy"])
                 config["policy_allows_public"] = self._check_policy_allows_public(policy)
+                config["requires_ssl"] = self._check_policy_requires_ssl(policy)
             except json.JSONDecodeError:
                 config["policy_allows_public"] = False
+                config["requires_ssl"] = False
         except s3.exceptions.ClientError as e:
             if e.response.get("Error", {}).get("Code") == "NoSuchBucketPolicy":
                 config["has_bucket_policy"] = False
                 config["bucket_policy"] = None
                 config["policy_allows_public"] = False
+                config["requires_ssl"] = False
             else:
                 logger.debug(f"Could not get policy for bucket {bucket_name}: {e}")
         except Exception as e:
@@ -235,6 +239,8 @@ class S3Collector(BaseCollector):
                 "mfa_delete": versioning.get("MFADelete", "Disabled"),
             }
             config["versioning_enabled"] = versioning.get("Status") == "Enabled"
+            config["versioning_status"] = versioning.get("Status", "Disabled")
+            config["mfa_delete_enabled"] = versioning.get("MFADelete") == "Enabled"
         except Exception as e:
             logger.debug(f"Could not get versioning for bucket {bucket_name}: {e}")
 
@@ -248,8 +254,10 @@ class S3Collector(BaseCollector):
                     "target_bucket": logging_enabled.get("TargetBucket"),
                     "target_prefix": logging_enabled.get("TargetPrefix"),
                 }
+                config["logging_enabled"] = True
             else:
                 config["logging"] = {"enabled": False}
+                config["logging_enabled"] = False
         except Exception as e:
             logger.debug(f"Could not get logging for bucket {bucket_name}: {e}")
 
@@ -268,11 +276,14 @@ class S3Collector(BaseCollector):
         # Get lifecycle configuration
         try:
             lifecycle = s3.get_bucket_lifecycle_configuration(Bucket=bucket_name)
-            config["lifecycle_rules"] = len(lifecycle.get("Rules", []))
-            config["has_lifecycle_rules"] = config["lifecycle_rules"] > 0
+            rules_count = len(lifecycle.get("Rules", []))
+            config["lifecycle_rules"] = rules_count
+            config["lifecycle_rules_count"] = rules_count
+            config["has_lifecycle_rules"] = rules_count > 0
         except s3.exceptions.ClientError as e:
             if e.response.get("Error", {}).get("Code") == "NoSuchLifecycleConfiguration":
                 config["lifecycle_rules"] = 0
+                config["lifecycle_rules_count"] = 0
                 config["has_lifecycle_rules"] = False
             else:
                 logger.debug(f"Could not get lifecycle for bucket {bucket_name}: {e}")
@@ -311,6 +322,32 @@ class S3Collector(BaseCollector):
                 if "*" in aws_principal:
                     if not statement.get("Condition"):
                         return True
+
+        return False
+
+    def _check_policy_requires_ssl(self, policy: dict[str, Any]) -> bool:
+        """
+        Check if bucket policy enforces SSL-only access.
+
+        Looks for Deny statements with aws:SecureTransport == false condition,
+        which is the standard pattern for requiring HTTPS.
+
+        Args:
+            policy: Parsed bucket policy
+
+        Returns:
+            True if policy requires SSL
+        """
+        for statement in policy.get("Statement", []):
+            if statement.get("Effect") != "Deny":
+                continue
+
+            condition = statement.get("Condition", {})
+            # Pattern: {"Bool": {"aws:SecureTransport": "false"}}
+            bool_condition = condition.get("Bool", {})
+            secure_transport = bool_condition.get("aws:SecureTransport")
+            if secure_transport in ("false", False):
+                return True
 
         return False
 

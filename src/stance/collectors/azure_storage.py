@@ -218,9 +218,15 @@ class AzureStorageCollector(BaseCollector):
                     raw_config["uses_customer_managed_keys"] = (
                         encryption.key_source == "Microsoft.Keyvault"
                     )
+                    raw_config["encryption_key_source"] = encryption.key_source
+                    raw_config["infrastructure_encryption_enabled"] = (
+                        encryption.require_infrastructure_encryption or False
+                    )
                 else:
                     raw_config["encryption"] = None
                     raw_config["uses_customer_managed_keys"] = False
+                    raw_config["encryption_key_source"] = "Microsoft.Storage"
+                    raw_config["infrastructure_encryption_enabled"] = False
 
                 # Blob service properties (soft delete, versioning)
                 try:
@@ -228,33 +234,40 @@ class AzureStorageCollector(BaseCollector):
                         resource_group, account_name
                     )
                     if blob_props:
+                        blob_soft_delete = (
+                            blob_props.delete_retention_policy.enabled
+                            if blob_props.delete_retention_policy
+                            else False
+                        )
+                        container_soft_delete = (
+                            blob_props.container_delete_retention_policy.enabled
+                            if blob_props.container_delete_retention_policy
+                            else False
+                        )
+                        blob_versioning = (
+                            blob_props.is_versioning_enabled
+                            if hasattr(blob_props, "is_versioning_enabled")
+                            else False
+                        )
                         raw_config["blob_service"] = {
-                            "delete_retention_enabled": (
-                                blob_props.delete_retention_policy.enabled
-                                if blob_props.delete_retention_policy
-                                else False
-                            ),
+                            "delete_retention_enabled": blob_soft_delete,
                             "delete_retention_days": (
                                 blob_props.delete_retention_policy.days
                                 if blob_props.delete_retention_policy
                                 else None
                             ),
-                            "container_delete_retention_enabled": (
-                                blob_props.container_delete_retention_policy.enabled
-                                if blob_props.container_delete_retention_policy
-                                else False
-                            ),
-                            "versioning_enabled": (
-                                blob_props.is_versioning_enabled
-                                if hasattr(blob_props, "is_versioning_enabled")
-                                else False
-                            ),
+                            "container_delete_retention_enabled": container_soft_delete,
+                            "versioning_enabled": blob_versioning,
                             "change_feed_enabled": (
                                 blob_props.change_feed.enabled
                                 if blob_props.change_feed
                                 else False
                             ),
                         }
+                        # Top-level aliases for policy expressions
+                        raw_config["blob_soft_delete_enabled"] = blob_soft_delete
+                        raw_config["container_soft_delete_enabled"] = container_soft_delete
+                        raw_config["blob_versioning_enabled"] = blob_versioning
                 except Exception as e:
                     logger.debug(f"Could not get blob service properties for {account_name}: {e}")
 

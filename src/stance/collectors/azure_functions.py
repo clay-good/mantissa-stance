@@ -218,18 +218,21 @@ class AzureFunctionsCollector(BaseCollector):
                         ),
                     }
                     raw_config["has_managed_identity"] = True
+                    raw_config["identity_type"] = identity.type
                     raw_config["uses_system_assigned_identity"] = (
                         "SystemAssigned" in (identity.type or "")
                     )
                 else:
                     raw_config["identity"] = None
                     raw_config["has_managed_identity"] = False
+                    raw_config["identity_type"] = None
                     raw_config["uses_system_assigned_identity"] = False
 
                 # Virtual network integration
                 vnet_info = app.virtual_network_subnet_id
                 raw_config["virtual_network_subnet_id"] = vnet_info
                 raw_config["has_vnet_integration"] = bool(vnet_info)
+                raw_config["vnet_integration_enabled"] = bool(vnet_info)
 
                 # Get site config for more details
                 try:

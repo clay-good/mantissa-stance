@@ -232,6 +232,11 @@ class JSONExporter(BaseExporter):
         result = {
             "id": finding.id,
             "asset_id": finding.asset_id,
+            "cloud_provider": finding.cloud_provider,
+            "account_id": finding.account_id,
+            "region": finding.region,
+            "resource_type": finding.resource_type,
+            "resource_name": finding.resource_name,
             "finding_type": finding.finding_type.value,
             "severity": finding.severity.value,
             "status": finding.status.value,

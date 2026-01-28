@@ -59,7 +59,7 @@ RESOURCE_TYPES = {
         "gcp_compute_instance",
         "gcp_compute_firewall",
         "gcp_compute_network",
-        "gcp_cloudsql_instance",
+        "gcp_sql_instance",
         "gcp_cloud_function",
         "gcp_pubsub_topic",
         "gcp_kms_key",

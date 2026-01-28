@@ -157,9 +157,11 @@ class AzureSQLCollector(BaseCollector):
                     raw_config["azure_ad_only_authentication"] = (
                         administrators.azure_ad_only_authentication or False
                     )
+                    raw_config["aad_admin_configured"] = True
                 else:
                     raw_config["azure_ad_admin"] = None
                     raw_config["azure_ad_only_authentication"] = False
+                    raw_config["aad_admin_configured"] = False
 
                 # Private endpoint connections
                 private_endpoints = server.private_endpoint_connections or []
@@ -253,12 +255,16 @@ class AzureSQLCollector(BaseCollector):
                     raw_config["uses_customer_managed_key"] = (
                         encryption.get("server_key_type") == "AzureKeyVault"
                     )
+                    raw_config["tde_protector_type"] = encryption.get("server_key_type")
+                    raw_config["transparent_data_encryption_enabled"] = True
                 except Exception as e:
                     logger.debug(
                         f"Could not get encryption protector for {server_name}: {e}"
                     )
                     raw_config["encryption_protector"] = None
                     raw_config["uses_customer_managed_key"] = False
+                    raw_config["tde_protector_type"] = None
+                    raw_config["transparent_data_encryption_enabled"] = False
 
                 # Collect vulnerability assessment settings
                 try:

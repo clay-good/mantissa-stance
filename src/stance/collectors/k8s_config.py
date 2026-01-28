@@ -122,6 +122,7 @@ class K8sConfigCollector:
         self._core_v1: Any = None
         self._apps_v1: Any = None
         self._batch_v1: Any = None
+        self._networking_v1: Any = None
 
     def _init_client(self) -> None:
         """Initialize the Kubernetes client."""
@@ -140,6 +141,7 @@ class K8sConfigCollector:
         self._core_v1 = client.CoreV1Api(self._api_client)
         self._apps_v1 = client.AppsV1Api(self._api_client)
         self._batch_v1 = client.BatchV1Api(self._api_client)
+        self._networking_v1 = client.NetworkingV1Api(self._api_client)
 
         # Try to get cluster name from context
         try:
@@ -269,6 +271,44 @@ class K8sConfigCollector:
         """Convert namespace to Asset."""
         metadata = ns.metadata
         status = ns.status
+        ns_name = metadata.name
+
+        # Query namespace-level resources for policy checks
+        has_default_deny_ingress = False
+        has_default_deny_egress = False
+        try:
+            net_policies = self._networking_v1.list_namespaced_network_policy(ns_name)
+            for np in net_policies.items:
+                spec = np.spec
+                if not spec:
+                    continue
+                # A default deny ingress policy selects all pods and has no ingress rules
+                pod_selector = spec.pod_selector
+                is_select_all = (
+                    not pod_selector.match_labels and not pod_selector.match_expressions
+                ) if pod_selector else True
+                if is_select_all:
+                    policy_types = spec.policy_types or []
+                    if "Ingress" in policy_types and not spec.ingress:
+                        has_default_deny_ingress = True
+                    if "Egress" in policy_types and not spec.egress:
+                        has_default_deny_egress = True
+        except Exception as e:
+            logger.debug(f"Could not query network policies for {ns_name}: {e}")
+
+        has_limit_range = False
+        try:
+            limit_ranges = self._core_v1.list_namespaced_limit_range(ns_name)
+            has_limit_range = len(limit_ranges.items) > 0
+        except Exception as e:
+            logger.debug(f"Could not query limit ranges for {ns_name}: {e}")
+
+        has_resource_quota = False
+        try:
+            quotas = self._core_v1.list_namespaced_resource_quota(ns_name)
+            has_resource_quota = len(quotas.items) > 0
+        except Exception as e:
+            logger.debug(f"Could not query resource quotas for {ns_name}: {e}")
 
         raw_config = {
             "name": metadata.name,
@@ -276,6 +316,10 @@ class K8sConfigCollector:
             "labels": dict(metadata.labels or {}),
             "annotations": dict(metadata.annotations or {}),
             "status": status.phase if status else "Unknown",
+            "has_default_deny_ingress_policy": has_default_deny_ingress,
+            "has_default_deny_egress_policy": has_default_deny_egress,
+            "has_limit_range": has_limit_range,
+            "has_resource_quota": has_resource_quota,
             "creation_timestamp": (
                 metadata.creation_timestamp.isoformat()
                 if metadata.creation_timestamp
@@ -418,6 +462,25 @@ class K8sConfigCollector:
         ) if containers_info else False
         has_liveness_probe = all(c.get("liveness_probe", False) for c in containers_info) if containers_info else False
         has_readiness_probe = all(c.get("readiness_probe", False) for c in containers_info) if containers_info else False
+        has_startup_probe = all(c.get("startup_probe", False) for c in containers_info) if containers_info else False
+        has_cpu_requests = all(
+            c.get("resources", {}).get("requests", {}).get("cpu")
+            for c in containers_info
+        ) if containers_info else False
+        has_memory_requests = all(
+            c.get("resources", {}).get("requests", {}).get("memory")
+            for c in containers_info
+        ) if containers_info else False
+        has_valid_image_pull_policy = all(
+            c.get("image_pull_policy") in ("Always", "IfNotPresent")
+            for c in containers_info
+        ) if containers_info else False
+        # AppArmor profiles are set via annotations
+        annotations = dict(metadata.annotations or {})
+        has_apparmor_profile = any(
+            k.startswith("container.apparmor.security.beta.kubernetes.io/")
+            for k in annotations
+        )
 
         raw_config = {
             "name": metadata.name,
@@ -453,6 +516,11 @@ class K8sConfigCollector:
             "uses_image_digests": uses_image_digests,
             "has_liveness_probe": has_liveness_probe,
             "has_readiness_probe": has_readiness_probe,
+            "has_startup_probe": has_startup_probe,
+            "has_cpu_requests": has_cpu_requests,
+            "has_memory_requests": has_memory_requests,
+            "has_valid_image_pull_policy": has_valid_image_pull_policy,
+            "has_apparmor_profile": has_apparmor_profile,
             "creation_timestamp": (
                 metadata.creation_timestamp.isoformat()
                 if metadata.creation_timestamp

@@ -122,6 +122,13 @@ class Finding:
     title: str
     description: str
 
+    # Asset context fields (who/where)
+    cloud_provider: str = ""
+    account_id: str = ""
+    region: str = ""
+    resource_type: str = ""
+    resource_name: str = ""
+
     # Timestamp fields
     first_seen: datetime | None = None
     last_seen: datetime | None = None
@@ -207,6 +214,11 @@ class Finding:
         return {
             "id": self.id,
             "asset_id": self.asset_id,
+            "cloud_provider": self.cloud_provider,
+            "account_id": self.account_id,
+            "region": self.region,
+            "resource_type": self.resource_type,
+            "resource_name": self.resource_name,
             "finding_type": self.finding_type.value,
             "severity": self.severity.value,
             "status": self.status.value,
@@ -276,6 +288,11 @@ class Finding:
         return cls(
             id=data["id"],
             asset_id=data.get("asset_id", ""),
+            cloud_provider=data.get("cloud_provider", ""),
+            account_id=data.get("account_id", ""),
+            region=data.get("region", ""),
+            resource_type=data.get("resource_type", ""),
+            resource_name=data.get("resource_name", ""),
             finding_type=finding_type,
             severity=severity,
             status=status,

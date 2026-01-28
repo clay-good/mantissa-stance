@@ -51,6 +51,8 @@ SENSITIVE_PORTS = {
     445: "SMB",
     135: "RPC",
     139: "NetBIOS",
+    5985: "WinRM HTTP",
+    5986: "WinRM HTTPS",
 }
 
 
@@ -229,8 +231,10 @@ class AzureComputeCollector(BaseCollector):
                     # Check disk encryption
                     if os_disk and os_disk.encryption_settings:
                         raw_config["os_disk_encrypted"] = os_disk.encryption_settings.enabled
+                        raw_config["disk_encryption_enabled"] = os_disk.encryption_settings.enabled
                     else:
                         raw_config["os_disk_encrypted"] = None
+                        raw_config["disk_encryption_enabled"] = False
 
                 # Network interfaces
                 network_interfaces = []
@@ -431,6 +435,12 @@ class AzureComputeCollector(BaseCollector):
                 allows_all_from_internet = any(
                     r.get("allows_all_from_internet") for r in dangerous_inbound
                 )
+                allows_database_from_internet = any(
+                    r.get("allows_database_from_internet") for r in dangerous_inbound
+                )
+                allows_winrm_from_internet = any(
+                    r.get("allows_winrm_from_internet") for r in dangerous_inbound
+                )
 
                 raw_config: dict[str, Any] = {
                     "nsg_id": nsg_id,
@@ -444,7 +454,9 @@ class AzureComputeCollector(BaseCollector):
                     "has_dangerous_rules": len(dangerous_inbound) > 0,
                     "allows_ssh_from_internet": allows_ssh_from_internet,
                     "allows_rdp_from_internet": allows_rdp_from_internet,
+                    "allows_winrm_from_internet": allows_winrm_from_internet,
                     "allows_all_from_internet": allows_all_from_internet,
+                    "allows_database_from_internet": allows_database_from_internet,
                     "associated_network_interfaces": [
                         nic.id for nic in (nsg.network_interfaces or [])
                     ],
@@ -508,16 +520,18 @@ class AzureComputeCollector(BaseCollector):
                 # Collect subnets
                 subnets = []
                 for subnet in (vnet.subnets or []):
+                    nsg_id = (
+                        subnet.network_security_group.id
+                        if subnet.network_security_group
+                        else None
+                    )
                     subnet_info = {
                         "id": subnet.id,
                         "name": subnet.name,
                         "address_prefix": subnet.address_prefix,
                         "provisioning_state": subnet.provisioning_state,
-                        "network_security_group": (
-                            subnet.network_security_group.id
-                            if subnet.network_security_group
-                            else None
-                        ),
+                        "network_security_group": nsg_id,
+                        "network_security_group_id": nsg_id,
                         "route_table": (
                             subnet.route_table.id if subnet.route_table else None
                         ),
@@ -582,6 +596,7 @@ class AzureComputeCollector(BaseCollector):
                     "peerings": peerings,
                     "peering_count": len(peerings),
                     "enable_ddos_protection": vnet.enable_ddos_protection or False,
+                    "ddos_protection_enabled": vnet.enable_ddos_protection or False,
                     "ddos_protection_plan": (
                         vnet.ddos_protection_plan.id
                         if vnet.ddos_protection_plan
@@ -677,8 +692,14 @@ class AzureComputeCollector(BaseCollector):
         is_risky = False
         allows_ssh_from_internet = False
         allows_rdp_from_internet = False
+        allows_winrm_from_internet = False
         allows_all_from_internet = False
+        allows_database_from_internet = False
         risky_ports = []
+
+        # Database ports to check
+        database_ports = {1433, 3306, 5432, 6379, 27017}
+        winrm_ports = {5985, 5986}
 
         if rule.access == "Allow" and allows_from_internet:
             is_risky = True
@@ -687,6 +708,8 @@ class AzureComputeCollector(BaseCollector):
                 # Check for all ports
                 if from_port == 0 and to_port == 65535:
                     allows_all_from_internet = True
+                    allows_database_from_internet = True
+                    allows_winrm_from_internet = True
                     risky_ports = list(SENSITIVE_PORTS.values())
                 else:
                     # Check specific sensitive ports
@@ -697,11 +720,17 @@ class AzureComputeCollector(BaseCollector):
                                 allows_ssh_from_internet = True
                             if port == 3389:
                                 allows_rdp_from_internet = True
+                            if port in database_ports:
+                                allows_database_from_internet = True
+                            if port in winrm_ports:
+                                allows_winrm_from_internet = True
 
         processed["is_risky"] = is_risky
         processed["allows_ssh_from_internet"] = allows_ssh_from_internet
         processed["allows_rdp_from_internet"] = allows_rdp_from_internet
+        processed["allows_winrm_from_internet"] = allows_winrm_from_internet
         processed["allows_all_from_internet"] = allows_all_from_internet
+        processed["allows_database_from_internet"] = allows_database_from_internet
         processed["risky_ports_exposed"] = risky_ports
 
         return processed

@@ -263,6 +263,7 @@ class GCPCloudSQLCollector(BaseCollector):
                     "private_network": private_network,
                     "authorized_networks": authorized_network_cidrs,
                     "allows_any_ip": allows_any_ip,
+                    "allows_all_ips": allows_any_ip,
                     # SSL configuration
                     "require_ssl": require_ssl,
                     "ssl_mode": ssl_mode,
