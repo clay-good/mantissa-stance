@@ -79,6 +79,7 @@ from stance.collectors.aws_ecr import ECRCollector
 from stance.collectors.aws_eks import EKSCollector
 from stance.collectors.aws_sagemaker import SageMakerCollector
 from stance.collectors.aws_bedrock import BedrockCollector
+from stance.collectors.aws_cloudtrail import CloudTrailCollector
 
 if TYPE_CHECKING:
     from stance.models import AssetCollection, FindingCollection
@@ -174,6 +175,7 @@ COLLECTOR_REGISTRY: dict[str, dict[str, type[BaseCollector]]] = {
         "aws_eks": EKSCollector,
         "aws_sagemaker": SageMakerCollector,
         "aws_bedrock": BedrockCollector,
+        "aws_cloudtrail": CloudTrailCollector,
     },
     "gcp": {},
     "azure": {},
@@ -238,6 +240,7 @@ __all__ = [
     "EKSCollector",
     "SageMakerCollector",
     "BedrockCollector",
+    "CloudTrailCollector",
     # GCP Collectors (conditionally available)
     "GCPIAMCollector",
     "GCPStorageCollector",
@@ -366,6 +369,7 @@ def get_default_collectors(
             EKSCollector(session=session, region=region),
             SageMakerCollector(session=session, region=region),
             BedrockCollector(session=session, region=region),
+            CloudTrailCollector(session=session, region=region),
         ]
     elif provider == "gcp":
         return get_collectors_for_provider(

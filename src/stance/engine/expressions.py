@@ -627,28 +627,49 @@ class ExpressionEvaluator:
                     return False
                 return left <= right
             elif operator == "in":
+                # If collection is None/missing, fail-closed for security
                 if right is None:
                     return False
                 if isinstance(right, (list, tuple, set)):
+                    # If left value is None, return False (None can't be "in" a list meaningfully)
+                    if left is None:
+                        return False
                     return left in right
                 elif isinstance(right, str):
-                    return str(left) in right if left is not None else False
+                    # If left value is None, return False
+                    if left is None:
+                        return False
+                    return str(left) in right
                 return False
             elif operator == "not_in":
+                # If collection is None/missing, fail-closed for security
                 if right is None:
-                    return True
+                    return False
                 if isinstance(right, (list, tuple, set)):
+                    # If left value is None/missing, can't verify membership - fail-closed
+                    if left is None:
+                        return False
                     return left not in right
                 elif isinstance(right, str):
-                    return str(left) not in right if left is not None else True
-                return True
+                    # If left value is None/missing, can't verify membership - fail-closed
+                    if left is None:
+                        return False
+                    return str(left) not in right
+                return False
             elif operator == "contains":
                 if left is None:
                     return False
                 if isinstance(left, (list, tuple, set)):
+                    # If right value is None, return False rather than checking "None in list"
+                    if right is None:
+                        return False
                     return right in left
                 elif isinstance(left, str):
-                    return str(right) in left if right is not None else False
+                    # If right is None, don't convert to string "None" - that would match incorrectly
+                    if right is None:
+                        return False
+                    # Only convert to string if it's a number or similar
+                    return str(right) in left
                 return False
             elif operator == "starts_with":
                 if isinstance(left, str) and isinstance(right, str):
