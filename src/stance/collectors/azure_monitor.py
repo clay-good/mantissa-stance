@@ -206,6 +206,11 @@ class AzureMonitorCollector(BaseCollector):
                     "retention_days": retention_days,
                     "captures_all_categories": captures_all_categories,
                     "captures_all_regions": captures_all_regions,
+                    # Individual category export flags for policy checks
+                    "exports_administrative": "Administrative" in categories,
+                    "exports_security": "Security" in categories,
+                    "exports_alert": "Alert" in categories,
+                    "exports_policy": "Policy" in categories,
                 }
 
                 assets.append(
@@ -240,6 +245,10 @@ class AzureMonitorCollector(BaseCollector):
                         "retention_days": 0,
                         "captures_all_categories": False,
                         "captures_all_regions": False,
+                        "exports_administrative": False,
+                        "exports_security": False,
+                        "exports_alert": False,
+                        "exports_policy": False,
                         "is_synthetic": True,
                     },
                 )
@@ -449,6 +458,7 @@ class AzureMonitorCollector(BaseCollector):
 
                 # Check diagnostic settings
                 diagnostic_settings_enabled = False
+                audit_logs_enabled = False
                 try:
                     settings = monitor_client.diagnostic_settings.list(
                         resource_uri=vault_id
@@ -458,9 +468,9 @@ class AzureMonitorCollector(BaseCollector):
                             for log in setting.logs:
                                 if log.enabled:
                                     diagnostic_settings_enabled = True
-                                    break
-                        if diagnostic_settings_enabled:
-                            break
+                                    # Check for audit log category
+                                    if log.category and "audit" in log.category.lower():
+                                        audit_logs_enabled = True
                 except Exception as e:
                     logger.debug(f"Could not get diagnostic settings for {vault.name}: {e}")
 
@@ -493,6 +503,7 @@ class AzureMonitorCollector(BaseCollector):
                         else False
                     ),
                     "diagnostic_settings_enabled": diagnostic_settings_enabled,
+                    "audit_logs_enabled": audit_logs_enabled,
                 }
 
                 assets.append(

@@ -12,7 +12,7 @@ resource_type: gcp_logging_sink
 
 check:
   type: expression
-  expression: "resource.log_sink_configured == true"
+  expression: "resource.is_long_term_retention == true"
 
 compliance:
   - framework: cis-gcp-foundations

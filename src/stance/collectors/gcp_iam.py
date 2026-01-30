@@ -45,6 +45,7 @@ class GCPIAMCollector(BaseCollector):
         "gcp_project_iam_policy",
         "gcp_project_iam_binding",
         "gcp_project",
+        "gcp_api_key",
     ]
 
     def __init__(
@@ -132,6 +133,12 @@ class GCPIAMCollector(BaseCollector):
                 assets.append(project_asset)
         except Exception as e:
             logger.warning(f"Failed to collect project settings: {e}")
+
+        # Collect API keys
+        try:
+            assets.extend(self._collect_api_keys())
+        except Exception as e:
+            logger.warning(f"Failed to collect API keys: {e}")
 
         return AssetCollection(assets)
 
@@ -563,3 +570,84 @@ class GCPIAMCollector(BaseCollector):
         except Exception as e:
             logger.error(f"Error getting project: {e}")
             raise
+
+    def _collect_api_keys(self) -> list[Asset]:
+        """
+        Collect API keys and their restriction configuration.
+
+        Uses the API Keys API to list all API keys in the project
+        and check for application and API restrictions.
+        """
+        assets: list[Asset] = []
+        now = self._now()
+
+        try:
+            # Use discovery API for API keys (not in standard client libraries)
+            from google.cloud import api_keys_v2
+
+            client = api_keys_v2.ApiKeysClient(credentials=self._credentials)
+            parent = f"projects/{self._project_id}/locations/global"
+
+            request = api_keys_v2.ListKeysRequest(parent=parent)
+            keys = client.list_keys(request=request)
+
+            for key in keys:
+                key_id = key.name
+                key_name = key.display_name or key.uid
+
+                # Check for application restrictions
+                has_application_restrictions = False
+                application_restriction_type = None
+                if key.restrictions:
+                    if key.restrictions.browser_key_restrictions:
+                        has_application_restrictions = True
+                        application_restriction_type = "browser"
+                    elif key.restrictions.server_key_restrictions:
+                        has_application_restrictions = True
+                        application_restriction_type = "server"
+                    elif key.restrictions.android_key_restrictions:
+                        has_application_restrictions = True
+                        application_restriction_type = "android"
+                    elif key.restrictions.ios_key_restrictions:
+                        has_application_restrictions = True
+                        application_restriction_type = "ios"
+
+                # Check for API restrictions
+                has_api_restrictions = False
+                allowed_apis = []
+                if key.restrictions and key.restrictions.api_targets:
+                    has_api_restrictions = len(key.restrictions.api_targets) > 0
+                    allowed_apis = [
+                        target.service for target in key.restrictions.api_targets
+                    ]
+
+                raw_config: dict[str, Any] = {
+                    "name": key_name,
+                    "uid": key.uid,
+                    "create_time": key.create_time.isoformat() if key.create_time else None,
+                    "has_application_restrictions": has_application_restrictions,
+                    "application_restriction_type": application_restriction_type,
+                    "has_api_restrictions": has_api_restrictions,
+                    "allowed_apis": allowed_apis,
+                }
+
+                assets.append(
+                    Asset(
+                        id=key_id,
+                        cloud_provider="gcp",
+                        account_id=self._project_id,
+                        region="global",
+                        resource_type="gcp_api_key",
+                        name=key_name,
+                        network_exposure=NETWORK_EXPOSURE_ISOLATED,
+                        last_seen=now,
+                        raw_config=raw_config,
+                    )
+                )
+
+        except ImportError:
+            logger.debug("google-cloud-api-keys not installed, skipping API key collection")
+        except Exception as e:
+            logger.error(f"Error collecting API keys: {e}")
+
+        return assets

@@ -51,7 +51,6 @@ class GCPNetworkCollector(BaseCollector):
         "gcp_compute_vpn_tunnel",
         "gcp_compute_interconnect",
         "gcp_compute_disk",
-        "gcp_api_key",
     ]
 
     def __init__(
@@ -409,6 +408,7 @@ class GCPNetworkCollector(BaseCollector):
                             "tcp_established_idle_timeout_sec": nat.tcp_established_idle_timeout_sec,
                             "tcp_transitory_idle_timeout_sec": nat.tcp_transitory_idle_timeout_sec,
                             "logging_enabled": logging_enabled,
+                            "log_config_enabled": logging_enabled,  # Alias for policy compatibility
                             "log_filter": log_filter,
                         }
 
