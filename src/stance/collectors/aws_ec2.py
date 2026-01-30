@@ -57,6 +57,8 @@ class EC2Collector(BaseCollector):
         "aws_security_group",
         "aws_vpc",
         "aws_subnet",
+        "aws_network_acl",
+        "aws_vpc_endpoint",
     ]
 
     def collect(self) -> AssetCollection:
@@ -91,6 +93,18 @@ class EC2Collector(BaseCollector):
             assets.extend(self._collect_subnets())
         except Exception as e:
             logger.warning(f"Failed to collect subnets: {e}")
+
+        # Collect network ACLs
+        try:
+            assets.extend(self._collect_network_acls())
+        except Exception as e:
+            logger.warning(f"Failed to collect network ACLs: {e}")
+
+        # Collect VPC endpoints
+        try:
+            assets.extend(self._collect_vpc_endpoints())
+        except Exception as e:
+            logger.warning(f"Failed to collect VPC endpoints: {e}")
 
         return AssetCollection(assets)
 
@@ -667,3 +681,194 @@ class EC2Collector(BaseCollector):
             return NETWORK_EXPOSURE_INTERNET
 
         return NETWORK_EXPOSURE_INTERNAL
+
+    def _collect_network_acls(self) -> list[Asset]:
+        """Collect Network ACLs with their configurations."""
+        ec2 = self._get_client("ec2")
+        assets: list[Asset] = []
+        now = self._now()
+
+        for nacl in self._paginate(ec2, "describe_network_acls", "NetworkAcls"):
+            nacl_id = nacl["NetworkAclId"]
+
+            # Build ARN
+            nacl_arn = self._build_arn(
+                "ec2",
+                "network-acl",
+                nacl_id,
+                region=self._region,
+                account_id=self.account_id,
+            )
+
+            # Extract tags and name
+            tags = self._extract_tags(nacl.get("Tags"))
+            name = self._get_name_from_tags(tags, nacl_id)
+
+            # Process entries (rules)
+            inbound_rules = []
+            outbound_rules = []
+            allows_unrestricted_inbound_on_sensitive_ports = False
+
+            for entry in nacl.get("Entries", []):
+                rule = {
+                    "rule_number": entry.get("RuleNumber"),
+                    "protocol": entry.get("Protocol"),
+                    "rule_action": entry.get("RuleAction"),
+                    "cidr_block": entry.get("CidrBlock"),
+                    "ipv6_cidr_block": entry.get("Ipv6CidrBlock"),
+                    "port_range": entry.get("PortRange"),
+                    "icmp_type_code": entry.get("IcmpTypeCode"),
+                }
+
+                if entry.get("Egress"):
+                    outbound_rules.append(rule)
+                else:
+                    inbound_rules.append(rule)
+
+                    # Check for unrestricted inbound on sensitive ports
+                    if entry.get("RuleAction") == "allow":
+                        cidr = entry.get("CidrBlock", "")
+                        if cidr == "0.0.0.0/0":
+                            port_range = entry.get("PortRange", {})
+                            from_port = port_range.get("From", 0)
+                            to_port = port_range.get("To", 65535)
+
+                            # Check for sensitive ports
+                            for port in SENSITIVE_PORTS.keys():
+                                if from_port <= port <= to_port:
+                                    allows_unrestricted_inbound_on_sensitive_ports = True
+                                    break
+
+            raw_config: dict[str, Any] = {
+                "network_acl_id": nacl_id,
+                "vpc_id": nacl.get("VpcId"),
+                "is_default": nacl.get("IsDefault", False),
+                "owner_id": nacl.get("OwnerId"),
+                "inbound_rules": inbound_rules,
+                "outbound_rules": outbound_rules,
+                "associations": [
+                    {
+                        "association_id": assoc.get("NetworkAclAssociationId"),
+                        "subnet_id": assoc.get("SubnetId"),
+                    }
+                    for assoc in nacl.get("Associations", [])
+                ],
+                "associated_subnet_count": len(nacl.get("Associations", [])),
+                "allows_unrestricted_inbound_on_sensitive_ports": (
+                    allows_unrestricted_inbound_on_sensitive_ports
+                ),
+            }
+
+            assets.append(
+                Asset(
+                    id=nacl_arn,
+                    cloud_provider="aws",
+                    account_id=self.account_id,
+                    region=self._region,
+                    resource_type="aws_network_acl",
+                    name=name,
+                    tags=tags,
+                    network_exposure=NETWORK_EXPOSURE_INTERNAL,
+                    last_seen=now,
+                    raw_config=raw_config,
+                )
+            )
+
+        return assets
+
+    def _collect_vpc_endpoints(self) -> list[Asset]:
+        """Collect VPC Endpoints with their configurations."""
+        ec2 = self._get_client("ec2")
+        assets: list[Asset] = []
+        now = self._now()
+
+        for endpoint in self._paginate(
+            ec2, "describe_vpc_endpoints", "VpcEndpoints"
+        ):
+            endpoint_id = endpoint["VpcEndpointId"]
+
+            # Build ARN
+            endpoint_arn = self._build_arn(
+                "ec2",
+                "vpc-endpoint",
+                endpoint_id,
+                region=self._region,
+                account_id=self.account_id,
+            )
+
+            # Extract tags and name
+            tags = self._extract_tags(endpoint.get("Tags"))
+            name = self._get_name_from_tags(tags, endpoint_id)
+
+            # Analyze policy document
+            policy_document = endpoint.get("PolicyDocument", "")
+            has_restrictive_policy = True
+
+            if policy_document:
+                # Check if policy is overly permissive (allows all)
+                if isinstance(policy_document, str):
+                    if '"*"' in policy_document or "'*'" in policy_document:
+                        # Check if it's a full-access policy
+                        if (
+                            '"Principal": "*"' in policy_document
+                            or '"Principal":"*"' in policy_document
+                        ):
+                            if (
+                                '"Action": "*"' in policy_document
+                                or '"Action":"*"' in policy_document
+                            ):
+                                has_restrictive_policy = False
+                        # Also check for Resource: *
+                        if (
+                            '"Resource": "*"' in policy_document
+                            or '"Resource":"*"' in policy_document
+                        ):
+                            has_restrictive_policy = False
+
+            raw_config: dict[str, Any] = {
+                "vpc_endpoint_id": endpoint_id,
+                "vpc_id": endpoint.get("VpcId"),
+                "service_name": endpoint.get("ServiceName", ""),
+                "state": endpoint.get("State", ""),
+                "vpc_endpoint_type": endpoint.get("VpcEndpointType", ""),
+                "policy_document": policy_document,
+                "has_restrictive_policy": has_restrictive_policy,
+                "route_table_ids": endpoint.get("RouteTableIds", []),
+                "subnet_ids": endpoint.get("SubnetIds", []),
+                "security_group_ids": [
+                    sg.get("GroupId") for sg in endpoint.get("Groups", [])
+                ],
+                "private_dns_enabled": endpoint.get("PrivateDnsEnabled", False),
+                "requester_managed": endpoint.get("RequesterManaged", False),
+                "network_interface_ids": endpoint.get("NetworkInterfaceIds", []),
+                "dns_entries": [
+                    {
+                        "dns_name": dns.get("DnsName", ""),
+                        "hosted_zone_id": dns.get("HostedZoneId", ""),
+                    }
+                    for dns in endpoint.get("DnsEntries", [])
+                ],
+                "creation_timestamp": (
+                    endpoint["CreationTimestamp"].isoformat()
+                    if endpoint.get("CreationTimestamp")
+                    else None
+                ),
+                "owner_id": endpoint.get("OwnerId"),
+            }
+
+            assets.append(
+                Asset(
+                    id=endpoint_arn,
+                    cloud_provider="aws",
+                    account_id=self.account_id,
+                    region=self._region,
+                    resource_type="aws_vpc_endpoint",
+                    name=name,
+                    tags=tags,
+                    network_exposure=NETWORK_EXPOSURE_ISOLATED,
+                    last_seen=now,
+                    raw_config=raw_config,
+                )
+            )
+
+        return assets

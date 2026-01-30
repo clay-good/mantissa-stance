@@ -44,6 +44,8 @@ class APIGatewayCollector(BaseCollector):
         "aws_apigateway_rest_api",
         "aws_apigateway_http_api",
         "aws_apigateway_stage",
+        "aws_api_gateway_method",
+        "aws_api_gateway_domain_name",
     ]
 
     def collect(self) -> AssetCollection:
@@ -67,7 +69,47 @@ class APIGatewayCollector(BaseCollector):
         except Exception as e:
             logger.warning(f"Failed to collect HTTP/WebSocket APIs: {e}")
 
+        # Collect custom domain names
+        try:
+            assets.extend(self._collect_domain_names())
+        except Exception as e:
+            logger.warning(f"Failed to collect custom domain names: {e}")
+
+        # Collect API methods (can be expensive - limited to first 5 APIs)
+        try:
+            assets.extend(self._collect_all_methods())
+        except Exception as e:
+            logger.warning(f"Failed to collect API methods: {e}")
+
         return AssetCollection(assets)
+
+    def _collect_all_methods(self) -> list[Asset]:
+        """
+        Collect methods from REST APIs.
+
+        Limited to first 5 APIs to avoid excessive API calls.
+        For comprehensive method collection, use targeted collection.
+        """
+        apigw_client = self._get_client("apigateway")
+        assets: list[Asset] = []
+
+        try:
+            response = apigw_client.get_rest_apis(limit=5)
+
+            for api in response.get("items", []):
+                api_id = api["id"]
+                api_name = api.get("name", api_id)
+
+                try:
+                    method_assets = self._collect_methods_for_api(api_id, api_name)
+                    assets.extend(method_assets)
+                except Exception as e:
+                    logger.debug(f"Could not collect methods for API {api_id}: {e}")
+
+        except Exception as e:
+            logger.warning(f"Error collecting API methods: {e}")
+
+        return assets
 
     def _collect_rest_apis(self) -> list[Asset]:
         """Collect REST APIs (API Gateway v1)."""
@@ -713,3 +755,185 @@ class APIGatewayCollector(BaseCollector):
                             return True
 
         return False
+
+    def _collect_domain_names(self) -> list[Asset]:
+        """Collect API Gateway custom domain names."""
+        apigw_client = self._get_client("apigateway")
+        assets: list[Asset] = []
+        now = self._now()
+
+        try:
+            # REST API domain names use position-based pagination
+            position = None
+            while True:
+                params: dict[str, Any] = {"limit": 500}
+                if position:
+                    params["position"] = position
+
+                response = apigw_client.get_domain_names(**params)
+
+                for domain in response.get("items", []):
+                    domain_name = domain.get("domainName", "")
+
+                    # Get endpoint configuration
+                    endpoint_config = domain.get("endpointConfiguration", {})
+                    endpoint_types = endpoint_config.get("types", [])
+
+                    # Get certificate info
+                    certificate_arn = domain.get("certificateArn", "")
+                    regional_certificate_arn = domain.get("regionalCertificateArn", "")
+
+                    # Determine security policy (TLS version)
+                    security_policy = domain.get("securityPolicy", "TLS_1_0")
+
+                    # Build raw_config with properties needed by policies
+                    raw_config: dict[str, Any] = {
+                        "domain_name": domain_name,
+                        "endpoint_types": endpoint_types,
+                        # Certificate info (ssl-certificate.yaml)
+                        "certificate_arn": certificate_arn or regional_certificate_arn,
+                        "certificate_name": domain.get("certificateName", ""),
+                        "regional_certificate_arn": regional_certificate_arn,
+                        "regional_certificate_name": domain.get("regionalCertificateName", ""),
+                        # Security policy (ssl-certificate.yaml checks TLS_1_2)
+                        "security_policy": security_policy,
+                        "is_tls_1_2": security_policy == "TLS_1_2",
+                        # Distribution info
+                        "distribution_domain_name": domain.get("distributionDomainName", ""),
+                        "regional_domain_name": domain.get("regionalDomainName", ""),
+                        # Ownership verification
+                        "ownership_verification_certificate_arn": domain.get(
+                            "ownershipVerificationCertificateArn", ""
+                        ),
+                        # Mutual TLS
+                        "mutual_tls_authentication": domain.get("mutualTlsAuthentication", {}),
+                        "has_mutual_tls": bool(domain.get("mutualTlsAuthentication")),
+                        # Timestamps
+                        "certificate_upload_date": (
+                            domain.get("certificateUploadDate").isoformat()
+                            if domain.get("certificateUploadDate")
+                            else None
+                        ),
+                    }
+
+                    # Determine network exposure
+                    network_exposure = NETWORK_EXPOSURE_INTERNET
+                    if "PRIVATE" in endpoint_types:
+                        network_exposure = NETWORK_EXPOSURE_INTERNAL
+
+                    domain_arn = (
+                        f"arn:aws:apigateway:{self._region}::/domainnames/{domain_name}"
+                    )
+
+                    assets.append(
+                        Asset(
+                            id=domain_arn,
+                            cloud_provider="aws",
+                            account_id=self.account_id,
+                            region=self._region,
+                            resource_type="aws_api_gateway_domain_name",
+                            name=domain_name,
+                            network_exposure=network_exposure,
+                            last_seen=now,
+                            raw_config=raw_config,
+                        )
+                    )
+
+                position = response.get("position")
+                if not position:
+                    break
+
+        except Exception as e:
+            logger.error(f"Error listing API Gateway domain names: {e}")
+
+        return assets
+
+    def _collect_methods_for_api(
+        self, api_id: str, api_name: str
+    ) -> list[Asset]:
+        """
+        Collect methods for a REST API.
+
+        Note: This can be expensive for large APIs. Consider using sampling
+        or limiting to specific resources.
+        """
+        apigw_client = self._get_client("apigateway")
+        assets: list[Asset] = []
+        now = self._now()
+
+        try:
+            # Get all resources for the API
+            resources_response = apigw_client.get_resources(
+                restApiId=api_id,
+                limit=500,
+            )
+
+            for resource in resources_response.get("items", []):
+                resource_id = resource.get("id", "")
+                resource_path = resource.get("path", "/")
+                methods = resource.get("resourceMethods", {})
+
+                for http_method, method_info in methods.items():
+                    # Get full method details
+                    try:
+                        method = apigw_client.get_method(
+                            restApiId=api_id,
+                            resourceId=resource_id,
+                            httpMethod=http_method,
+                        )
+
+                        # Authorization type
+                        authorization_type = method.get("authorizationType", "NONE")
+                        api_key_required = method.get("apiKeyRequired", False)
+
+                        raw_config: dict[str, Any] = {
+                            "api_id": api_id,
+                            "api_name": api_name,
+                            "resource_id": resource_id,
+                            "resource_path": resource_path,
+                            "http_method": http_method,
+                            # Authorization settings (authorization-required.yaml)
+                            "authorization_type": authorization_type,
+                            "api_key_required": api_key_required,
+                            "authorizer_id": method.get("authorizerId"),
+                            "has_authorization": (
+                                authorization_type != "NONE" or api_key_required
+                            ),
+                            # Request parameters
+                            "request_parameters": method.get("requestParameters", {}),
+                            "request_models": method.get("requestModels", {}),
+                            # Request validation
+                            "request_validator_id": method.get("requestValidatorId"),
+                            # Operation name
+                            "operation_name": method.get("operationName"),
+                        }
+
+                        method_arn = (
+                            f"arn:aws:apigateway:{self._region}::/restapis/{api_id}"
+                            f"/resources/{resource_id}/methods/{http_method}"
+                        )
+
+                        assets.append(
+                            Asset(
+                                id=method_arn,
+                                cloud_provider="aws",
+                                account_id=self.account_id,
+                                region=self._region,
+                                resource_type="aws_api_gateway_method",
+                                name=f"{api_name}:{resource_path}:{http_method}",
+                                network_exposure=NETWORK_EXPOSURE_INTERNET,
+                                last_seen=now,
+                                raw_config=raw_config,
+                            )
+                        )
+
+                    except Exception as e:
+                        logger.debug(
+                            f"Could not get method {http_method} for "
+                            f"{resource_path}: {e}"
+                        )
+
+        except Exception as e:
+            logger.warning(f"Error listing resources for API {api_id}: {e}")
+
+        return assets

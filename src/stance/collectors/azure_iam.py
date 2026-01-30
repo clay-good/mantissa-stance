@@ -42,6 +42,8 @@ class AzureIAMCollector(BaseCollector):
         "azure_role_definition",
         "azure_service_principal",
         "azure_managed_identity",
+        "azure_conditional_access_policy",
+        "azure_directory_settings",
     ]
 
     def __init__(
@@ -106,6 +108,18 @@ class AzureIAMCollector(BaseCollector):
             assets.extend(self._collect_role_definitions())
         except Exception as e:
             logger.warning(f"Failed to collect role definitions: {e}")
+
+        # Collect Conditional Access Policies (requires Graph API)
+        try:
+            assets.extend(self._collect_conditional_access_policies())
+        except Exception as e:
+            logger.warning(f"Failed to collect conditional access policies: {e}")
+
+        # Collect Directory Settings (requires Graph API)
+        try:
+            assets.extend(self._collect_directory_settings())
+        except Exception as e:
+            logger.warning(f"Failed to collect directory settings: {e}")
 
         return AssetCollection(assets)
 
@@ -331,3 +345,231 @@ class AzureIAMCollector(BaseCollector):
             return "resource"
         else:
             return "unknown"
+
+    def _get_graph_client(self) -> Any:
+        """Get or create Microsoft Graph client for Azure AD operations."""
+        if "graph" not in self._clients:
+            try:
+                import requests
+
+                # Use the credential to get an access token for Graph API
+                token = self._credential.get_token("https://graph.microsoft.com/.default")
+                self._clients["graph_token"] = token.token
+            except Exception as e:
+                logger.warning(f"Failed to get Graph API token: {e}")
+                self._clients["graph_token"] = None
+        return self._clients.get("graph_token")
+
+    def _graph_request(self, endpoint: str) -> dict[str, Any] | None:
+        """
+        Make a request to Microsoft Graph API.
+
+        Args:
+            endpoint: API endpoint path (e.g., '/identity/conditionalAccess/policies')
+
+        Returns:
+            JSON response or None on error
+        """
+        import requests
+
+        token = self._get_graph_client()
+        if not token:
+            return None
+
+        url = f"https://graph.microsoft.com/v1.0{endpoint}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.warning(f"Graph API request failed for {endpoint}: {e}")
+            return None
+
+    def _collect_conditional_access_policies(self) -> list[Asset]:
+        """
+        Collect Azure AD Conditional Access Policies.
+
+        Requires Microsoft Graph API access with Policy.Read.All permission.
+        """
+        assets: list[Asset] = []
+        now = self._now()
+
+        # Fetch conditional access policies from Graph API
+        response = self._graph_request("/identity/conditionalAccess/policies")
+        if not response:
+            logger.debug("Could not fetch conditional access policies (Graph API unavailable or no permissions)")
+            return assets
+
+        policies = response.get("value", [])
+
+        for policy in policies:
+            policy_id = policy.get("id", "")
+            display_name = policy.get("displayName", "Unknown Policy")
+            state = policy.get("state", "disabled")
+
+            # Analyze policy conditions
+            conditions = policy.get("conditions", {})
+            grant_controls = policy.get("grantControls", {}) or {}
+
+            # Check if policy enforces MFA
+            built_in_controls = grant_controls.get("builtInControls", [])
+            enforces_mfa = "mfa" in built_in_controls
+
+            # Check user conditions
+            users = conditions.get("users", {})
+            include_users = users.get("includeUsers", [])
+            include_groups = users.get("includeGroups", [])
+            include_roles = users.get("includeRoles", [])
+
+            # Check if applies to all users
+            applies_to_all_users = "All" in include_users
+
+            # Check if applies to admin roles
+            # Common privileged role template IDs
+            admin_role_ids = {
+                "62e90394-69f5-4237-9190-012177145e10",  # Global Administrator
+                "194ae4cb-b126-40b2-bd5b-6091b380977d",  # Security Administrator
+                "f28a1f50-f6e7-4571-818b-6a12f2af6b6c",  # SharePoint Administrator
+                "29232cdf-9323-42fd-ade2-1d097af3e4de",  # Exchange Administrator
+                "b1be1c3e-b65d-4f19-8427-f6fa0d97feb9",  # Conditional Access Administrator
+                "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3",  # Application Administrator
+                "158c047a-c907-4556-b7ef-446551a6b5f7",  # Cloud Application Administrator
+            }
+            enforces_mfa_for_admins = (
+                enforces_mfa
+                and (any(role in admin_role_ids for role in include_roles) or "All" in include_roles)
+            )
+
+            # Check client app conditions for legacy auth blocking
+            client_app_types = conditions.get("clientAppTypes", [])
+            session_controls = policy.get("sessionControls", {})
+
+            # Policy blocks legacy auth if it targets legacy clients and blocks access
+            blocks_legacy_auth = (
+                state == "enabled"
+                and grant_controls.get("operator") == "OR"
+                and "block" in built_in_controls
+                and ("exchangeActiveSync" in client_app_types or "other" in client_app_types)
+            )
+
+            # Check cloud apps
+            applications = conditions.get("applications", {})
+            include_apps = applications.get("includeApplications", [])
+            applies_to_all_apps = "All" in include_apps
+
+            raw_config: dict[str, Any] = {
+                "policy_id": policy_id,
+                "display_name": display_name,
+                "state": state,
+                "is_enabled": state == "enabled",
+                # MFA enforcement
+                "enforces_mfa": enforces_mfa and state == "enabled",
+                "applies_to_all_users": applies_to_all_users,
+                "enforces_mfa_for_admins": enforces_mfa_for_admins and state == "enabled",
+                # Legacy auth blocking
+                "blocks_legacy_auth": blocks_legacy_auth,
+                # Detailed conditions
+                "conditions": conditions,
+                "grant_controls": grant_controls,
+                "session_controls": session_controls,
+                "include_users": include_users,
+                "include_groups": include_groups,
+                "include_roles": include_roles,
+                "include_applications": include_apps,
+                "applies_to_all_apps": applies_to_all_apps,
+                "client_app_types": client_app_types,
+                "built_in_controls": built_in_controls,
+                "created_date_time": policy.get("createdDateTime"),
+                "modified_date_time": policy.get("modifiedDateTime"),
+            }
+
+            assets.append(
+                Asset(
+                    id=f"/policies/conditionalAccess/{policy_id}",
+                    cloud_provider="azure",
+                    account_id=self._subscription_id,
+                    region="global",
+                    resource_type="azure_conditional_access_policy",
+                    name=display_name,
+                    network_exposure=NETWORK_EXPOSURE_ISOLATED,
+                    last_seen=now,
+                    raw_config=raw_config,
+                )
+            )
+
+        return assets
+
+    def _collect_directory_settings(self) -> list[Asset]:
+        """
+        Collect Azure AD Directory Settings.
+
+        Requires Microsoft Graph API access with Directory.Read.All permission.
+        """
+        assets: list[Asset] = []
+        now = self._now()
+
+        # Fetch organization settings
+        org_response = self._graph_request("/organization")
+        if not org_response:
+            logger.debug("Could not fetch organization settings")
+            return assets
+
+        orgs = org_response.get("value", [])
+        if not orgs:
+            return assets
+
+        org = orgs[0]
+        tenant_id = org.get("id", "")
+
+        # Fetch external collaboration settings (authorization policy)
+        auth_policy = self._graph_request("/policies/authorizationPolicy")
+
+        # Fetch guest invite settings
+        guest_settings: dict[str, Any] = {}
+        if auth_policy:
+            guest_settings = {
+                "allow_invites_from": auth_policy.get("allowInvitesFrom", "everyone"),
+                "guest_user_role_id": auth_policy.get("guestUserRoleId"),
+                "allow_email_verified_users_to_join_organization": auth_policy.get(
+                    "allowEmailVerifiedUsersToJoinOrganization", True
+                ),
+                "block_msol_powershell": auth_policy.get("blockMsolPowerShell", False),
+            }
+
+        raw_config: dict[str, Any] = {
+            "tenant_id": tenant_id,
+            "display_name": org.get("displayName", ""),
+            "verified_domains": [d.get("name") for d in org.get("verifiedDomains", [])],
+            # Guest user settings (for guest-user-access.yaml policy)
+            "guest_user_role_id": guest_settings.get("guest_user_role_id"),
+            "allow_invites_from": guest_settings.get("allow_invites_from", "everyone"),
+            "allow_email_verified_users_to_join": guest_settings.get(
+                "allow_email_verified_users_to_join_organization", True
+            ),
+            "block_msol_powershell": guest_settings.get("block_msol_powershell", False),
+            # Security defaults status
+            "security_defaults_enabled": org.get("securityDefaults", {}).get("isEnabled", False)
+            if isinstance(org.get("securityDefaults"), dict)
+            else False,
+        }
+
+        assets.append(
+            Asset(
+                id=f"/tenants/{tenant_id}/settings",
+                cloud_provider="azure",
+                account_id=self._subscription_id,
+                region="global",
+                resource_type="azure_directory_settings",
+                name=f"Directory Settings - {org.get('displayName', tenant_id)}",
+                network_exposure=NETWORK_EXPOSURE_ISOLATED,
+                last_seen=now,
+                raw_config=raw_config,
+            )
+        )
+
+        return assets

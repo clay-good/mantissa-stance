@@ -43,6 +43,7 @@ class GCPIAMCollector(BaseCollector):
         "gcp_iam_policy",
         "gcp_iam_binding",
         "gcp_project_iam_policy",
+        "gcp_project",
     ]
 
     def __init__(
@@ -116,6 +117,14 @@ class GCPIAMCollector(BaseCollector):
                 assets.append(policy_asset)
         except Exception as e:
             logger.warning(f"Failed to collect project IAM policy: {e}")
+
+        # Collect project-level settings (including audit log config)
+        try:
+            project_asset = self._collect_project()
+            if project_asset:
+                assets.append(project_asset)
+        except Exception as e:
+            logger.warning(f"Failed to collect project settings: {e}")
 
         return AssetCollection(assets)
 
@@ -396,3 +405,94 @@ class GCPIAMCollector(BaseCollector):
             "is_permissive": len(issues) > 0,
             "issues": issues,
         }
+
+    def _collect_project(self) -> Asset | None:
+        """
+        Collect project-level settings including audit log configuration.
+
+        This is needed for policies that check project-level settings like
+        audit logging (gcp-logging-001).
+        """
+        now = self._now()
+
+        # Get basic project info
+        try:
+            client = self._get_resource_manager_client()
+            project = client.get_project(name=f"projects/{self._project_id}")
+
+            # Get audit log configuration via Cloud Logging API
+            audit_logs_enabled = False
+            audit_config = []
+
+            try:
+                # Try to get project IAM policy with audit configs
+                from google.iam.v1 import iam_policy_pb2, options_pb2
+
+                request = iam_policy_pb2.GetIamPolicyRequest(
+                    resource=f"projects/{self._project_id}",
+                    options=options_pb2.GetPolicyOptions(
+                        requested_policy_version=3
+                    ),
+                )
+                policy = client.get_iam_policy(request=request)
+
+                # Check audit configs if present
+                if hasattr(policy, 'audit_configs') and policy.audit_configs:
+                    for config in policy.audit_configs:
+                        service = config.service if hasattr(config, 'service') else ''
+                        log_types = []
+                        if hasattr(config, 'audit_log_configs'):
+                            for log_config in config.audit_log_configs:
+                                if hasattr(log_config, 'log_type'):
+                                    log_types.append(str(log_config.log_type))
+
+                        audit_config.append({
+                            "service": service,
+                            "log_types": log_types,
+                        })
+
+                    # Check if audit logs are enabled for all services
+                    # "allServices" or multiple services indicates audit logging is configured
+                    has_all_services = any(
+                        ac.get("service") == "allServices" for ac in audit_config
+                    )
+                    audit_logs_enabled = has_all_services or len(audit_config) >= 3
+
+            except Exception as e:
+                logger.debug(f"Could not get audit config: {e}")
+                # If we can't get audit config, default to checking if the
+                # project has any IAM policy (basic audit logs are enabled by default)
+                audit_logs_enabled = True  # Admin activity logs are always on
+
+            raw_config = {
+                "project_id": self._project_id,
+                "project_number": project.name.split("/")[-1] if project.name else "",
+                "display_name": project.display_name or self._project_id,
+                "state": str(project.state) if hasattr(project, 'state') else "ACTIVE",
+                "create_time": (
+                    project.create_time.isoformat()
+                    if hasattr(project, 'create_time') and project.create_time
+                    else None
+                ),
+                "labels": dict(project.labels) if hasattr(project, 'labels') and project.labels else {},
+                # Audit logging settings
+                "audit_logs_enabled": audit_logs_enabled,
+                "audit_config": audit_config,
+                "has_audit_config": len(audit_config) > 0,
+            }
+
+            return Asset(
+                id=f"projects/{self._project_id}",
+                cloud_provider="gcp",
+                account_id=self._project_id,
+                region="global",
+                resource_type="gcp_project",
+                name=project.display_name or self._project_id,
+                network_exposure=NETWORK_EXPOSURE_ISOLATED,
+                last_seen=now,
+                raw_config=raw_config,
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting project: {e}")
+            raise

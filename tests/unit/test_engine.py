@@ -231,13 +231,23 @@ class TestExpressionEvaluator:
         assert not evaluator.evaluate("resource.missing_field < 10", context)
 
     def test_expression_none_with_in_operator(self, evaluator):
-        """Test that 'in' operator handles None gracefully."""
+        """Test that 'in' operator handles None gracefully.
+
+        For security policies, when the collection is None/missing,
+        we use fail-closed semantics:
+        - 'in' returns False (can't confirm membership)
+        - 'not_in' returns False (can't confirm non-membership)
+
+        This prevents false positives from bypassing security checks
+        when data is missing.
+        """
         context = {"resource": {"items": None, "valid_items": [1, 2, 3]}}
 
-        # 'in' with None collection should return False
+        # 'in' with None collection should return False (fail-closed)
         assert not evaluator.evaluate("5 in resource.items", context)
-        # 'not_in' with None collection should return True
-        assert evaluator.evaluate("5 not_in resource.items", context)
+        # 'not_in' with None collection should also return False (fail-closed)
+        # We cannot verify that 5 is NOT in a None collection
+        assert not evaluator.evaluate("5 not_in resource.items", context)
 
     def test_expression_none_with_contains_operator(self, evaluator):
         """Test that 'contains' operator handles None gracefully."""

@@ -24,6 +24,9 @@ AWS Collectors:
     - EKSCollector: Collects EKS clusters, node groups, Fargate profiles, and add-ons
     - SageMakerCollector: Collects SageMaker notebooks, endpoints, models, training jobs
     - BedrockCollector: Collects Bedrock models, guardrails, agents, knowledge bases
+    - CloudTrailCollector: Collects CloudTrail trails and configurations
+    - ELBCollector: Collects Application Load Balancers and listeners
+    - CloudWatchCollector: Collects CloudWatch log groups and metric alarms
 
 GCP Collectors:
     - GCPVertexAICollector: Collects Vertex AI endpoints, models, notebooks, pipelines
@@ -80,6 +83,8 @@ from stance.collectors.aws_eks import EKSCollector
 from stance.collectors.aws_sagemaker import SageMakerCollector
 from stance.collectors.aws_bedrock import BedrockCollector
 from stance.collectors.aws_cloudtrail import CloudTrailCollector
+from stance.collectors.aws_elb import ELBCollector
+from stance.collectors.aws_cloudwatch import CloudWatchCollector
 
 if TYPE_CHECKING:
     from stance.models import AssetCollection, FindingCollection
@@ -176,6 +181,8 @@ COLLECTOR_REGISTRY: dict[str, dict[str, type[BaseCollector]]] = {
         "aws_sagemaker": SageMakerCollector,
         "aws_bedrock": BedrockCollector,
         "aws_cloudtrail": CloudTrailCollector,
+        "aws_elb": ELBCollector,
+        "aws_cloudwatch": CloudWatchCollector,
     },
     "gcp": {},
     "azure": {},
@@ -241,6 +248,8 @@ __all__ = [
     "SageMakerCollector",
     "BedrockCollector",
     "CloudTrailCollector",
+    "ELBCollector",
+    "CloudWatchCollector",
     # GCP Collectors (conditionally available)
     "GCPIAMCollector",
     "GCPStorageCollector",
@@ -370,6 +379,8 @@ def get_default_collectors(
             SageMakerCollector(session=session, region=region),
             BedrockCollector(session=session, region=region),
             CloudTrailCollector(session=session, region=region),
+            ELBCollector(session=session, region=region),
+            CloudWatchCollector(session=session, region=region),
         ]
     elif provider == "gcp":
         return get_collectors_for_provider(
