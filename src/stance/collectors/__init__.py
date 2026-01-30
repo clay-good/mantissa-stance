@@ -40,6 +40,8 @@ GCP Collectors:
     - GCPCloudRunCollector: Collects Cloud Run services and revisions
     - GCPArtifactRegistryCollector: Collects Artifact Registry repositories and images
     - GKECollector: Collects GKE clusters and node pools
+    - GCPLoggingCollector: Collects log sinks, buckets, and metrics
+    - GCPNetworkCollector: Collects load balancers, SSL policies, DNS, VPN
 
 Azure Collectors:
     - AzureMLCollector: Collects Azure ML workspaces, compute, endpoints, models
@@ -53,6 +55,8 @@ Azure Collectors:
     - AzureLogicAppsCollector: Collects Logic Apps (Workflows) and configurations
     - AzureContainerRegistryCollector: Collects ACR registries, images, and security config
     - AzureAKSCollector: Collects AKS clusters and node pools
+    - AzureMonitorCollector: Collects Activity Log, alerts, Log Analytics workspaces
+    - AzureNetworkCollector: Collects App Gateway, Front Door, Load Balancers, DNS
 
 Kubernetes Collectors:
     - K8sConfigCollector: Collects pods, deployments, services, daemonsets, statefulsets
@@ -104,6 +108,8 @@ try:
     from stance.collectors.gcp_artifactregistry import GCPArtifactRegistryCollector
     from stance.collectors.gcp_gke import GKECollector
     from stance.collectors.gcp_vertexai import GCPVertexAICollector
+    from stance.collectors.gcp_logging import GCPLoggingCollector
+    from stance.collectors.gcp_network import GCPNetworkCollector
 
     GCP_COLLECTORS_AVAILABLE = True
 except ImportError:
@@ -119,6 +125,8 @@ except ImportError:
     GCPArtifactRegistryCollector = None  # type: ignore
     GKECollector = None  # type: ignore
     GCPVertexAICollector = None  # type: ignore
+    GCPLoggingCollector = None  # type: ignore
+    GCPNetworkCollector = None  # type: ignore
 
 # Try to import Azure collectors (optional dependency)
 try:
@@ -133,6 +141,8 @@ try:
     from stance.collectors.azure_containerregistry import AzureContainerRegistryCollector
     from stance.collectors.azure_aks import AzureAKSCollector
     from stance.collectors.azure_ml import AzureMLCollector
+    from stance.collectors.azure_monitor import AzureMonitorCollector
+    from stance.collectors.azure_network import AzureNetworkCollector
 
     AZURE_COLLECTORS_AVAILABLE = True
 except ImportError:
@@ -148,6 +158,8 @@ except ImportError:
     AzureContainerRegistryCollector = None  # type: ignore
     AzureAKSCollector = None  # type: ignore
     AzureMLCollector = None  # type: ignore
+    AzureMonitorCollector = None  # type: ignore
+    AzureNetworkCollector = None  # type: ignore
 
 # Try to import Kubernetes collectors (optional dependency)
 try:
@@ -203,6 +215,8 @@ if GCP_COLLECTORS_AVAILABLE:
         "gcp_artifactregistry": GCPArtifactRegistryCollector,
         "gcp_gke": GKECollector,
         "gcp_vertexai": GCPVertexAICollector,
+        "gcp_logging": GCPLoggingCollector,
+        "gcp_network": GCPNetworkCollector,
     }
 
 # Register Azure collectors if available
@@ -219,6 +233,8 @@ if AZURE_COLLECTORS_AVAILABLE:
         "azure_containerregistry": AzureContainerRegistryCollector,
         "azure_aks": AzureAKSCollector,
         "azure_ml": AzureMLCollector,
+        "azure_monitor": AzureMonitorCollector,
+        "azure_network": AzureNetworkCollector,
     }
 
 # Register Kubernetes collectors if available
@@ -262,6 +278,8 @@ __all__ = [
     "GCPArtifactRegistryCollector",
     "GKECollector",
     "GCPVertexAICollector",
+    "GCPLoggingCollector",
+    "GCPNetworkCollector",
     "GCP_COLLECTORS_AVAILABLE",
     # Azure Collectors (conditionally available)
     "AzureIAMCollector",
@@ -275,6 +293,8 @@ __all__ = [
     "AzureContainerRegistryCollector",
     "AzureAKSCollector",
     "AzureMLCollector",
+    "AzureMonitorCollector",
+    "AzureNetworkCollector",
     "AZURE_COLLECTORS_AVAILABLE",
     # Kubernetes Collectors (conditionally available)
     "K8sConfigCollector",

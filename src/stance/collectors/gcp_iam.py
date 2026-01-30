@@ -43,6 +43,7 @@ class GCPIAMCollector(BaseCollector):
         "gcp_iam_policy",
         "gcp_iam_binding",
         "gcp_project_iam_policy",
+        "gcp_project_iam_binding",
         "gcp_project",
     ]
 
@@ -117,6 +118,12 @@ class GCPIAMCollector(BaseCollector):
                 assets.append(policy_asset)
         except Exception as e:
             logger.warning(f"Failed to collect project IAM policy: {e}")
+
+        # Collect project IAM bindings (individual bindings for specific role checks)
+        try:
+            assets.extend(self._collect_project_iam_bindings())
+        except Exception as e:
+            logger.warning(f"Failed to collect project IAM bindings: {e}")
 
         # Collect project-level settings (including audit log config)
         try:
@@ -362,6 +369,66 @@ class GCPIAMCollector(BaseCollector):
         except Exception as e:
             logger.error(f"Error getting project IAM policy: {e}")
             raise
+
+    def _collect_project_iam_bindings(self) -> list[Asset]:
+        """
+        Collect individual IAM bindings from project IAM policy.
+
+        This creates separate assets for each role binding to allow
+        policies that check specific roles (e.g., Service Account Admin).
+        """
+        client = self._get_resource_manager_client()
+        assets: list[Asset] = []
+        now = self._now()
+
+        try:
+            request = iam_policy_pb2.GetIamPolicyRequest(
+                resource=f"projects/{self._project_id}"
+            )
+            policy = client.get_iam_policy(request=request)
+
+            for binding in policy.bindings:
+                role = binding.role
+                members = list(binding.members)
+
+                # Create unique ID for this binding
+                role_suffix = role.replace("/", "-").replace(".", "-")
+                binding_id = f"projects/{self._project_id}/iamBindings/{role_suffix}"
+
+                raw_config: dict[str, Any] = {
+                    "project_id": self._project_id,
+                    "role": role,
+                    "members": members,
+                    "member_count": len(members),
+                    # Check for risky service account admin assignments
+                    "is_service_account_admin": role == "roles/iam.serviceAccountAdmin",
+                    "is_privileged_role": role in [
+                        "roles/owner",
+                        "roles/editor",
+                        "roles/iam.serviceAccountAdmin",
+                        "roles/iam.serviceAccountKeyAdmin",
+                        "roles/iam.securityAdmin",
+                    ],
+                }
+
+                assets.append(
+                    Asset(
+                        id=binding_id,
+                        cloud_provider="gcp",
+                        account_id=self._project_id,
+                        region="global",
+                        resource_type="gcp_project_iam_binding",
+                        name=f"{role} binding",
+                        network_exposure=NETWORK_EXPOSURE_ISOLATED,
+                        last_seen=now,
+                        raw_config=raw_config,
+                    )
+                )
+
+        except Exception as e:
+            logger.error(f"Error collecting project IAM bindings: {e}")
+
+        return assets
 
     def _check_overly_permissive_binding(
         self,
