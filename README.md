@@ -32,7 +32,8 @@ Mantissa Stance provides comprehensive cloud security visibility across AWS, GCP
 | **Kubernetes Security** | EKS, GKE, AKS + native K8s configuration analysis |
 | **Secrets Detection** | 28 secret patterns + entropy analysis |
 | **Attack Path Analysis** | Identify exploitable paths through your environment |
-| **CIS Benchmarks** | CIS AWS, GCP, and Azure benchmark scoring |
+| **CIS Benchmarks** | CIS AWS, GCP, Azure, Google Workspace, and Microsoft 365 benchmark scoring |
+| **SaaS Posture** | Google Workspace + Microsoft 365 configuration coverage with cross-surface CIEM |
 | **ASM** | Attack Surface Management - discover external-facing assets |
 
 ## Installation
@@ -243,6 +244,41 @@ Built-in policy mappings for CIS security benchmarks:
 - CIS AWS Foundations Benchmark v1.5
 - CIS GCP Foundations Benchmark v1.3
 - CIS Azure Foundations Benchmark v1.5
+- CIS Google Workspace Foundations Benchmark v1.0 — see [docs/cis_benchmarks/google_workspace.md](docs/cis_benchmarks/google_workspace.md)
+- CIS Microsoft 365 Foundations Benchmark v3.0 — see [docs/cis_benchmarks/microsoft_365.md](docs/cis_benchmarks/microsoft_365.md)
+
+### SaaS Posture (Google Workspace + Microsoft 365)
+
+Stance covers SaaS identity-and-collaboration surfaces alongside the
+IaaS clouds. Workspace and M365 are read-only, point-in-time snapshots —
+audit-log streaming lives in mantissa-log. See
+[docs/saas_posture_overview.md](docs/saas_posture_overview.md) for the
+stance-vs-log decision tree.
+
+```bash
+# Generate connector setup steps + a stub config
+stance saas connect google-workspace --output config/gws.json
+stance saas connect microsoft-365     --output config/m365.json
+
+# Evaluate SaaS policies against a tenant snapshot
+stance saas scan --provider gws  --snapshot snapshots/gws.json
+stance saas scan --provider m365 --snapshot snapshots/m365.json
+
+# Build the cross-surface CIEM graph
+stance saas graph --include-saas --snapshot snapshots/all.json \
+  --primary-domain example.com
+```
+
+The cross-surface CIEM graph is the differentiator vs single-cloud DSPM
+tools: once GWS, Entra, AWS, GCP, and Azure identities are in one
+permission graph, stance flags users who are admin in 2+ providers,
+unverified federated domains, and tenant-wide OAuth delegation — the
+exact lateral-movement patterns that drove Snowflake / Okta / Entra
+breaches in 2024-2025.
+
+Connector setup:
+- [docs/connectors/google_workspace.md](docs/connectors/google_workspace.md)
+- [docs/connectors/microsoft_365.md](docs/connectors/microsoft_365.md)
 
 ### Attack Surface Management (ASM)
 

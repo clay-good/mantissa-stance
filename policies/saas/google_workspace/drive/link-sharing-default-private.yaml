@@ -1,0 +1,32 @@
+id: gws-drive-002
+name: Drive link-sharing default is private (not "Anyone with the link")
+description: |
+  When users create a Drive item, the default link-sharing audience must not
+  be "Anyone with the link". The most common cause of accidental Drive data
+  exposure is a user clicking "Get link" expecting it to behave like a
+  domain-internal share.
+
+enabled: true
+severity: high
+
+resource_type: gws_drive_settings
+
+check:
+  type: expression
+  expression: "resource.link_sharing_default_private == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.4"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Drive and Docs → Sharing settings → Link sharing defaults
+    2. Set the default to "OFF" or "People at <domain> with the link"
+    3. Apply at the top-level OU; tighten further for OUs with sensitive content
+
+tags:
+  - google-workspace
+  - drive
+  - link-sharing

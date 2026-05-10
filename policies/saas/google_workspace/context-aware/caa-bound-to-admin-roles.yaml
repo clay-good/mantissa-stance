@@ -1,0 +1,35 @@
+id: gws-caa-001
+name: Context-Aware Access binding covers admin roles
+description: |
+  At least one Context-Aware Access binding must apply to a Workspace admin
+  role. Admins are the highest-value targets in the tenant; constraining
+  their sign-in to known device/network postures is one of the most effective
+  controls against credential theft once 2SV-resistant phishing kits land.
+
+enabled: true
+severity: high
+
+resource_type: gws_caa_summary
+
+check:
+  type: expression
+  expression: "resource.any_admin_role_bound == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.13"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-2(11)"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → Access and data control → Context-Aware Access
+    2. Create at least one access level (e.g. corporate-network + managed-device)
+    3. Bind that access level to every admin role assignment
+
+tags:
+  - google-workspace
+  - context-aware-access
+  - admin

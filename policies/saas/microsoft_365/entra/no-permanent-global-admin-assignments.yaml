@@ -1,0 +1,35 @@
+id: m365-entra-005
+name: No permanent Global Administrator assignments
+description: |
+  Global Administrator should be assigned via PIM eligibility only. A
+  permanent (active) Global Admin assignment is the textbook stale-privilege
+  finding and the most-attacked role in the tenant.
+
+enabled: true
+severity: critical
+
+resource_type: entra_pim_summary
+
+check:
+  type: expression
+  expression: "resource.permanent_global_admin_count == 0"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6(7)"
+
+remediation:
+  guidance: |
+    1. Entra admin → Identity Governance → PIM → Azure AD roles
+    2. Convert each permanent Global Admin to "eligible"
+    3. Configure activation requirements (MFA, justification, approval)
+
+tags:
+  - microsoft-365
+  - entra
+  - pim
+  - global-admin

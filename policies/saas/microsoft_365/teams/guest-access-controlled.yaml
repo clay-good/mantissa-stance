@@ -1,0 +1,32 @@
+id: m365-teams-002
+name: Teams guest access is controlled
+description: |
+  Guest access in Teams is permitted but constrained: no private calls,
+  no "Meet now". The default ("everything allowed for guests") gives
+  external collaborators meaningful capability to lift content out of
+  Teams channels they have not been deliberately granted to.
+
+enabled: true
+severity: medium
+
+resource_type: teams_settings
+
+check:
+  type: expression
+  expression: "resource.guest_access_enabled == false or resource.guest_access_controlled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "8.1.2"
+
+remediation:
+  guidance: |
+    Teams admin → Users → Guest access: keep guest access enabled but turn
+    off "Make private calls", "Allow Meet now", and "Allow channel meeting
+    scheduling" unless explicitly required.
+
+tags:
+  - microsoft-365
+  - teams
+  - guest-access

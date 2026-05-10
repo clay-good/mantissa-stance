@@ -1,0 +1,39 @@
+id: saas-dspm-002
+name: No confidential / restricted data in external shares
+description: |
+  Files classified ``confidential``, ``restricted``, or ``top_secret`` must
+  not be shared with external users. External sharing is acceptable for
+  ``internal``-and-below content; anything more sensitive requires the
+  share to be removed or the file to be re-classified.
+
+  Operates on ``dspm_finding`` assets produced by the SaaS DSPM scanners.
+
+enabled: true
+severity: high
+
+resource_type: dspm_finding
+
+check:
+  type: expression
+  expression: "resource.has_external_sharing == false or resource.classification in ['public', 'internal']"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.1"
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.2.1"
+
+remediation:
+  guidance: |
+    1. Inventory every flagged finding by ``source_location``
+    2. Remove the external recipient(s), or move the content to a
+       label-protected location
+    3. Where the content is intentionally external, re-classify to
+       ``internal`` only after the data owner confirms
+
+tags:
+  - dspm
+  - confidential
+  - external-sharing

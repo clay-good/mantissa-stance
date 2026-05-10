@@ -1,0 +1,31 @@
+id: m365-onedrive-002
+name: OneDrive sync is restricted to managed devices
+description: |
+  The OneDrive sync client must be allowed to run only on managed devices.
+  Without this restriction, sensitive content can be silently pulled to a
+  contractor laptop or BYOD machine that the org cannot wipe.
+
+enabled: true
+severity: medium
+
+resource_type: onedrive_settings
+
+check:
+  type: expression
+  expression: "resource.sync_to_managed_devices_only == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.3.2"
+
+remediation:
+  guidance: |
+    SharePoint admin → Settings → Sync: enable "Allow syncing only on
+    computers joined to specific domains" or use Intune compliance signals.
+
+tags:
+  - microsoft-365
+  - onedrive
+  - sync
+  - managed-device

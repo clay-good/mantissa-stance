@@ -1,0 +1,31 @@
+id: m365-entra-008
+name: Identity Protection sign-in and user risk policies are enabled
+description: |
+  Both the sign-in-risk and user-risk policies must be enabled in Entra
+  Identity Protection. They convert risk signals from the detection
+  pipeline into enforced sign-in/grant decisions.
+
+enabled: true
+severity: high
+
+resource_type: entra_identity_protection_policies
+
+check:
+  type: expression
+  expression: "resource.sign_in_risk_policy_enabled == true and resource.user_risk_policy_enabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.8"
+
+remediation:
+  guidance: |
+    Entra admin → Protection → Identity Protection:
+      1. User risk policy → enable, configure response (require password change)
+      2. Sign-in risk policy → enable, configure response (require MFA)
+
+tags:
+  - microsoft-365
+  - entra
+  - identity-protection

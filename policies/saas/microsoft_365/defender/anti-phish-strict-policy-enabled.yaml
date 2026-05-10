@@ -1,0 +1,33 @@
+id: m365-defender-003
+name: Defender anti-phishing Strict policy is enabled
+description: |
+  A "Strict" anti-phishing policy must be active. Strict adds
+  mailbox-intelligence-based impersonation protection on top of the default
+  policy and is the difference between catching display-name impersonations
+  and missing them.
+
+enabled: true
+severity: high
+
+resource_type: defender_policy_summary
+
+check:
+  type: expression
+  expression: "resource.any_anti_phish_strict_policy_enabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "2.1.3"
+
+remediation:
+  guidance: |
+    Defender portal → Policies → Anti-phishing → Create new policy:
+      - Apply mailbox-intelligence protection
+      - Apply impersonation protection (users + domains)
+      - Action: "Quarantine"
+
+tags:
+  - microsoft-365
+  - defender
+  - anti-phish

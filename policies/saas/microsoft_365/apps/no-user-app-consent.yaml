@@ -1,0 +1,32 @@
+id: m365-apps-001
+name: User consent for third-party apps is disabled
+description: |
+  End users must not be allowed to consent to third-party applications.
+  User consent is the entry point for OAuth-consent phishing campaigns
+  ("attacker delivers an app, victim clicks Accept, attacker has token").
+
+enabled: true
+severity: high
+
+resource_type: entra_consent_policy
+
+check:
+  type: expression
+  expression: "resource.user_consent_for_apps_enabled == false"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "5.1.5"
+
+remediation:
+  guidance: |
+    Entra admin → Identity → Applications → Enterprise applications →
+    Consent and permissions:
+      Set "Users can consent to apps" = "Do not allow user consent"
+
+tags:
+  - microsoft-365
+  - entra
+  - apps
+  - consent

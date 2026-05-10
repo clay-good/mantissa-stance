@@ -1,0 +1,30 @@
+id: m365-info-001
+name: At least one sensitivity label is published
+description: |
+  The tenant must publish at least one sensitivity label. Without any
+  label, mandatory-labeling and downgrade-justification controls have
+  nothing to bind to; encryption-on-label is impossible.
+
+enabled: true
+severity: medium
+
+resource_type: m365_label_policy_summary
+
+check:
+  type: expression
+  expression: "resource.any_label_published == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "3.1.1"
+
+remediation:
+  guidance: |
+    Purview portal → Information protection → Labels: create a
+    "Confidential" label with encryption + content marking, then publish
+    it via a label policy scoped to all users.
+
+tags:
+  - microsoft-365
+  - sensitivity-labels

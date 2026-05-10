@@ -1,0 +1,31 @@
+id: m365-defender-002
+name: Defender Safe Attachments is enabled
+description: |
+  At least one enabled Safe Attachments policy must detonate inbound
+  attachments before delivery. Static signatures alone do not catch the
+  malware families that drive the current ransomware caseload.
+
+enabled: true
+severity: high
+
+resource_type: defender_policy_summary
+
+check:
+  type: expression
+  expression: "resource.any_safe_attachments_policy_enabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "2.1.2"
+
+remediation:
+  guidance: |
+    Defender portal → Policies → Safe Attachments: enable the default
+    policy with action "Block" and "Enable redirect" set per the
+    organization's mail-flow plan.
+
+tags:
+  - microsoft-365
+  - defender
+  - safe-attachments

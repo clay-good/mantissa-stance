@@ -1,0 +1,31 @@
+id: m365-info-002
+name: Mandatory sensitivity labeling is enabled
+description: |
+  At least one published label policy must enforce mandatory labeling
+  (users cannot save documents without a label). Voluntary labeling is
+  rarely adopted at scale; mandatory labeling is the only configuration
+  that produces audit-quality coverage.
+
+enabled: true
+severity: medium
+
+resource_type: m365_label_policy_summary
+
+check:
+  type: expression
+  expression: "resource.mandatory_labeling_enabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "3.1.2"
+
+remediation:
+  guidance: |
+    Purview portal → Information protection → Label policies → edit policy:
+    set "Require users to apply a label to their email and documents" = on.
+
+tags:
+  - microsoft-365
+  - sensitivity-labels
+  - mandatory-labeling

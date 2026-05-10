@@ -31,6 +31,10 @@ class ExtendedSourceType(Enum):
     AZURE_SQL = "azure_sql"
     BIGQUERY = "bigquery"
     REDSHIFT = "redshift"
+    # SaaS extensions added in SAAS_POSTURE_SPEC PR 8.
+    M365_SHAREPOINT = "m365_sharepoint"
+    M365_ONEDRIVE = "m365_onedrive"
+    M365_EXCHANGE = "m365_exchange"
 
 
 @dataclass

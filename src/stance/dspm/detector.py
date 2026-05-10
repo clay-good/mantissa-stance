@@ -522,14 +522,27 @@ class SensitiveDataDetector:
                 all_matches.extend(matches)
                 categories_found.update(m.category for m in matches)
 
-        # Determine highest classification
+        # Determine highest classification. The category→level mapping is
+        # authoritative in the classifier's own rule registry; build it once
+        # and look up each matched category directly. Previously this code
+        # re-classified the category's *string value* as a field name, which
+        # silently returned PUBLIC for categories whose names happen not to
+        # match any rule's ``field_patterns`` — a real bug that the SaaS
+        # DSPM scanners had to work around in ``_saas_exposure``.
+        category_to_level: dict[DataCategory, ClassificationLevel] = {}
+        for rule in getattr(self._classifier, "_rules", []):
+            existing = category_to_level.get(rule.category)
+            if existing is None or rule.level.severity_score > existing.severity_score:
+                category_to_level[rule.category] = rule.level
         highest_level = ClassificationLevel.PUBLIC
         for category in categories_found:
-            classification = self._classifier.classify(
-                field_name=category.value
-            )
-            if classification.level.severity_score > highest_level.severity_score:
-                highest_level = classification.level
+            level = category_to_level.get(category)
+            if level is None:
+                # Fall back to the legacy field-name path so custom-added
+                # categories without a paired rule are not silently dropped.
+                level = self._classifier.classify(field_name=category.value).level
+            if level.severity_score > highest_level.severity_score:
+                highest_level = level
 
         duration_ms = int((time.time() - start_time) * 1000)
 

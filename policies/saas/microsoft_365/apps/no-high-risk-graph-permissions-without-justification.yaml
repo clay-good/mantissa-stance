@@ -1,0 +1,35 @@
+id: m365-apps-002
+name: App registrations with high-risk Graph permissions are justified
+description: |
+  Any app registration that holds a high-risk Microsoft Graph application
+  permission (Mail.ReadWrite.All, Files.ReadWrite.All, Sites.FullControl.All,
+  Directory.ReadWrite.All, RoleManagement.ReadWrite.Directory, etc.) must
+  have an explicit business owner / justification recorded. Stance verifies
+  this via the ``owner_justification_recorded`` flag, which the connect
+  flow populates from the app inventory in the configured secret backend.
+
+enabled: true
+severity: high
+
+resource_type: entra_app_registration
+
+check:
+  type: expression
+  expression: "resource.has_high_risk_graph_permissions == false or resource.owner_justification_recorded == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "5.1.6"
+
+remediation:
+  guidance: |
+    For each flagged app: review permissions, document the business owner
+    and justification in the connector's app-inventory file, or remove the
+    permission grant entirely.
+
+tags:
+  - microsoft-365
+  - entra
+  - apps
+  - graph-permissions

@@ -1,0 +1,38 @@
+id: m365-entra-002
+name: Conditional Access blocks legacy authentication
+description: |
+  At least one enabled CA policy must block legacy authentication clients
+  (POP/IMAP/SMTP basic auth, EAS without modern auth). Legacy auth bypasses
+  every modern protection — MFA, device compliance, and identity protection
+  signals.
+
+enabled: true
+severity: high
+
+resource_type: entra_ca_summary
+
+check:
+  type: expression
+  expression: "resource.any_policy_blocks_legacy_auth == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+
+remediation:
+  guidance: |
+    Entra admin → Conditional Access → New policy:
+      Users: All users (exclude break-glass)
+      Cloud apps: All
+      Conditions → Client apps: Exchange ActiveSync clients, Other clients
+      Grant: Block
+
+tags:
+  - microsoft-365
+  - entra
+  - conditional-access
+  - legacy-auth

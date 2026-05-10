@@ -1,0 +1,30 @@
+id: m365-sharepoint-002
+name: SharePoint anonymous "Anyone with the link" sharing is disabled
+description: |
+  Anonymous links bypass the tenant's identity controls entirely. Any
+  recipient who obtains the URL has the granted access — no MFA, no CA
+  policy, no audit identity. Disable tenant-wide.
+
+enabled: true
+severity: high
+
+resource_type: sharepoint_tenant_settings
+
+check:
+  type: expression
+  expression: "resource.anonymous_links_disabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.2.2"
+
+remediation:
+  guidance: |
+    SharePoint admin → Policies → Sharing: set the external sharing slider
+    below "Anyone" (i.e. disabled, "Existing guests", or "New and existing guests").
+
+tags:
+  - microsoft-365
+  - sharepoint
+  - anonymous-links

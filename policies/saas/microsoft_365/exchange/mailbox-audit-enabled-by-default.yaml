@@ -1,0 +1,31 @@
+id: m365-exchange-004
+name: Mailbox auditing is enabled by default
+description: |
+  Mailbox audit logging must be enabled tenant-wide so that mailbox
+  operations (sends, soft-deletes, owner sign-ins) are recorded for every
+  mailbox by default. Without this, the audit-log signal mantissa-log
+  consumes simply does not exist for non-explicitly-enabled mailboxes.
+
+enabled: true
+severity: high
+
+resource_type: exchange_org_config
+
+check:
+  type: expression
+  expression: "resource.mailbox_audit_enabled_by_default == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "6.1.4"
+
+remediation:
+  guidance: |
+    Set-OrganizationConfig -AuditDisabled $false
+    Set-OrganizationConfig -IsMailboxAuditEnabledByDefault $true
+
+tags:
+  - microsoft-365
+  - exchange
+  - audit

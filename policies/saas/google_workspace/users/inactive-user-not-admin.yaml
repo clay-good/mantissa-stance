@@ -1,0 +1,37 @@
+id: gws-user-001
+name: No inactive users hold admin privileges
+description: |
+  An admin account that has not signed in for more than 90 days is a stale
+  privilege grant: high-value, low-visibility, and a frequent target for
+  credential stuffing. Inactive non-admin accounts are tracked separately;
+  this policy specifically targets the admin overlap.
+
+enabled: true
+severity: high
+
+resource_type: gws_user
+
+check:
+  type: expression
+  expression: "(resource.is_admin == false and resource.is_delegated_admin == false) or resource.is_inactive == false"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.12"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-2(3)"
+
+remediation:
+  guidance: |
+    1. Admin Console → Directory → Users → locate the inactive admin
+    2. Either revoke the admin role assignment or suspend the account
+    3. If the account is needed for break-glass, document it and exempt
+       explicitly via the policy override file
+
+tags:
+  - google-workspace
+  - users
+  - inactive
+  - admin

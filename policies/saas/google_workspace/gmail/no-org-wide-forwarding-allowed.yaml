@@ -1,0 +1,35 @@
+id: gws-gmail-004
+name: Org-wide automatic forwarding is not allowed
+description: |
+  User-controlled "automatic forwarding" routes mail outside the tenant
+  silently and is a recurring exfiltration vector. Disable at the tenant
+  level so users cannot configure auto-forwarding to external addresses.
+
+enabled: true
+severity: high
+
+resource_type: gws_gmail_settings
+
+check:
+  type: expression
+  expression: "resource.org_wide_forwarding_allowed == false"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "3.6"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-4"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Google Workspace → Gmail → End User Access
+    2. Set "Automatic forwarding" to "Do not allow users to automatically
+       forward incoming email to another address"
+
+tags:
+  - google-workspace
+  - gmail
+  - forwarding
+  - exfiltration

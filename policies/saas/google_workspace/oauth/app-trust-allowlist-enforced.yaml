@@ -1,0 +1,34 @@
+id: gws-oauth-004
+name: Apps with high-risk scopes are on the trust allowlist
+description: |
+  Any OAuth app holding a ``critical`` or ``high`` scope tier (admin
+  directory, full Drive, full Gmail) must appear on the explicit trust
+  allowlist. Allowlists are the primary control against OAuth-consent
+  phishing because they convert the default from "user-consent" to
+  "admin-approved".
+
+enabled: true
+severity: high
+
+resource_type: gws_oauth_app
+
+check:
+  type: expression
+  expression: "resource.is_trusted == true or resource.is_google_app == true or resource.scope_risk in ['data', 'other', 'none']"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.2"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → API controls → App access control
+    2. For each flagged app, either add to the "Trusted" allowlist with a
+       documented business owner, or set to "Limited / Blocked"
+    3. Disable user consent for unconfigured apps
+
+tags:
+  - google-workspace
+  - oauth
+  - trust-allowlist

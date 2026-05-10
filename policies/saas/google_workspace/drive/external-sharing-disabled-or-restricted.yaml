@@ -1,0 +1,35 @@
+id: gws-drive-001
+name: Drive external sharing is disabled or restricted
+description: |
+  Tenant-wide Drive sharing must not be set to "ON" (open). Either disable
+  external sharing entirely, restrict to an allowlist, or restrict to trusted
+  domains. Open external sharing is the largest single contributor to the
+  Drive exposure surface.
+
+enabled: true
+severity: high
+
+resource_type: gws_drive_settings
+
+check:
+  type: expression
+  expression: "resource.external_sharing_restricted == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-3"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Google Workspace → Drive and Docs → Sharing settings
+    2. Set "Sharing outside of <domain>" to OFF, or to an allowlist / trusted-domains policy
+    3. Verify the change applies to all OUs that handle sensitive content
+
+tags:
+  - google-workspace
+  - drive
+  - external-sharing

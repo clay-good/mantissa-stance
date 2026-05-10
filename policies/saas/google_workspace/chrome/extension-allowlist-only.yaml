@@ -1,0 +1,34 @@
+id: gws-chrome-002
+name: Chrome extensions controlled via allowlist
+description: |
+  Extension installation must be controlled via an explicit allowlist (or
+  force-install list). The default ``BLOCKLIST`` mode allows any unblocked
+  extension and has been the staging ground for several real-world Chrome
+  extension supply-chain compromises.
+
+enabled: true
+severity: high
+
+resource_type: gws_chrome_policy
+
+check:
+  type: expression
+  expression: "resource.extension_allowlist_only == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "6.3"
+
+remediation:
+  guidance: |
+    1. Admin Console → Devices → Chrome → Settings → User & browser settings
+    2. Set "Allow or block all apps and extensions" to Block, then add the
+       reviewed allowlist
+    3. Pin critical extensions via "Force install"
+
+tags:
+  - google-workspace
+  - chrome
+  - extensions
+  - allowlist

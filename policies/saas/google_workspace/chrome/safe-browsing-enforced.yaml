@@ -1,0 +1,30 @@
+id: gws-chrome-003
+name: Chrome Safe Browsing is enforced (Enhanced)
+description: |
+  Safe Browsing must be set to Enhanced or enforced rather than the
+  default Standard mode. Enhanced provides real-time URL evaluation and
+  meaningfully improves detection of phishing kits.
+
+enabled: true
+severity: medium
+
+resource_type: gws_chrome_policy
+
+check:
+  type: expression
+  expression: "resource.safe_browsing_enforced == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "6.4"
+
+remediation:
+  guidance: |
+    1. Admin Console → Devices → Chrome → Settings → User & browser
+    2. Set "Safe Browsing protection level" to Enhanced
+
+tags:
+  - google-workspace
+  - chrome
+  - safe-browsing

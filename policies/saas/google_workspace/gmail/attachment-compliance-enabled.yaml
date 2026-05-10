@@ -1,0 +1,32 @@
+id: gws-gmail-001
+name: Gmail attachment compliance is enabled
+description: |
+  Gmail attachment-compliance rules block macro-enabled documents,
+  encrypted archives that bypass scanning, and other high-risk attachment
+  types at the gateway. Without them, every user becomes the perimeter.
+
+enabled: true
+severity: medium
+
+resource_type: gws_gmail_settings
+
+check:
+  type: expression
+  expression: "resource.attachment_compliance_enabled == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "3.4"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Google Workspace → Gmail → Compliance
+    2. Add at least one Attachment compliance rule covering executable and
+       macro-enabled types
+    3. Apply at the top-level OU
+
+tags:
+  - google-workspace
+  - gmail
+  - attachment-compliance

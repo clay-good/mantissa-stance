@@ -1,0 +1,32 @@
+id: m365-exchange-003
+name: Transport rules are reviewed and acknowledged
+description: |
+  The set of enabled Exchange transport rules must be reviewed and the
+  review acknowledged in the connector inventory. Un-reviewed transport
+  rules are a recurring source of silent mail-routing changes (whitelisted
+  attacker domains, BCC to external mailboxes, modified subjects).
+
+enabled: true
+severity: medium
+
+resource_type: exchange_org_config
+
+check:
+  type: expression
+  expression: "resource.transport_rule_count == 0 or resource.transport_rules_reviewed == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "6.1.3"
+
+remediation:
+  guidance: |
+    Review every enabled transport rule with the mail-flow owner. Once
+    reviewed, set ``transportRulesReviewed = true`` in the connector
+    config (or via the future ``stance saas connect`` flow).
+
+tags:
+  - microsoft-365
+  - exchange
+  - transport-rules

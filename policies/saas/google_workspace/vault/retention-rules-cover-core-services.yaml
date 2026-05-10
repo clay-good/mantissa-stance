@@ -1,0 +1,36 @@
+id: gws-vault-001
+name: Vault retention rules cover core services
+description: |
+  Every Workspace core service that handles user data (Mail, Drive, Groups,
+  Chat, Calendar, Voice) must be covered by at least one Vault retention
+  rule. Coverage gaps are the single largest source of e-discovery failures
+  and unintentional permanent deletions.
+
+enabled: true
+severity: medium
+
+resource_type: gws_vault_retention
+
+check:
+  type: expression
+  expression: "resource.all_core_services_covered == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "8.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AU-11"
+
+remediation:
+  guidance: |
+    1. Open Google Vault → Retention
+    2. For each core service listed in ``core_services_missing``, add a
+       retention rule with the appropriate duration
+    3. If a service is intentionally exempt, document via a policy override
+
+tags:
+  - google-workspace
+  - vault
+  - retention

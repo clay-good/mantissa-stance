@@ -1,0 +1,31 @@
+id: gws-mobile-001
+name: Advanced mobile management is required
+description: |
+  Workspace's "Basic" mobile mode does not enforce per-app data separation,
+  remote wipe, or device-level encryption checks. For any device touching
+  corporate mail, Advanced (or Custom) mode is the floor.
+
+enabled: true
+severity: medium
+
+resource_type: gws_mobile_settings
+
+check:
+  type: expression
+  expression: "resource.advanced_management_required == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "7.1"
+
+remediation:
+  guidance: |
+    1. Admin Console → Devices → Mobile & endpoints → Settings
+    2. Set "Mobile management" to Advanced (or Custom) for the OU
+    3. Re-enroll affected devices
+
+tags:
+  - google-workspace
+  - mobile
+  - mdm

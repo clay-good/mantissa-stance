@@ -1,0 +1,31 @@
+id: gws-auth-005
+name: SSO enforced for sign-in
+description: |
+  Where the organization runs an external IdP, SSO should be enforced so that
+  Google passwords are not the primary authenticator. Reduces phishing surface
+  and centralizes session policy in the IdP.
+
+enabled: true
+severity: medium
+
+resource_type: gws_tenant_security
+
+check:
+  type: expression
+  expression: "resource.sso_enforced == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.6"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → Authentication → SSO with third-party IdP
+    2. Configure SAML profile and assign it to the relevant OUs
+    3. Enable "Use SSO" enforcement so Google passwords are not used
+
+tags:
+  - google-workspace
+  - authentication
+  - sso

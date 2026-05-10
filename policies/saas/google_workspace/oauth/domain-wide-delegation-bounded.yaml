@@ -1,0 +1,37 @@
+id: gws-oauth-003
+name: Domain-wide delegation grants are bounded and verified
+description: |
+  Domain-wide delegation grants service accounts the ability to act as any
+  user in the tenant — the most privileged grant Workspace exposes. Any DWD
+  grant must be on a verified app; unverified DWD grants are treated as the
+  most-sensitive secret class (see SAAS_POSTURE_SPEC §7).
+
+enabled: true
+severity: critical
+
+resource_type: gws_oauth_app
+
+check:
+  type: expression
+  expression: "resource.domain_wide_delegated == false or resource.verified == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6(7)"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → API controls → Domain-wide delegation
+    2. For each unverified ``client_id``, remove the grant unless ownership and
+       business purpose are documented
+    3. If retained, mark as a tracked secret in the secrets-inventory module
+
+tags:
+  - google-workspace
+  - oauth
+  - domain-wide-delegation
+  - critical

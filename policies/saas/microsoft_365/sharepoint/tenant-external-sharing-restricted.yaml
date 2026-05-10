@@ -1,0 +1,31 @@
+id: m365-sharepoint-001
+name: SharePoint tenant external sharing is restricted
+description: |
+  Tenant-wide sharing capability must be at most ``externalUserSharingOnly``
+  (no anonymous "anyone" links). The default ``externalUserAndGuestSharing``
+  is the single largest contributor to SharePoint exposure surface.
+
+enabled: true
+severity: high
+
+resource_type: sharepoint_tenant_settings
+
+check:
+  type: expression
+  expression: "resource.sharing_capability_rank <= 2"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.2.1"
+
+remediation:
+  guidance: |
+    SharePoint admin → Policies → Sharing → External sharing:
+    Set the slider to "New and existing guests" (externalUserSharingOnly)
+    or stricter. Keep "Anyone" links disabled.
+
+tags:
+  - microsoft-365
+  - sharepoint
+  - external-sharing

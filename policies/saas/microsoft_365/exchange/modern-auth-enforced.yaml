@@ -1,0 +1,32 @@
+id: m365-exchange-001
+name: Modern authentication is enforced for Exchange Online
+description: |
+  Modern auth (OAuth2 / device-bound tokens) must be enabled tenant-wide.
+  Tenants on legacy basic-auth flows cannot meaningfully enforce MFA on
+  Outlook for desktop or for SMTP submission, leaving a wide gap in the
+  identity baseline.
+
+enabled: true
+severity: high
+
+resource_type: exchange_org_config
+
+check:
+  type: expression
+  expression: "resource.modern_auth_enforced == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "6.1.1"
+
+remediation:
+  guidance: |
+    Set ``OAuth2ClientProfileEnabled`` = ``$true`` on the EXO organization
+    config (Set-OrganizationConfig). Then disable basic auth on the affected
+    protocols via authentication policies.
+
+tags:
+  - microsoft-365
+  - exchange
+  - modern-auth

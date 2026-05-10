@@ -1,0 +1,37 @@
+id: saas-dspm-001
+name: No PII in "Anyone with the link" files
+description: |
+  Files that contain personally identifiable information must not be shared
+  via an "Anyone with the link" / anonymous URL. Anyone-with-link sharing
+  bypasses every identity control (MFA, CA, audit identity).
+
+  Operates on ``dspm_finding`` assets produced by the SaaS DSPM scanners.
+  See ``stance.dspm.extended.finding_to_asset`` for the conversion shape.
+
+enabled: true
+severity: critical
+
+resource_type: dspm_finding
+
+check:
+  type: expression
+  expression: "resource.has_pii == false or resource.has_anyone_with_link == false"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.4"
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.2.2"
+
+remediation:
+  guidance: |
+    1. Open the flagged file in its source UI (SharePoint / OneDrive / Drive)
+    2. Replace the "Anyone with the link" share with a "Specific people" share
+    3. If the file no longer needs PII, redact and re-classify
+
+tags:
+  - dspm
+  - pii
+  - anonymous-sharing

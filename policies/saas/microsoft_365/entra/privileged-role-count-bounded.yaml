@@ -1,0 +1,33 @@
+id: m365-entra-007
+name: Active privileged role assignments are bounded
+description: |
+  The number of *active* (permanent) privileged role assignments in the
+  tenant must be small. CIS recommends two to four Global Admins; the
+  broader privileged role count should also stay constrained. Drift here
+  is the leading indicator of role-assignment sprawl.
+
+enabled: true
+severity: medium
+
+resource_type: entra_pim_summary
+
+check:
+  type: expression
+  expression: "resource.active_privileged_assignment_count <= 8"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.7"
+
+remediation:
+  guidance: |
+    Audit the active privileged assignments listed in
+    ``privileged_roles_with_permanent_assignments``. Convert non-essential
+    assignments to PIM eligibility, and remove redundant ones.
+
+tags:
+  - microsoft-365
+  - entra
+  - privileged-access
+  - role-sprawl

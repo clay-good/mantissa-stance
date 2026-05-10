@@ -1,0 +1,37 @@
+id: gws-oauth-001
+name: No unverified third-party app holds Drive full scope
+description: |
+  Third-party apps that have not gone through Google's verification process
+  must not hold the full Drive scope (``.../auth/drive``). These apps are
+  common targets for OAuth phishing and cannot be revoked through Google's
+  safe-browsing infrastructure.
+
+enabled: true
+severity: high
+
+resource_type: gws_oauth_app
+
+check:
+  type: expression
+  expression: "resource.verified == true or resource.has_drive_full_scope == false"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.3"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → API controls → App access control
+    2. Locate the app by ``client_id`` and either revoke or move to "Limited"
+    3. Confirm with the app's users before revoking; an alternative verified
+       app may exist
+
+tags:
+  - google-workspace
+  - oauth
+  - drive
+  - unverified-app

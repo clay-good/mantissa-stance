@@ -1,0 +1,35 @@
+id: gws-admin-001
+name: Super admin count between 2 and 5
+description: |
+  At least two super admins are needed for resilience (lockout recovery) and
+  at most five so the privileged blast radius stays small. The exact bound is
+  a hard line in CIS Workspace; tune via the policy file rather than the engine.
+
+enabled: true
+severity: high
+
+resource_type: gws_tenant_security
+
+check:
+  type: expression
+  expression: "resource.super_admin_count >= 2 and resource.super_admin_count <= 5"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.2"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6(7)"
+
+remediation:
+  guidance: |
+    If under 2: Admin Console → Account → Admin roles → assign Super Admin to
+    one additional trusted account.
+    If over 5: review the assignment list and downgrade non-essential admins to
+    a delegated admin role with the least privilege required.
+
+tags:
+  - google-workspace
+  - admin
+  - privileged-access

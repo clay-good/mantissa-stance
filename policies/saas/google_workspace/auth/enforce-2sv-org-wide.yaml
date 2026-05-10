@@ -1,0 +1,35 @@
+id: gws-auth-001
+name: 2-Step Verification enforced organization-wide
+description: |
+  2-Step Verification must be enforced for all users in the organization.
+  Phishable single-factor passwords are the dominant vector in Workspace
+  account takeover; enforcement (not merely opt-in) is what closes the gap.
+
+enabled: true
+severity: high
+
+resource_type: gws_tenant_security
+
+check:
+  type: expression
+  expression: "resource.two_sv_enforced == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.4"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → Authentication → 2-Step Verification
+    2. Set Enforcement to "On" for all users (or for specific OUs/groups, then expand)
+    3. Configure a grace period appropriate to the rollout plan
+    4. Communicate to users before the enforcement date
+
+tags:
+  - google-workspace
+  - authentication
+  - 2sv

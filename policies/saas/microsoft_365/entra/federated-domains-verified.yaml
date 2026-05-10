@@ -1,0 +1,34 @@
+id: m365-entra-011
+name: Federated domains are verified
+description: |
+  Every federated domain in the tenant must be verified. Unverified
+  federated domains have been used in real-world account-takeover attacks
+  (the "nOAuth" pattern and earlier SAML-trust abuse): an attacker who
+  can prove control of an unverified federated domain effectively forges
+  identities into the tenant.
+
+enabled: true
+severity: critical
+
+resource_type: entra_federation_summary
+
+check:
+  type: expression
+  expression: "resource.any_unverified_federated_domain == false"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.11"
+
+remediation:
+  guidance: |
+    Entra admin → Identity → Settings → Domain names: complete domain
+    verification for each unverified federated domain, or remove the
+    federation if the domain is no longer in use.
+
+tags:
+  - microsoft-365
+  - entra
+  - federation
+  - domain-trust

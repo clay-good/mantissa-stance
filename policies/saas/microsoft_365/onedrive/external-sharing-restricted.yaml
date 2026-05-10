@@ -1,0 +1,30 @@
+id: m365-onedrive-001
+name: OneDrive external sharing is restricted
+description: |
+  OneDrive's per-user namespace inherits the SharePoint sharing capability
+  but can be tightened independently. External sharing on personal drives
+  must be at most ``externalUserSharingOnly``.
+
+enabled: true
+severity: high
+
+resource_type: onedrive_settings
+
+check:
+  type: expression
+  expression: "resource.sharing_capability_rank <= 2"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.3.1"
+
+remediation:
+  guidance: |
+    SharePoint admin → Policies → Sharing → "OneDrive": set the slider
+    below "Anyone".
+
+tags:
+  - microsoft-365
+  - onedrive
+  - external-sharing

@@ -169,6 +169,32 @@ def add_ciem_parser(subparsers: Any) -> None:
         help="Output format (default: table)",
     )
 
+    # ciem graph (SAAS_POSTURE_SPEC §9 — cross-surface CIEM)
+    graph_parser = ciem_subparsers.add_parser(
+        "graph",
+        help="Build the cross-surface CIEM graph",
+    )
+    graph_parser.add_argument(
+        "--include-saas",
+        action="store_true",
+        help="Include GWS + Entra mappers (loads from --snapshot)",
+    )
+    graph_parser.add_argument(
+        "--snapshot",
+        default="",
+        help="Snapshot JSON of collected assets (required with --include-saas)",
+    )
+    graph_parser.add_argument(
+        "--primary-domain",
+        default="",
+        help="Primary tenant domain for external/internal classification",
+    )
+    graph_parser.add_argument(
+        "--format",
+        choices=["table", "json"],
+        default="table",
+    )
+
     # ciem summary
     summary_parser = ciem_subparsers.add_parser(
         "summary",
@@ -195,6 +221,8 @@ def cmd_ciem(args: argparse.Namespace) -> int:
 
     if action == "permissions":
         return _ciem_permissions(args)
+    elif action == "graph":
+        return _ciem_graph(args)
     elif action == "overprivileged":
         return _ciem_overprivileged(args)
     elif action == "trust":
@@ -213,6 +241,31 @@ def cmd_ciem(args: argparse.Namespace) -> int:
         print("  privesc        Detect privilege escalation paths")
         print("  summary        Show CIEM summary")
         return 1
+
+
+def _ciem_graph(args: argparse.Namespace) -> int:
+    """Build the cross-surface CIEM graph (SAAS_POSTURE_SPEC §9 / §5.2).
+
+    With ``--include-saas`` and a ``--snapshot``, this delegates to the
+    same graph builder used by ``stance saas graph`` — see ``cli_saas`` for
+    the heavy lifting. Without ``--include-saas`` we only have AWS / GCP /
+    Azure mappers, which require live cloud credentials and are out of
+    scope for this command's read-only snapshot mode.
+    """
+    if not getattr(args, "include_saas", False):
+        print(
+            "Error: 'stance ciem graph' currently requires --include-saas + --snapshot."
+        )
+        print("Live cloud-graph traversal lives in `stance ciem permissions` /")
+        print("`stance ciem privesc` per-provider.")
+        return 1
+    if not getattr(args, "snapshot", ""):
+        print("Error: --snapshot is required with --include-saas")
+        return 1
+    # Reuse the cli_saas graph handler; it accepts the same args namespace.
+    from stance.cli_saas import _cmd_graph as _cmd_saas_graph
+
+    return _cmd_saas_graph(args)
 
 
 def _ciem_permissions(args: argparse.Namespace) -> int:

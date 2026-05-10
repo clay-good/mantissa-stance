@@ -1,0 +1,31 @@
+id: gws-gmail-003
+name: Gmail S/MIME or Confidential Mode is enabled
+description: |
+  At least one of S/MIME signing/encryption or Confidential Mode must be
+  enabled so users have an in-product channel for sensitive correspondence.
+  Either control satisfies this rule; the choice is operational.
+
+enabled: true
+severity: medium
+
+resource_type: gws_gmail_settings
+
+check:
+  type: expression
+  expression: "resource.smime_or_confidential_mode_enabled == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "3.7"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Google Workspace → Gmail → User settings
+    2. Enable Confidential Mode, or roll out hosted S/MIME with key escrow
+
+tags:
+  - google-workspace
+  - gmail
+  - smime
+  - confidential-mode

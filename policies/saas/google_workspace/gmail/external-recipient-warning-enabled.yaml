@@ -1,0 +1,30 @@
+id: gws-gmail-002
+name: Gmail external-recipient warning is enabled
+description: |
+  Users must see Gmail's external-recipient banner before sending mail to
+  addresses outside the tenant. The banner is one of the few low-friction
+  controls that materially reduces accidental data exfiltration.
+
+enabled: true
+severity: medium
+
+resource_type: gws_gmail_settings
+
+check:
+  type: expression
+  expression: "resource.external_recipient_warning_enabled == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "3.5"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Google Workspace → Gmail → End User Access
+    2. Enable "Warn for external recipients"
+
+tags:
+  - google-workspace
+  - gmail
+  - external-recipient-warning

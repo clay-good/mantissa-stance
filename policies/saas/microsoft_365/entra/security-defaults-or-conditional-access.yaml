@@ -1,0 +1,36 @@
+id: m365-entra-001
+name: Tenant has security defaults or Conditional Access enabled
+description: |
+  Either Microsoft security defaults must be enabled, or the tenant must
+  have at least one enabled Conditional Access policy. A tenant with
+  neither has no identity baseline at all.
+
+enabled: true
+severity: critical
+
+resource_type: entra_tenant_baseline
+
+check:
+  type: expression
+  expression: "resource.has_identity_baseline == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.1"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2"
+
+remediation:
+  guidance: |
+    Either:
+    1. Entra admin center → Identity → Properties → Manage security defaults → Enable
+    OR
+    2. Entra admin center → Protection → Conditional Access → New policy
+       (start with "Block legacy auth" + "MFA for admins").
+
+tags:
+  - microsoft-365
+  - entra
+  - identity-baseline

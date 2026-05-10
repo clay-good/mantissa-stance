@@ -1,0 +1,32 @@
+id: m365-entra-006
+name: Privileged role activations require MFA via PIM
+description: |
+  Every PIM role-policy assignment for a privileged role must require MFA
+  to activate. Activation without step-up MFA defeats the purpose of PIM
+  and reduces it to "scheduled" privilege rather than "just-in-time".
+
+enabled: true
+severity: high
+
+resource_type: entra_pim_role_setting
+
+check:
+  type: expression
+  expression: "resource.requires_mfa_to_activate == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "1.1.6"
+
+remediation:
+  guidance: |
+    1. Entra admin → Identity Governance → PIM → Azure AD roles → Settings
+    2. For each privileged role, set "Require MFA on activation" = on
+    3. Consider also requiring approval for the most-sensitive roles
+
+tags:
+  - microsoft-365
+  - entra
+  - pim
+  - mfa

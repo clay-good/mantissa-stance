@@ -1,0 +1,32 @@
+id: m365-teams-003
+name: Teams app-permission policy is not "Allow all apps"
+description: |
+  The default Teams app-permission policy must not be ``AllowAllApps``.
+  An open default lets users install third-party Teams apps that can read
+  channel content via bot frameworks, which has been used in real-world
+  data-exfiltration campaigns.
+
+enabled: true
+severity: medium
+
+resource_type: teams_settings
+
+check:
+  type: expression
+  expression: "resource.app_permission_policy_enforced == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "8.1.3"
+
+remediation:
+  guidance: |
+    Teams admin → Teams apps → Permission policies:
+      Set the global policy to "Allow specific apps and block others" or
+      "Block all apps" and explicitly allowlist the approved set.
+
+tags:
+  - microsoft-365
+  - teams
+  - third-party-apps

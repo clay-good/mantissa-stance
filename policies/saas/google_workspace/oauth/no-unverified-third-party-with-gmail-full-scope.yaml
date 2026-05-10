@@ -1,0 +1,33 @@
+id: gws-oauth-002
+name: No unverified third-party app holds Gmail full scope
+description: |
+  Third-party apps that have not been verified by Google must not hold full
+  Gmail scopes (``mail.google.com``, ``gmail.modify``, ``gmail.compose``,
+  ``gmail.send``). Compromise of such an app gives an attacker mailbox-level
+  access to every consenting user.
+
+enabled: true
+severity: high
+
+resource_type: gws_oauth_app
+
+check:
+  type: expression
+  expression: "resource.verified == true or resource.has_gmail_full_scope == false"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.3"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → API controls → App access control
+    2. Restrict Gmail scopes by adding the unverified app to "Limited" or
+       revoking access entirely
+
+tags:
+  - google-workspace
+  - oauth
+  - gmail
+  - unverified-app

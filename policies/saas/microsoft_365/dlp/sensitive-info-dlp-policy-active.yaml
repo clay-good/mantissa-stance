@@ -1,0 +1,31 @@
+id: m365-dlp-001
+name: At least one DLP policy covers sensitive info types and is enabled
+description: |
+  The tenant must have at least one enabled DLP policy whose rules
+  reference sensitive information types (PII, financial, health). A tenant
+  with no enabled DLP rules has no programmatic control over what content
+  leaves Exchange / SharePoint / Teams.
+
+enabled: true
+severity: high
+
+resource_type: m365_dlp_summary
+
+check:
+  type: expression
+  expression: "resource.any_enabled_policy_covers_sensitive_info == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "3.2.1"
+
+remediation:
+  guidance: |
+    Purview compliance portal → Data loss prevention → Policies → Create
+    policy: pick the "Financial" or "Privacy" template, scope to all
+    workloads, and set Mode = "Turn it on right away".
+
+tags:
+  - microsoft-365
+  - dlp

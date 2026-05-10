@@ -1,0 +1,33 @@
+id: gws-auth-003
+name: Web session length restricted
+description: |
+  Web session duration must be bounded so that stolen session cookies have a
+  short useful life. 8 hours (28800 seconds) or less is the recommended cap.
+
+enabled: true
+severity: medium
+
+resource_type: gws_tenant_security
+
+check:
+  type: expression
+  expression: "resource.session_length_seconds != null and resource.session_length_seconds <= 28800"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.7"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-12"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → Authentication → Google session control
+    2. Set "Web session length" to 8 hours (or shorter as appropriate)
+    3. Apply to top-level OU; tighten further for privileged OUs
+
+tags:
+  - google-workspace
+  - authentication
+  - session

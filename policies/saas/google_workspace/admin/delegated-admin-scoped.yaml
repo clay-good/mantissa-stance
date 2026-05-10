@@ -1,0 +1,35 @@
+id: gws-admin-003
+name: Delegated admin role assignments are OU-scoped
+description: |
+  Delegated admin roles should be scoped to an OU rather than granted at the
+  customer level. Customer-scoped delegated roles produce silent privilege
+  sprawl and undermine the purpose of delegation.
+
+enabled: true
+severity: medium
+
+resource_type: gws_role_assignment
+
+check:
+  type: expression
+  expression: "resource.is_super_admin_role == true or resource.is_system_role == true or resource.scope_type == 'ORG_UNIT'"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.10"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6"
+
+remediation:
+  guidance: |
+    1. Admin Console → Account → Admin roles → select the role
+    2. Under Admins, remove the customer-wide assignment
+    3. Re-assign at the appropriate OU
+
+tags:
+  - google-workspace
+  - admin
+  - delegation
+  - least-privilege

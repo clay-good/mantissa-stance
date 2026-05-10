@@ -1,0 +1,32 @@
+id: gws-drive-003
+name: Drive Trust Rules are enabled
+description: |
+  Trust Rules let admins explicitly govern which OUs and groups can share
+  Drive content with which external audiences. Without Trust Rules, sharing
+  is governed only by the binary tenant-wide setting and individual user
+  decisions.
+
+enabled: true
+severity: medium
+
+resource_type: gws_drive_settings
+
+check:
+  type: expression
+  expression: "resource.trust_rules_enabled == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.5"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Drive and Docs → Sharing settings → Trust rules
+    2. Enable Trust Rules and create at least one rule for the most-sensitive OU
+    3. Test with a non-admin account before applying broadly
+
+tags:
+  - google-workspace
+  - drive
+  - trust-rules

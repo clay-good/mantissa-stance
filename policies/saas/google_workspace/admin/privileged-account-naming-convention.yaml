@@ -1,0 +1,40 @@
+id: gws-admin-004
+name: Super admin accounts follow the privileged-account naming convention
+description: |
+  Super admins must use a dedicated, recognizable account (e.g. ``admin-*``,
+  ``*-admin@``, or ``priv-*``). Mixing day-to-day mailboxes with super admin
+  authority is a recurring incident pattern: a single phishing hit on the
+  user's normal account compromises the tenant.
+
+  Treats both Workspace's ``admin`` prefix/suffix and the common ``priv``
+  convention as acceptable. Tighten this expression for stricter standards.
+
+enabled: true
+severity: medium
+
+resource_type: gws_user
+
+check:
+  type: expression
+  expression: "resource.is_super_admin == false or resource.username starts_with 'admin' or resource.username starts_with 'priv' or resource.username contains '-admin' or resource.username contains 'admin-'"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.11"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "AC-6(5)"
+
+remediation:
+  guidance: |
+    1. Provision a dedicated admin account (e.g. admin-firstname@domain)
+    2. Move the super admin role assignment to the dedicated account
+    3. Demote the user's normal account to a non-admin role
+    4. Document the operator → privileged-account mapping
+
+tags:
+  - google-workspace
+  - admin
+  - naming-convention
+  - privileged-access

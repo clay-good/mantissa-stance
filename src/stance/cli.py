@@ -34,6 +34,7 @@ from stance.cli_shell import cmd_shell
 from stance.cli_watch import cmd_watch
 from stance.cli_diff import cmd_diff
 from stance.cli_dspm import cmd_dspm
+from stance.cli_saas import add_saas_parser, cmd_saas
 from stance.cli_identity import cmd_identity
 from stance.cli_exposure import cmd_exposure
 from stance.cli_analytics import cmd_analytics
@@ -992,8 +993,20 @@ def create_parser() -> argparse.ArgumentParser:
     dspm_scan_parser.add_argument(
         "--cloud",
         choices=["aws", "gcp", "azure"],
-        required=True,
-        help="Cloud provider",
+        required=False,
+        help="Cloud provider (required unless --source is set)",
+    )
+    # SaaS DSPM sources (SAAS_POSTURE_SPEC PR 8/PR 9). When --source is set,
+    # --cloud is ignored and the scanner reads collected items from --snapshot.
+    dspm_scan_parser.add_argument(
+        "--source",
+        choices=["m365-sharepoint", "m365-onedrive", "m365-exchange"],
+        help="SaaS source to scan (overrides --cloud)",
+    )
+    dspm_scan_parser.add_argument(
+        "--snapshot",
+        default="",
+        help="Path to a tenant snapshot JSON file (required with --source)",
     )
     dspm_scan_parser.add_argument(
         "--format",
@@ -1905,6 +1918,9 @@ def create_parser() -> argparse.ArgumentParser:
     # asm command (Attack Surface Management)
     add_asm_parser(subparsers)
 
+    # saas command (Google Workspace, Microsoft 365 — SAAS_POSTURE_SPEC §9)
+    add_saas_parser(subparsers)
+
     return parser
 
 
@@ -1984,6 +2000,7 @@ def main() -> int:
         "ciem": cmd_ciem,
         "benchmark": cmd_benchmark,
         "asm": cmd_asm,
+        "saas": cmd_saas,
     }
 
     handler = command_handlers.get(args.command)

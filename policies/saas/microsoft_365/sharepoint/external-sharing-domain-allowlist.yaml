@@ -1,0 +1,31 @@
+id: m365-sharepoint-004
+name: External sharing is restricted to an explicit domain allowlist
+description: |
+  When external sharing is permitted, it must be constrained to an explicit
+  domain allowlist. The blocklist mode is best-effort and trivially
+  bypassed by attackers using free-mail or look-alike domains.
+
+enabled: true
+severity: medium
+
+resource_type: sharepoint_tenant_settings
+
+check:
+  type: expression
+  expression: "resource.external_sharing_restricted == true or resource.external_sharing_domain_allowlist_enforced == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.2.4"
+
+remediation:
+  guidance: |
+    SharePoint admin → Policies → Sharing → "More external sharing settings":
+      Limit external sharing by domain → Allow only specific domains
+      Add the partner-domain list explicitly.
+
+tags:
+  - microsoft-365
+  - sharepoint
+  - domain-allowlist

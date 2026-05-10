@@ -1,0 +1,33 @@
+id: m365-teams-001
+name: Teams external access is restricted
+description: |
+  Teams federation with external tenants and consumer Skype must be
+  restricted via an allowlist or disabled. Open federation means any
+  Teams user on the internet can DM the tenant's users — the standard
+  initial-access vector for the "Storm-0324" / "Midnight Blizzard"
+  Teams-phishing kits.
+
+enabled: true
+severity: high
+
+resource_type: teams_settings
+
+check:
+  type: expression
+  expression: "resource.external_access_restricted == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "8.1.1"
+
+remediation:
+  guidance: |
+    Teams admin → Users → External access:
+      Set "Users can communicate with other Skype for Business and Teams users"
+      to "Allow only specific external domains" and add the partner allowlist.
+
+tags:
+  - microsoft-365
+  - teams
+  - federation

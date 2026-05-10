@@ -25,6 +25,11 @@ class BenchmarkType(Enum):
     EKS = "cis-eks"
     AKS = "cis-aks"
     GKE = "cis-gke"
+    # SaaS benchmarks added in SAAS_POSTURE_SPEC PR 8. Coverage matrices live
+    # under docs/cis_benchmarks/ — the framework strings used here must match
+    # the ``compliance.framework`` values used by policies/saas/**/*.yaml.
+    GOOGLE_WORKSPACE_FOUNDATIONS = "cis-google-workspace-foundations"
+    MICROSOFT_365_FOUNDATIONS = "cis-microsoft-365-foundations"
 
 
 class CISProfile(Enum):

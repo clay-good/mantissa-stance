@@ -1,0 +1,34 @@
+id: gws-admin-002
+name: All super admins enrolled in 2-Step Verification
+description: |
+  Super admins hold tenant-takeover privilege. Every super admin must be
+  enrolled in 2SV regardless of org-wide enforcement state.
+
+enabled: true
+severity: critical
+
+resource_type: gws_tenant_security
+
+check:
+  type: expression
+  expression: "resource.super_admins_without_2sv == 0"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.3"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-2(1)"
+
+remediation:
+  guidance: |
+    1. Admin Console → Directory → Users → filter by Super Admin
+    2. For each super admin not enrolled, require enrollment within 24 hours
+    3. Until enrolled, suspend the admin role assignment
+
+tags:
+  - google-workspace
+  - admin
+  - 2sv
+  - critical

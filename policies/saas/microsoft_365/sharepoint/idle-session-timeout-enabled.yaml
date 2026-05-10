@@ -1,0 +1,30 @@
+id: m365-sharepoint-003
+name: SharePoint idle session timeout is enabled
+description: |
+  Idle session sign-out forces re-auth after inactivity, capping the useful
+  life of a stolen browser cookie. CIS recommends ≤ 60 minutes for
+  unmanaged-device contexts.
+
+enabled: true
+severity: medium
+
+resource_type: sharepoint_tenant_settings
+
+check:
+  type: expression
+  expression: "resource.idle_session_timeout_enabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "7.2.3"
+
+remediation:
+  guidance: |
+    SharePoint admin → Policies → Access control → Idle session sign-out:
+    Enable, set to 1 hour (or shorter).
+
+tags:
+  - microsoft-365
+  - sharepoint
+  - session

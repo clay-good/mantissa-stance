@@ -1,0 +1,30 @@
+id: gws-mobile-002
+name: Screen lock required on managed mobile devices
+description: |
+  Managed devices must require a screen lock. A device that auto-syncs
+  corporate mail and has no lock screen is, in practice, an authentication
+  bypass for any attacker who picks it up.
+
+enabled: true
+severity: medium
+
+resource_type: gws_mobile_settings
+
+check:
+  type: expression
+  expression: "resource.screen_lock_required == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "7.2"
+
+remediation:
+  guidance: |
+    1. Admin Console → Devices → Mobile & endpoints → Settings → Password requirements
+    2. Set "Require password" = on; configure complexity per the security policy
+
+tags:
+  - google-workspace
+  - mobile
+  - screen-lock

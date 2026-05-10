@@ -1,0 +1,32 @@
+id: m365-exchange-002
+name: Org-wide automatic mail forwarding to external recipients is blocked
+description: |
+  The default RemoteDomain "AutoForwardEnabled" must be off so that user
+  inbox rules and "Forward all" mailbox settings cannot silently route
+  mail outside the tenant. Auto-forwarding is the most common BEC
+  exfiltration channel.
+
+enabled: true
+severity: high
+
+resource_type: exchange_org_config
+
+check:
+  type: expression
+  expression: "resource.org_wide_mail_forwarding_allowed == false"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "6.1.2"
+
+remediation:
+  guidance: |
+    Set-RemoteDomain Default -AutoForwardEnabled $false
+    (or restrict via a transport rule that rejects external forwards).
+
+tags:
+  - microsoft-365
+  - exchange
+  - forwarding
+  - bec

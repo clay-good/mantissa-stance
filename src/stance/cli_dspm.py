@@ -55,6 +55,47 @@ def cmd_dspm(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_dspm_scan_saas_source(args: argparse.Namespace) -> int:
+    """SaaS DSPM scan handler — reads pre-classified findings from --snapshot.
+
+    The snapshot is the JSON form of an ``ExtendedScanResult.to_dict()``
+    written by the connect flow (production). Tests pass a small fixture.
+    """
+    snapshot = getattr(args, "snapshot", "")
+    if not snapshot:
+        print("Error: --snapshot is required when --source is set")
+        return 1
+    output_format = getattr(args, "format", "table")
+    try:
+        data = json.loads(__import__("pathlib").Path(snapshot).read_text())
+    except Exception as e:
+        print(f"Error: could not load snapshot {snapshot}: {e}")
+        return 1
+
+    findings = data.get("findings", [])
+    summary = data.get("summary", {})
+    source = data.get("source_type", args.source)
+
+    if output_format == "json":
+        print(json.dumps({"source": source, "findings": findings, "summary": summary}, indent=2))
+        return 0
+    print(f"Source:    {source}")
+    print(f"Target:    {data.get('target', '')}")
+    print(f"Findings:  {len(findings)}")
+    print(
+        f"Scanned:   {summary.get('total_objects_scanned', 0)} "
+        f"(skipped {summary.get('total_objects_skipped', 0)})"
+    )
+    if findings:
+        print("")
+        print(f"{'Severity':<10} {'Score':<8} Object")
+        print(f"{'-'*10} {'-'*8} {'-'*40}")
+        for f in findings[:50]:
+            score = (f.get("metadata") or {}).get("exposure_score", 0)
+            print(f"{f.get('severity', ''):<10} {score:<8} {f.get('object_name', '')}")
+    return 0
+
+
 def _cmd_dspm_scan(args: argparse.Namespace) -> int:
     """
     Scan cloud storage for sensitive data.
@@ -63,7 +104,13 @@ def _cmd_dspm_scan(args: argparse.Namespace) -> int:
     - AWS S3 buckets
     - GCP Cloud Storage buckets
     - Azure Blob Storage containers
+    - SaaS sources via --source (m365-sharepoint, m365-onedrive, m365-exchange):
+      reads pre-collected ``ExtendedScanFinding`` records from --snapshot.
     """
+    source = getattr(args, "source", None)
+    if source:
+        return _cmd_dspm_scan_saas_source(args)
+
     from stance.dspm.scanners import (
         S3DataScanner,
         GCSDataScanner,
@@ -72,7 +119,10 @@ def _cmd_dspm_scan(args: argparse.Namespace) -> int:
     )
 
     target = args.target
-    cloud = args.cloud
+    cloud = getattr(args, "cloud", None)
+    if not cloud:
+        print("Error: --cloud is required when --source is not set")
+        return 1
     output_format = getattr(args, "format", "table")
     sample_size = getattr(args, "sample_size", 100)
     max_object_size_bytes = getattr(args, "max_file_size", 10 * 1024 * 1024)  # 10MB

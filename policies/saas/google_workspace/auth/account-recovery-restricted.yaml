@@ -1,0 +1,35 @@
+id: gws-auth-004
+name: Self-service account recovery disabled for super admins
+description: |
+  Super admins must not rely on phone/email-based self-service recovery.
+  Recovery flows have repeatedly been used in real attacks to bypass MFA on
+  the most-privileged accounts.
+
+enabled: true
+severity: high
+
+resource_type: gws_tenant_security
+
+check:
+  type: expression
+  expression: "resource.account_recovery_enabled_for_admins == false"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "1.5"
+  - framework: nist-800-53
+    version: "rev5"
+    control: "IA-5"
+
+remediation:
+  guidance: |
+    1. Admin Console → Security → Authentication → Account recovery
+    2. Set "Allow super admins to recover their account" to OFF
+    3. Document the manual recovery process for at least one alternate admin
+
+tags:
+  - google-workspace
+  - authentication
+  - account-recovery
+  - super-admin

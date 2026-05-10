@@ -1,0 +1,32 @@
+id: m365-defender-001
+name: Defender Safe Links is enabled
+description: |
+  At least one enabled Defender Safe Links policy must apply tenant-wide.
+  Safe Links rewrites URLs at click-time, which is the only reliable
+  defense against AiTM phishing kits that swap landing-page URLs after the
+  initial mail scan.
+
+enabled: true
+severity: high
+
+resource_type: defender_policy_summary
+
+check:
+  type: expression
+  expression: "resource.any_safe_links_policy_enabled == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "2.1.1"
+
+remediation:
+  guidance: |
+    Defender portal → Email & collaboration → Policies → Safe Links: enable
+    the default policy (or create one scoped to all users) with "Track
+    clicks" and "Apply real-time URL scanning".
+
+tags:
+  - microsoft-365
+  - defender
+  - safe-links

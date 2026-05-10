@@ -1,0 +1,33 @@
+id: m365-apps-004
+name: No orphaned app registrations
+description: |
+  Every app registration must have an associated service principal in the
+  tenant. Orphaned registrations (no SP) accumulate when teams retire
+  workloads without removing their Entra resources, and any active
+  credentials on them remain a usable foothold.
+
+enabled: true
+severity: medium
+
+resource_type: entra_app_registration
+
+check:
+  type: expression
+  expression: "resource.is_orphaned == false"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "5.1.8"
+
+remediation:
+  guidance: |
+    1. For each orphaned app: confirm it is unused (no recent sign-ins, no
+       referenced credentials in code)
+    2. Delete the app registration
+
+tags:
+  - microsoft-365
+  - entra
+  - apps
+  - orphans

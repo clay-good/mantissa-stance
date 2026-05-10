@@ -1,0 +1,30 @@
+id: gws-chrome-001
+name: Chrome enterprise policies are enforced
+description: |
+  Chrome browser/OS enterprise policies must be enforced via Cloud
+  Management. Without enforcement, the OU's browser hardening (proxy,
+  password reuse warnings, DLP, extension allowlist) is advisory only.
+
+enabled: true
+severity: medium
+
+resource_type: gws_chrome_policy
+
+check:
+  type: expression
+  expression: "resource.enterprise_policies_enforced == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "6.1"
+
+remediation:
+  guidance: |
+    1. Admin Console → Devices → Chrome → Settings
+    2. Enroll the OU in Chrome Browser Cloud Management
+    3. Set "Apply policies" to enforced for the OU
+
+tags:
+  - google-workspace
+  - chrome

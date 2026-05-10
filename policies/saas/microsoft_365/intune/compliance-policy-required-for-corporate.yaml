@@ -1,0 +1,34 @@
+id: m365-intune-001
+name: Compliance policy required for every corporate platform
+description: |
+  Every corporate-issued platform (Windows, iOS, macOS, Android) must have
+  at least one assigned Intune device-compliance policy. A platform without
+  an assigned policy is "compliant by default" — Conditional Access cannot
+  block sign-ins from it, so device-compliance grant requirements degrade
+  to allow.
+
+enabled: true
+severity: high
+
+resource_type: intune_compliance_summary
+
+check:
+  type: expression
+  expression: "resource.all_corporate_platforms_covered == true"
+
+compliance:
+  - framework: cis-microsoft-365-foundations
+    version: "3.0.0"
+    control: "9.1.1"
+
+remediation:
+  guidance: |
+    Intune admin → Devices → Compliance policies: create and assign a
+    policy for each platform listed in
+    ``corporate_platforms_missing_policy``. Verify CA "require compliant
+    device" still grants on test devices afterward.
+
+tags:
+  - microsoft-365
+  - intune
+  - device-compliance

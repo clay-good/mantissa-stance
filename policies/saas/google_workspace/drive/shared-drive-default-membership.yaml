@@ -1,0 +1,33 @@
+id: gws-drive-004
+name: Shared drives restrict access to members only
+description: |
+  Each shared drive must enforce ``driveMembersOnly`` and
+  ``domainUsersOnly`` so that membership is the access boundary. Shared drives
+  with neither restriction effectively act as wide-open content silos for the
+  tenant and any external collaborators a member chooses.
+
+enabled: true
+severity: medium
+
+resource_type: gws_shared_drive
+
+check:
+  type: expression
+  expression: "resource.drive_members_only == true and resource.domain_users_only == true"
+
+compliance:
+  - framework: cis-google-workspace-foundations
+    version: "1.0.0"
+    control: "5.6"
+
+remediation:
+  guidance: |
+    1. Admin Console → Apps → Drive and Docs → Manage shared drives → select drive
+    2. Edit settings: enable "Access to people outside this organization"=OFF
+       and "Sharing with non-members" = OFF
+    3. Repeat for every shared drive surfaced by this finding
+
+tags:
+  - google-workspace
+  - drive
+  - shared-drive
